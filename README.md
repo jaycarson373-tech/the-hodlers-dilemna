@@ -2,6 +2,8 @@
 
 Frontend landing page for **The Hodler’s Dilemna**, an on-chain social experiment about conviction, cooperation, betrayal, and the prisoner’s dilemma. It includes real Solana Wallet Standard connection for compatible browser wallets.
 
+Live site: [jaycarson373-tech.github.io/the-hodlers-dilemna](https://jaycarson373-tech.github.io/the-hodlers-dilemna/)
+
 ## Run locally
 
 Requires Node.js 22.13+ and pnpm 11.
