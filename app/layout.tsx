@@ -20,15 +20,16 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ??
 const title = "The Hodler’s Dilemna — On-Chain Social Experiment";
 const description =
   "A frontend preview of an on-chain social experiment about conviction, cooperation, betrayal, and the prisoner’s dilemma.";
-const socialImage = `${siteUrl}/og.png`;
+const socialImage = `${siteUrl}/official-wordmark.jpg`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
   icons: {
-    icon: `${siteUrl}/favicon.svg`,
-    shortcut: `${siteUrl}/favicon.svg`,
+    icon: `${siteUrl}/official-mark.jpg`,
+    shortcut: `${siteUrl}/official-mark.jpg`,
+    apple: `${siteUrl}/official-mark.jpg`,
   },
   openGraph: {
     type: "website",
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
     siteName: "The Hodler’s Dilemna",
     title,
     description,
-    images: [{ url: socialImage, width: 1734, height: 907, alt: title }],
+    images: [{ url: socialImage, width: 1280, height: 426, alt: title }],
   },
   twitter: {
     card: "summary_large_image",

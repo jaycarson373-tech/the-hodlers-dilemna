@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { SectionHeading } from "@/components/section-heading";
 import { WalletConnect } from "@/components/wallet-connect";
@@ -9,6 +9,7 @@ import {
   leaderboard,
   mechanics,
   outcomes,
+  roundHistory,
   streakSteps,
   tiers,
 } from "@/lib/experiment-data";
@@ -26,12 +27,49 @@ const formatTime = (seconds: number) => {
     .join(":");
 };
 
-function BrandMark() {
+function OfficialMark({ className = "" }: { className?: string }) {
   return (
-    <span className="brand-mark" aria-hidden="true">
-      <span />
-      <span />
+    <span className={`official-mark ${className}`} aria-hidden="true">
+      {/* Kept unprocessed so the supplied official artwork remains byte-for-byte unchanged. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="./official-mark.jpg" alt="" width="1254" height="1254" />
     </span>
+  );
+}
+
+function AmbientBackground() {
+  return (
+    <div className="ambient-background" aria-hidden="true">
+      <div className="ambient-wash" />
+      <div className="ambient-rings" />
+      <div className="page-particles">
+        {Array.from({ length: 16 }).map((_, index) => (
+          <i
+            key={index}
+            style={{
+              left: `${(index * 37) % 97}%`,
+              top: `${(index * 53) % 91}%`,
+              animationDelay: `-${index * 0.7}s`,
+              animationDuration: `${12 + (index % 5) * 2}s`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AnimatedValue({ children }: { children: React.ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.span
+      key={String(children)}
+      initial={reduceMotion ? false : { opacity: 0, y: 7, filter: "blur(3px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.span>
   );
 }
 
@@ -98,61 +136,96 @@ function ExperimentPanel({
   decision: Decision;
   onDecision: (decision: Exclude<Decision, null>) => void;
 }) {
+  const defectSignal = 100 - cooperateSignal;
+
   return (
-    <div className="experiment-panel terminal-frame">
+    <div className="experiment-panel live-protocol-panel terminal-frame">
       <div className="corner corner-tl" aria-hidden="true" />
       <div className="corner corner-br" aria-hidden="true" />
       <div className="panel-topline">
-        <span>ROUND 024</span>
+        <span className="live-panel-brand"><OfficialMark className="official-mark-dashboard" /> LIVE DILEMMA / PROTOCOL PREVIEW</span>
         <span className="live-status"><i /> DECISION WINDOW OPEN</span>
       </div>
 
-      <div className="pot-readout">
-        <p>FEE POT / ILLUSTRATIVE</p>
-        <strong>{pot.toFixed(2)} <small>SOL</small></strong>
-      </div>
-
-      <div className="timer-readout">
-        <span>TIME REMAINING</span>
-        <span>{formatTime(seconds)}</span>
-      </div>
-
-      <div className="signal-box">
-        <div className="signal-heading">
-          <span>NON-BINDING PUBLIC SIGNALS</span>
-          <span>SIMULATED PREVIEW</span>
+      <div className="live-metrics" aria-label="Illustrative live protocol data">
+        <div className="live-metric live-metric-primary">
+          <span>CURRENT ROUND</span>
+          <strong><AnimatedValue>024</AnimatedValue></strong>
+          <small>PROPOSED ROUND STRUCTURE</small>
         </div>
-        <SignalBar label="COOPERATE" value={cooperateSignal} tone="cooperate" />
-        <SignalBar label="DEFECT" value={100 - cooperateSignal} tone="defect" />
+        <div className="live-metric live-metric-primary">
+          <span>TIME UNTIL NEXT DECISION</span>
+          <strong><AnimatedValue>{formatTime(seconds)}</AnimatedValue></strong>
+          <small>SIMULATED COUNTDOWN</small>
+        </div>
+        <div className="live-metric cooperate-metric">
+          <span>COOPERATE</span>
+          <strong><AnimatedValue>{cooperateSignal}%</AnimatedValue></strong>
+          <small>NON-BINDING SIGNAL</small>
+        </div>
+        <div className="live-metric defect-metric">
+          <span>DEFECT</span>
+          <strong><AnimatedValue>{defectSignal}%</AnimatedValue></strong>
+          <small>NON-BINDING SIGNAL</small>
+        </div>
+        <div className="live-metric">
+          <span>ACTIVE HOLDERS</span>
+          <strong><AnimatedValue>10,842</AnimatedValue></strong>
+          <small>ILLUSTRATIVE DATA</small>
+        </div>
+        <div className="live-metric gold-metric">
+          <span>LONGEST HOLD STREAK</span>
+          <strong><AnimatedValue>94 DAYS</AnimatedValue></strong>
+          <small>SEASON 00 / PREVIEW</small>
+        </div>
       </div>
 
-      <div className="decision-grid" aria-label="Decision demonstration">
-        <button
-          type="button"
-          className={`decision-button cooperate ${decision === "cooperate" ? "selected" : ""}`}
-          aria-pressed={decision === "cooperate"}
-          onClick={() => onDecision("cooperate")}
-        >
-          <span className="decision-number">01</span>
-          <strong>COOPERATE</strong>
-          <small>Protect the collective distribution.</small>
-        </button>
-        <button
-          type="button"
-          className={`decision-button defect ${decision === "defect" ? "selected" : ""}`}
-          aria-pressed={decision === "defect"}
-          onClick={() => onDecision("defect")}
-        >
-          <span className="decision-number">02</span>
-          <strong>DEFECT</strong>
-          <small>Risk the round for a larger individual share.</small>
-        </button>
+      <div className="live-panel-lower">
+        <div className="live-pot-and-signals">
+          <div className="pot-readout">
+            <p>FEE POT / ILLUSTRATIVE</p>
+            <strong><AnimatedValue>{pot.toFixed(2)}</AnimatedValue> <small>SOL</small></strong>
+          </div>
+          <div className="signal-box">
+            <div className="signal-heading">
+              <span>NON-BINDING PUBLIC SIGNALS</span>
+              <span>SIMULATED PREVIEW</span>
+            </div>
+            <SignalBar label="COOPERATE" value={cooperateSignal} tone="cooperate" />
+            <SignalBar label="DEFECT" value={defectSignal} tone="defect" />
+          </div>
+        </div>
+
+        <div className="decision-grid" aria-label="Decision demonstration">
+          <motion.button
+            type="button"
+            className={`decision-button cooperate ${decision === "cooperate" ? "selected" : ""}`}
+            aria-pressed={decision === "cooperate"}
+            onClick={() => onDecision("cooperate")}
+            whileTap={{ scale: 0.985 }}
+          >
+            <span className="decision-number">01</span>
+            <strong>COOPERATE</strong>
+            <small>Protect the collective distribution.</small>
+          </motion.button>
+          <motion.button
+            type="button"
+            className={`decision-button defect ${decision === "defect" ? "selected" : ""}`}
+            aria-pressed={decision === "defect"}
+            onClick={() => onDecision("defect")}
+            whileTap={{ scale: 0.985 }}
+          >
+            <span className="decision-number">02</span>
+            <strong>DEFECT</strong>
+            <small>Risk the round for a larger individual share.</small>
+          </motion.button>
+        </div>
       </div>
 
       <p className="panel-footnote" role="status" aria-live="polite">
         {decision
           ? `${decision.toUpperCase()} selected for local preview. No transaction was created.`
-          : "Demonstration controls only. No wallet or blockchain connection."}
+          : "Demonstration controls only. No blockchain transaction will be created."}
       </p>
     </div>
   );
@@ -166,6 +239,7 @@ export function HoldersDilemma() {
   const [decision, setDecision] = useState<Decision>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [uiNotice, setUiNotice] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const streakRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: streakRef,
@@ -174,6 +248,7 @@ export function HoldersDilemma() {
   const streakProgress = useTransform(scrollYProgress, [0.12, 0.7], [0, 1]);
 
   useEffect(() => {
+    const loadingTimer = window.setTimeout(() => setIsLoading(false), reduceMotion ? 180 : 900);
     const timer = window.setInterval(() => {
       setSeconds((current) => (current > 0 ? current - 1 : 6138));
     }, 1000);
@@ -184,10 +259,11 @@ export function HoldersDilemma() {
     }, 5600);
 
     return () => {
+      window.clearTimeout(loadingTimer);
       window.clearInterval(timer);
       window.clearInterval(dataPulse);
     };
-  }, []);
+  }, [reduceMotion]);
 
   useEffect(() => {
     if (!decision) return;
@@ -204,6 +280,28 @@ export function HoldersDilemma() {
 
   return (
     <>
+      <AnimatePresence>
+        {isLoading ? (
+          <motion.div
+            className="loading-screen"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0.01 : 0.45 }}
+            aria-hidden="true"
+          >
+            <motion.div
+              className="loading-mark-wrap"
+              animate={reduceMotion ? undefined : { scale: [0.97, 1.025, 0.97] }}
+              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <OfficialMark className="official-mark-loading" />
+            </motion.div>
+            <span>INITIALIZING EXPERIMENT / PREVIEW</span>
+            <i><b /></i>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <AmbientBackground />
       <a className="skip-link" href="#main-content">Skip to main content</a>
 
       <header className="site-header">
@@ -213,7 +311,7 @@ export function HoldersDilemma() {
         </div>
         <nav className="site-nav" aria-label="Primary navigation">
           <a className="brand" href="#experiment" onClick={closeMenu}>
-            <BrandMark />
+            <OfficialMark className="official-mark-nav" />
             <span>THE HODLER’S DILEMNA</span>
           </a>
 
@@ -284,11 +382,27 @@ export function HoldersDilemma() {
           </div>
 
           <motion.div
-            className="hero-panel-wrap"
+            className="hero-logo-stage"
             initial={reduceMotion ? false : { opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
+            <div className="hero-logo-orbit" aria-hidden="true"><i /><i /><i /></div>
+            <motion.div
+              className="hero-logo-aura"
+              animate={reduceMotion ? undefined : { rotate: [-0.45, 0.45, -0.45], scale: [0.99, 1.012, 0.99] }}
+              transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <OfficialMark className="official-mark-hero" />
+            </motion.div>
+            <div className="hero-logo-caption"><span>COOPERATE</span><i /> <span>DEFECT</span></div>
+          </motion.div>
+
+          <div className="scroll-cue" aria-hidden="true"><span>SCROLL TO EXAMINE</span><i /></div>
+        </section>
+
+        <section className="live-dilemma-section section-shell" aria-label="Live Dilemma preview">
+          <Reveal>
             <ExperimentPanel
               seconds={seconds}
               pot={pot}
@@ -296,9 +410,7 @@ export function HoldersDilemma() {
               decision={decision}
               onDecision={setDecision}
             />
-          </motion.div>
-
-          <div className="scroll-cue" aria-hidden="true"><span>SCROLL TO EXAMINE</span><i /></div>
+          </Reveal>
         </section>
 
         <section className="content-section section-shell" id="dilemma">
@@ -335,6 +447,27 @@ export function HoldersDilemma() {
             </div>
           </Reveal>
 
+          <div className="round-history-heading">
+            <span>ROUND HISTORY / ILLUSTRATIVE PREVIEW</span>
+            <span>OUTCOMES ARE PLACEHOLDER DATA</span>
+          </div>
+          <div className="round-history-grid">
+            {roundHistory.map((round, index) => (
+              <Reveal className={`history-card ${round.tone}`} delay={index * 0.075} key={round.round}>
+                <div className="history-card-top">
+                  <span>ROUND {round.round}</span>
+                  <i aria-hidden="true" />
+                </div>
+                <strong>{round.outcome}</strong>
+                <dl>
+                  <div><dt>PUBLIC SIGNAL</dt><dd>{round.split}</dd></div>
+                  <div><dt>FEE POT</dt><dd>{round.pot}</dd></div>
+                </dl>
+                <span className="history-result">{round.result}</span>
+              </Reveal>
+            ))}
+          </div>
+
           <Reveal className="pull-quote">
             <span className="quote-index">{"//"}</span>
             <p>Every round rewards coordination, tempts betrayal, and records who chose conviction over extraction.</p>
@@ -367,7 +500,7 @@ export function HoldersDilemma() {
             <Reveal className="wallet-card-wrap" delay={0.12}>
               <div className="wallet-card terminal-frame">
                 <div className="wallet-card-header"><span>SAMPLE WALLET</span><span className="status-dot">TRACKING</span></div>
-                <div className="wallet-ident"><BrandMark /><strong>7F3...A91</strong></div>
+                <div className="wallet-ident"><OfficialMark className="official-mark-wallet" /><strong>7F3...A91</strong></div>
                 <dl>
                   <div><dt>Current Streak</dt><dd>12 Days</dd></div>
                   <div><dt>Holding Tier</dt><dd>Diamond Hands</dd></div>
@@ -545,7 +678,7 @@ export function HoldersDilemma() {
 
       <footer className="site-footer section-shell">
         <div className="footer-top">
-          <a className="brand footer-brand" href="#experiment"><BrandMark /><span>THE HODLER’S DILEMNA</span></a>
+          <a className="brand footer-brand" href="#experiment"><OfficialMark className="official-mark-footer" /><span>THE HODLER’S DILEMNA</span></a>
           <div className="footer-links">
             <button type="button" onClick={() => showPreviewNotice("The official X account will be announced before launch.")}>X</button>
             <button type="button" onClick={() => showPreviewNotice("The official Telegram will be announced before launch.")}>Telegram</button>
