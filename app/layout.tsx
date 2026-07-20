@@ -13,9 +13,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  "https://jaycarson373-tech.github.io/the-hodlers-dilemna";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://jaycarson373-tech.github.io/the-hodlers-dilemna");
 const title = "The Hodler’s Dilemna — On-Chain Social Experiment";
 const description =
   "A frontend preview of an on-chain social experiment about conviction, cooperation, betrayal, and the prisoner’s dilemma.";
