@@ -21,6 +21,15 @@ export type FeedEntry = {
   tone: "cooperate" | "defect" | "gold" | "neutral";
 };
 
+export type RoundHistoryEntry = {
+  round: string;
+  outcome: string;
+  split: string;
+  pot: string;
+  result: string;
+  tone: "cooperate" | "defect";
+};
+
 export const tiers: Tier[] = [
   {
     name: "Paper Hands",
@@ -63,6 +72,13 @@ export const feed: FeedEntry[] = [
   { time: "T−14:31", event: "BETRAYAL BOUNTY FUNDED", detail: "A 19-day streak was forfeited.", tone: "gold" },
   { time: "T−08:12", event: "TEMPTATION EVENT SURVIVED", detail: "412 wallets maintained their streak.", tone: "gold" },
   { time: "T−00:00", event: "ROUND 024 OPENED", detail: "Decision window is now active.", tone: "neutral" },
+];
+
+export const roundHistory: RoundHistoryEntry[] = [
+  { round: "023", outcome: "MAJORITY COOPERATED", split: "67% / 33%", pot: "124.18 SOL", result: "DISTRIBUTED", tone: "cooperate" },
+  { round: "022", outcome: "TOO MANY DEFECTED", split: "46% / 54%", pot: "81.30 SOL", result: "ROLLED OVER", tone: "defect" },
+  { round: "021", outcome: "MAJORITY COOPERATED", split: "71% / 29%", pot: "76.44 SOL", result: "DISTRIBUTED", tone: "cooperate" },
+  { round: "020", outcome: "TOO MANY DEFECTED", split: "48% / 52%", pot: "42.06 SOL", result: "ROLLED OVER", tone: "defect" },
 ];
 
 export const mechanics = [
