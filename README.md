@@ -1,21 +1,22 @@
-# Hodlers Dilemma.fun
+# HODL or NO HODL
 
-Hodlers Dilemma.fun is a Solana game about conviction, cooperation, and betrayal. This repository contains the branded Next.js website, the Railway keeper/API, Supabase game state, and optional Anchor program source.
+HODL or NO HODL is a Solana holder game about conviction, cooperation, and betrayal. This repository contains the Next.js website, Railway API/worker, and Supabase read model.
 
-Live website: [hodlersdilemma.fun](https://www.hodlersdilemma.fun/)
+Live website: [hodlornohodl.fun](https://hodlornohodl.fun/)
 
-## What is implemented
+## Upgrade status
 
-- Solana Wallet Standard connect and disconnect
-- Signed-wallet sessions (no passwords or private-key custody)
-- Mainnet SPL token holding verification
-- 30-minute Cooperate/Defect rounds
-- Weighted votes, defector bonus, pot rollover, and claim-based SOL payouts from the configured payout wallet
-- Automatic round opening and settlement from Railway
-- Mainnet Pump creator-fee collection on a 15-minute schedule, credited into the next game pot
-- Supabase read model for rounds, holders, events, and leaderboard data
+The full upgrade is being delivered in five ordered pull requests. Phase 1 covers the public game explanation and live-panel read surface only:
 
-The current launch path does not require deploying the Anchor program. Supabase tracks the game state while wallet signatures verify players and mainnet RPC verifies token holdings.
+- seeded simulation fallback when live configuration is unavailable
+- exact 70% cooperation rules and streak ladder
+- 1,000,000-token minimum box eligibility
+- 80% episode pot / 20% Banker reserve model and reserve safety rules
+- pot rollover display
+- Supabase Realtime Banker Feed with a scripted simulation fallback
+- six-hour episode, final-hour decision, and 15-minute fee-sweep copy
+
+Authentication, sealed voting, settlement, payouts, and the final player-room redesign are intentionally reserved for later phases.
 
 ## Website
 
@@ -32,12 +33,16 @@ Vercel needs only:
 
 ```dotenv
 NEXT_PUBLIC_API_URL=https://your-railway-service.up.railway.app
-NEXT_PUBLIC_SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
+NEXT_PUBLIC_TOKEN_MINT=your_public_token_mint
 ```
+
+The Supabase publishable key and token mint are public identifiers. Never expose a service-role key, wallet keypair, Helius key, or any other secret with a `NEXT_PUBLIC_` prefix.
 
 ## Database
 
-Run [`supabase/schema.sql`](supabase/schema.sql) once in the Supabase SQL editor. Supabase stores live game state, rounds, votes, claims, events, and leaderboard rows.
+Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. The Phase 1 schema adds the public `feed_events` stream, its Realtime publication, and the rollover counter used by the site.
 
 ## Railway keeper/API
 
@@ -51,7 +56,7 @@ pnpm build
 pnpm start
 ```
 
-If `PUMP_CREATOR_KEYPAIR_BASE64` is configured with the token's actual creator wallet, the service collects eligible Pump creator fees every 15 minutes and credits those lamports into the next game pot. The same configured payout wallet pays valid reward claims. Player actions require a signed wallet session.
+Phase 1 accepts a separate `BANKER_RESERVE_KEYPAIR_BASE64` Railway setting but does not use it to move funds. The later worker phase adds feature-flagged, audited, idempotent 80/20 sweep, Banker-offer, and payout execution.
 
 ## Structure
 

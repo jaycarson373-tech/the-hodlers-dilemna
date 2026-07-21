@@ -37,12 +37,14 @@ const envSchema = z.object({
   KEEPER_KEYPAIR_BASE64: z.string().optional(),
   PUMP_CREATOR_PRIVATE_KEY: z.string().optional(),
   PUMP_CREATOR_KEYPAIR_BASE64: z.string().optional(),
+  BANKER_RESERVE_PRIVATE_KEY: z.string().optional(),
+  BANKER_RESERVE_KEYPAIR_BASE64: z.string().optional(),
   FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
-  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(1_800),
+  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(21_600),
   CLAIM_WINDOW_SECONDS: z.coerce.number().int().positive().default(604_800),
   DEFECT_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
   DEFECTOR_BONUS_BPS: z.coerce.number().int().min(10_000).max(100_000).default(15_000),
-  MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("500000"),
+  MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("1000000"),
   TOKEN_MINT: z.string().optional(),
   INITIAL_ADMIN: z.string().optional(),
 });
@@ -103,8 +105,10 @@ function optionalKeypair(name: string, value?: string) {
 
 const keeperPrivateKey = env.KEEPER_PRIVATE_KEY ?? env.KEEPER_KEYPAIR_BASE64;
 const pumpCreatorPrivateKey = env.PUMP_CREATOR_PRIVATE_KEY ?? env.PUMP_CREATOR_KEYPAIR_BASE64;
+const bankerReservePrivateKey = env.BANKER_RESERVE_PRIVATE_KEY ?? env.BANKER_RESERVE_KEYPAIR_BASE64;
 const keeper = optionalKeypair("KEEPER_PRIVATE_KEY", keeperPrivateKey);
 const pumpCreator = optionalKeypair("PUMP_CREATOR_PRIVATE_KEY", pumpCreatorPrivateKey);
+const bankerReserve = optionalKeypair("BANKER_RESERVE_PRIVATE_KEY", bankerReservePrivateKey);
 const payoutWallet = pumpCreator ?? keeper;
 const pumpSdk = new OnlinePumpSdk(connection);
 
@@ -114,6 +118,7 @@ type DbConfig = {
   cluster?: string;
   current_round: number | string;
   available_pool_lamports: number | string;
+  pot_rollover_count?: number;
   round_length_seconds: number | string;
   claim_window_seconds: number | string;
   defect_threshold_bps: number;
@@ -573,6 +578,8 @@ const healthResponse = () => ({
   database: Boolean(supabase),
   keeper: Boolean(keeper),
   pumpCreator: Boolean(pumpCreator),
+  bankerReserve: Boolean(bankerReserve),
+  bankerReserveWallet: bankerReserve?.publicKey.toBase58() ?? null,
   payoutWallet: payoutWallet?.publicKey.toBase58() ?? null,
   feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
   roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
@@ -619,6 +626,7 @@ app.get("/api/status", async (_req, res, next) => {
       tokenDecimals: decimals,
       currentRound: String(config.current_round),
       availablePoolLamports: String(config.available_pool_lamports),
+      potRolloverCount: config.pot_rollover_count ?? 0,
       roundLengthSeconds: String(config.round_length_seconds),
       claimWindowSeconds: String(config.claim_window_seconds),
       defectThresholdBps: config.defect_threshold_bps,
