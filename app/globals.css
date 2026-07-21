@@ -3220,34 +3220,34 @@ body::before {
 .tier-4 { box-shadow: none; }
 
 .betrayal-section {
-  border-top: 0;
-  border-bottom: 0;
-  background: #164b3c;
-  color: #ffffff;
+  border-top: 2px solid #164b3c;
+  border-bottom: 2px solid #164b3c;
+  background: #f5fff9;
+  color: #101210;
 }
 
 .betrayal-grid-bg {
   background-image:
-    linear-gradient(rgba(85, 223, 154, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(85, 223, 154, 0.16) 1px, transparent 1px);
+    linear-gradient(rgba(22, 75, 60, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22, 75, 60, 0.09) 1px, transparent 1px);
 }
 
-.betrayal-section .section-index { border-color: #ffffff; }
+.betrayal-section .section-index { border-color: #164b3c; }
 .betrayal-section .eyebrow,
 .betrayal-section .section-description,
-.betrayal-section .planned-label { color: #ffffff; }
-.betrayal-section .section-heading h2 { color: #ffffff; }
-.betrayal-statement { color: #ffffff; font-weight: 800; }
-.betrayal-statement span { color: #55df9a; }
+.betrayal-section .planned-label { color: #164b3c; }
+.betrayal-section .section-heading h2 { color: #101210; }
+.betrayal-statement { color: #101210; font-weight: 800; }
+.betrayal-statement span { color: #164b3c; }
 .betrayal-flow { gap: 12px; border: 0; }
 .flow-step {
-  border: 2px solid #55df9a;
+  border: 2px solid #164b3c;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
+  background: #ffffff;
 }
-.flow-step span { color: #55df9a; }
-.flow-step strong { color: #ffffff; }
-.flow-step i { right: -18px; width: 24px; background: #164b3c; color: #55df9a; }
+.flow-step span { color: #164b3c; }
+.flow-step strong { color: #101210; }
+.flow-step i { right: -18px; width: 24px; background: #f5fff9; color: #164b3c; }
 
 .warning-header {
   border: 2px solid #164b3c;
