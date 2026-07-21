@@ -135,9 +135,9 @@ export function ProtocolConsole() {
   const hasFundedPot = hasPositiveLamports(currentPot);
   const hasVotes = Boolean(round && round.voterCount > 0);
   const inFinalMinute = countdown > 0 && countdown <= 60 && Boolean(status?.roundActive);
-  const countdownText = countdown > 0 ? formatCountdown(countdown) : "Launching Soon";
+  const countdownText = countdown > 0 ? formatCountdown(countdown) : "AWAITING CALL";
   const headline = useMemo(() => {
-    if (!protocolReady) return "ROUND 001 ARMING";
+    if (!protocolReady) return "WAITING FOR THE BANKER'S CALL.";
     if (status?.roundActive) return "THE OFFER IS LIVE.";
     if (hasFundedPot) return "OFFER INCOMING.";
     return "WAITING FOR THE BANKER'S CALL.";
@@ -150,8 +150,8 @@ export function ProtocolConsole() {
           <div className="broadcast-status-row" aria-label="Broadcast status">
             <span><i /> LIVE</span>
             <span>BANKER ONLINE</span>
-            <span>{hasLiveRound ? `ROUND ${status?.currentRound}` : "ROUND ARMING"}</span>
-            <span>{inFinalMinute ? "BANKER PREPARING OFFER" : hasLiveRound ? "DECISION PENDING" : "AWAITING FUNDED POT"}</span>
+            <span>{hasLiveRound ? `ROUND ${status?.currentRound}` : "BANKER ONLINE"}</span>
+            <span>{inFinalMinute ? "BANKER PREPARING OFFER" : hasLiveRound ? "DECISION PENDING" : "NEXT OFFER PENDING"}</span>
           </div>
           <span>THE BANKER&apos;S ROOM / LIVE SOLANA GAME</span>
           <h2 id="protocol-console-title">{headline}</h2>
@@ -172,14 +172,12 @@ export function ProtocolConsole() {
           <div><span>YOUR SEAT</span><strong>{holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : connected ? "Claim seat" : "Connect wallet"}</strong></div>
         </div>
       ) : (
-        <div className="protocol-arming-card" role="status" aria-live="polite">
-          <span>ROUND 001 ARMING</span>
-          <strong>The Banker is preparing the first round.</strong>
-          <p>{countdown > 0 ? "Waiting for the Banker's call." : "Launching Soon"}</p>
+        <div className="protocol-waiting-card" role="status" aria-live="polite">
+          <span>BANKER ONLINE</span>
+          <strong>Waiting for the Banker&apos;s call.</strong>
+          <p>{countdown > 0 ? `Next call in ${formatCountdown(countdown)}.` : "The next offer is pending."}</p>
         </div>
       )}
-
-      {!protocolReady ? <div className="protocol-console-message"><strong>ROUND ARMING</strong><p>Banker preparing first call.</p></div> : null}
 
       <div className="protocol-wallet-row">
         <div><span>WALLET ACCESS</span><strong>{address ? `${address.slice(0, 5)}…${address.slice(-5)}` : "NOT CONNECTED"}</strong><small>{sessionToken ? "SIGNED IN / GAME ENABLED" : connected ? "SIGN IN TO PLAY" : "CONNECT ABOVE TO CONTINUE"}</small></div>

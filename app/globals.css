@@ -1887,7 +1887,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 .footer-links button:hover,
 .footer-links a:hover { color: var(--bone); }
 
-.footer-coming-soon {
+.footer-status {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1897,7 +1897,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   letter-spacing: 0.05em;
 }
 
-.footer-coming-soon b {
+.footer-status b {
   margin-left: 10px;
   color: var(--bone-muted);
   font-weight: 600;
@@ -2019,7 +2019,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   .feed-section .section-heading { position: static; }
   .mechanic-row { grid-template-columns: 60px minmax(180px, 0.5fr) 1fr 24px; }
   .footer-top { grid-template-columns: 1fr auto; }
-  .footer-coming-soon { grid-column: 1 / -1; align-items: flex-start; padding-bottom: 28px; }
+  .footer-status { grid-column: 1 / -1; align-items: flex-start; padding-bottom: 28px; }
 }
 
 @media (max-width: 720px) {
@@ -2115,7 +2115,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   .final-actions .button { width: 100%; }
 
   .footer-top { display: flex; flex-direction: column; align-items: flex-start; padding: 36px 0; }
-  .footer-coming-soon { padding: 0; }
+  .footer-status { padding: 0; }
   .footer-bottom { flex-direction: column; }
   .footer-bottom span { white-space: normal; }
   .ui-toast { right: 16px; bottom: 16px; max-width: calc(100vw - 32px); }
@@ -3342,8 +3342,8 @@ tbody tr:hover { background: #f5fff9; }
 .footer-links button:hover,
 .footer-links a,
 .footer-links a:hover,
-.footer-coming-soon,
-.footer-coming-soon b,
+.footer-status,
+.footer-status b,
 .footer-bottom { color: #164b3c; }
 .footer-bottom { border-color: rgba(22, 75, 60, 0.2); }
 
@@ -3677,7 +3677,7 @@ tbody tr:hover { background: #f5fff9; }
   cursor: pointer;
 }
 
-.footer-coming-soon b { overflow-wrap: anywhere; }
+.footer-status b { overflow-wrap: anywhere; }
 
 @media (max-width: 720px) {
   .protocol-summary,
@@ -3692,7 +3692,7 @@ tbody tr:hover { background: #f5fff9; }
   .contract-strip code { grid-column: 1 / -1; grid-row: 2; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 }
 
-/* Hodl or No Hodl launch rebrand */
+/* Hodl or No Hodl broadcast rebrand */
 :root {
   --ink: #050101;
   --ink-soft: #120504;
@@ -4392,7 +4392,7 @@ td,
 .mechanic-arrow,
 .footer-links button,
 .footer-links a,
-.footer-coming-soon,
+.footer-status,
 .footer-bottom,
 .contract-strip span {
   color: rgba(255, 231, 165, 0.72);
@@ -4409,7 +4409,7 @@ td,
 .mechanic-row h3,
 .gold-value,
 .contract-strip code,
-.footer-coming-soon b,
+.footer-status b,
 .protocol-console-head h2,
 .protocol-console-message strong,
 .protocol-success,
@@ -4883,7 +4883,7 @@ body * {
     linear-gradient(180deg, #ff2e2d, #9d080c),
     repeating-linear-gradient(90deg, transparent 0 120px, rgba(255, 255, 255, 0.18) 121px 122px);
   color: var(--show-gold-hot);
-  content: "HODL ★ THE BANKER IS CALLING ★ ROUND ARMING ★ WHAT'S IN YOUR BOX? ★ CONVICTION COMPOUNDS ★ HODL ★ NO HODL ★";
+  content: "HODL ★ THE BANKER IS CALLING ★ BANKER ONLINE ★ WHAT'S IN YOUR BOX? ★ CONVICTION COMPOUNDS ★ HODL ★ NO HODL ★";
   font: 950 0.82rem/46px var(--font-mono);
   text-align: center;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 0 12px rgba(255, 234, 167, 0.55);
@@ -5404,7 +5404,7 @@ th,
 }
 
 .footer-links,
-.footer-coming-soon {
+.footer-status {
   display: none !important;
 }
 
@@ -5480,7 +5480,7 @@ th,
 .section-heading h2,
 .temptation-layout h2,
 .final-cta h2,
-.live-preview-heading h2 {
+.live-status-heading h2 {
   font-family: Impact, Haettenschweiler, "Arial Narrow", "Arial Black", sans-serif !important;
   font-weight: 900 !important;
   letter-spacing: 0.025em !important;
@@ -5574,19 +5574,19 @@ th,
   box-shadow: none !important;
 }
 
-.live-preview-heading {
+.live-status-heading {
   max-width: 860px;
   margin-bottom: clamp(42px, 5vw, 68px);
 }
 
-.live-preview-heading p {
+.live-status-heading p {
   margin: 0 0 22px;
   color: var(--show-gold-hot);
   font: 950 clamp(0.78rem, 1.25vw, 1rem)/1 var(--font-mono), monospace;
   letter-spacing: 0.42em !important;
 }
 
-.live-preview-heading h2 {
+.live-status-heading h2 {
   margin: 0;
   color: var(--show-gold);
   font-size: clamp(3.5rem, 6.7vw, 5.9rem);
@@ -5595,7 +5595,7 @@ th,
   transform: scaleX(0.86);
 }
 
-.live-preview-heading span {
+.live-status-heading span {
   display: block;
   max-width: 790px;
   margin-top: 24px;
@@ -5605,13 +5605,13 @@ th,
   line-height: 1.7;
 }
 
-.live-preview-grid {
+.live-status-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(22px, 3vw, 36px);
 }
 
-.live-preview-card {
+.live-status-card {
   min-height: 420px;
   padding: clamp(28px, 3vw, 40px);
   border: 1px solid rgba(255, 199, 90, 0.24);
@@ -5622,9 +5622,9 @@ th,
   box-shadow: inset 0 1px 0 rgba(255, 225, 150, 0.05), 0 0 36px rgba(225, 18, 24, 0.07);
 }
 
-.live-preview-card > span,
-.live-preview-card > small,
-.live-preview-card > p,
+.live-status-card > span,
+.live-status-card > small,
+.live-status-card > p,
 .panel-footnote {
   display: block;
   color: rgba(255, 218, 143, 0.9);
@@ -5633,13 +5633,13 @@ th,
   text-transform: uppercase;
 }
 
-.live-preview-card > small {
+.live-status-card > small {
   margin: 10px 0 34px;
   color: rgba(247, 216, 189, 0.6);
   font-size: 0.62rem;
 }
 
-.live-preview-card > strong {
+.live-status-card > strong {
   display: block;
   margin: 12px 0 4px;
   color: #fff5e1;
@@ -5651,11 +5651,11 @@ th,
   text-shadow: 0 0 18px rgba(255, 225, 147, 0.18);
 }
 
-.round-preview-card > strong:first-of-type {
+.round-status-card > strong:first-of-type {
   color: var(--show-red-hot);
 }
 
-.signal-preview-card > span:not(:first-child) {
+.signal-status-card > span:not(:first-child) {
   margin-top: 34px;
 }
 
@@ -5700,7 +5700,7 @@ th,
   color: var(--show-red-hot);
 }
 
-.pot-preview-card {
+.pot-status-card {
   border-color: rgba(255, 67, 61, 0.48);
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 199, 90, 0.12), transparent 40%),
@@ -5708,33 +5708,33 @@ th,
   box-shadow: 0 0 58px rgba(225, 18, 24, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-.pot-preview-card > strong {
+.pot-status-card > strong {
   color: var(--show-gold-hot);
   font-size: clamp(4rem, 7vw, 5.8rem);
   text-shadow: 0 2px 0 #7a4708, 0 0 18px rgba(255, 199, 90, 0.32);
 }
 
-.pot-preview-card > small {
+.pot-status-card > small {
   margin: 0 0 16px;
   color: #fff5e1;
   font-size: clamp(1.5rem, 2.8vw, 2rem);
   letter-spacing: 0.02em !important;
 }
 
-.pot-preview-card .decision-grid {
+.pot-status-card .decision-grid {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   gap: 18px !important;
   margin: 28px 0 20px !important;
 }
 
-.pot-preview-card .decision-button {
+.pot-status-card .decision-button {
   min-height: 76px;
   padding: 0 18px;
   border-radius: 10px !important;
 }
 
-.pot-preview-card .decision-button strong {
+.pot-status-card .decision-button strong {
   font-size: clamp(1rem, 1.6vw, 1.28rem);
 }
 
@@ -5950,7 +5950,7 @@ th,
 }
 
 @media (max-width: 960px) {
-  .live-preview-grid,
+  .live-status-grid,
   .temptation-layout,
   .mechanics-list {
     grid-template-columns: 1fr !important;
@@ -5974,7 +5974,7 @@ th,
     min-height: 58px !important;
   }
 
-  .live-preview-card,
+  .live-status-card,
   .tier-card,
   .flow-step,
   .mechanic-row {
@@ -6002,7 +6002,7 @@ th,
 .hero h1,
 .hero h1 em,
 .section-heading h2,
-.live-preview-heading h2,
+.live-status-heading h2,
 .temptation-layout h2,
 .temptation-layout h2 em,
 .final-cta h2,
@@ -6019,7 +6019,7 @@ th,
 }
 
 .section-heading h2,
-.live-preview-heading h2,
+.live-status-heading h2,
 .temptation-layout h2,
 .final-cta h2 {
   filter: saturate(1.18) contrast(1.08);
@@ -6031,7 +6031,7 @@ th,
 
 .section-index,
 .hero-eyebrow,
-.live-preview-heading p,
+.live-status-heading p,
 .matrix-column,
 .matrix-row,
 .matrix-corner-label,
@@ -6046,17 +6046,17 @@ th,
 .feed-code,
 .mechanic-number,
 .panel-footnote,
-.live-preview-card > span,
-.live-preview-card > small,
-.live-preview-card > p {
+.live-status-card > span,
+.live-status-card > small,
+.live-status-card > p {
   color: var(--show-gold-hot) !important;
   text-shadow: 0 0 10px rgba(255, 195, 72, 0.22) !important;
 }
 
 .hero-dossier strong,
 .combined-signal-labels strong,
-.pot-preview-card > strong,
-.pot-preview-card > small,
+.pot-status-card > strong,
+.pot-status-card > small,
 .gold-value,
 .streak-step small,
 .configuration-note span,
@@ -6077,7 +6077,7 @@ th,
 .hero h1,
 .hero h1 em,
 .section-heading h2,
-.live-preview-heading h2,
+.live-status-heading h2,
 .temptation-layout h2,
 .temptation-layout h2 em,
 .final-cta h2,
@@ -6702,31 +6702,6 @@ th,
 }
 
 /* Final broadcast polish */
-.preview-mode-banner {
-  position: sticky;
-  top: 0;
-  z-index: 95;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 32px;
-  border-bottom: 1px solid rgba(255, 199, 90, 0.18);
-  background: linear-gradient(90deg, rgba(96, 4, 7, 0.94), rgba(9, 0, 1, 0.96), rgba(96, 4, 7, 0.94));
-  color: var(--show-gold-hot);
-  font: 950 0.62rem/1 var(--font-mono), monospace;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
-}
-
-.preview-mode-banner p {
-  margin: 0;
-  color: rgba(247, 216, 189, 0.82);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
 .sticky-buy-bar {
   position: fixed;
   right: max(14px, env(safe-area-inset-right));
@@ -6812,7 +6787,7 @@ th,
   letter-spacing: 0.14em !important;
 }
 
-.protocol-arming-card {
+.protocol-waiting-card {
   margin-top: 24px;
   padding: clamp(22px, 3vw, 34px);
   border: 1px solid rgba(255, 199, 90, 0.2);
@@ -6823,21 +6798,21 @@ th,
   box-shadow: inset 0 1px 0 rgba(255, 232, 160, 0.08);
 }
 
-.protocol-arming-card span {
+.protocol-waiting-card span {
   color: var(--show-red-hot);
   font: 950 0.72rem/1 var(--font-mono), monospace;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
-.protocol-arming-card strong {
+.protocol-waiting-card strong {
   display: block;
   margin-top: 10px;
   color: var(--show-gold-hot);
   font: 950 clamp(1.2rem, 3vw, 2.1rem)/1.1 var(--font-mono), monospace;
 }
 
-.protocol-arming-card p {
+.protocol-waiting-card p {
   margin: 10px 0 0;
   color: rgba(247, 216, 189, 0.78);
   font-weight: 800;
@@ -6903,7 +6878,7 @@ th,
 }
 
 .footer-links,
-.footer-coming-soon {
+.footer-status {
   display: flex !important;
 }
 
@@ -6945,13 +6920,6 @@ th,
 }
 
 @media (max-width: 900px) {
-  .preview-mode-banner {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
-    padding: 8px 16px;
-  }
-
   .sticky-buy-bar {
     right: 10px;
     left: 10px;
@@ -6965,5 +6933,54 @@ th,
 
   .footer-links {
     justify-content: flex-start;
+  }
+}
+
+/* Keep wallet access isolated from the game stage at every mobile breakpoint. */
+.wallet-modal-backdrop {
+  z-index: 1000 !important;
+  background: rgba(5, 0, 1, 0.97) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+.wallet-modal {
+  position: relative !important;
+  isolation: isolate;
+  opacity: 1 !important;
+  background: #120204 !important;
+  box-shadow: 0 28px 100px rgba(0, 0, 0, 0.82), 0 0 42px rgba(225, 18, 24, 0.22) !important;
+}
+
+@media (max-width: 720px) {
+  .wallet-modal-backdrop {
+    padding: max(16px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom)) !important;
+    place-items: center !important;
+  }
+
+  .wallet-modal {
+    width: min(100%, 520px) !important;
+    max-height: calc(100svh - 32px) !important;
+    padding: 20px !important;
+  }
+
+  .wallet-modal-header h2 {
+    font-size: clamp(1.55rem, 8vw, 2.3rem) !important;
+    line-height: 0.95 !important;
+  }
+
+  .connected-wallet-panel {
+    padding: 16px !important;
+  }
+
+  .connected-wallet-panel dl {
+    grid-template-columns: 1fr !important;
+  }
+
+  .connected-wallet-panel dl > div + div {
+    margin-top: 14px;
+    padding-top: 14px;
+    padding-left: 0 !important;
+    border-top: 1px solid rgba(255, 210, 104, 0.2);
+    border-left: 0 !important;
   }
 }

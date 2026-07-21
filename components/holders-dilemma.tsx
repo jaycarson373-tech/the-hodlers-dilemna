@@ -16,7 +16,6 @@ import {
 
 type Decision = "cooperate" | "defect" | null;
 
-const previewMode = process.env.NEXT_PUBLIC_PREVIEW_MODE !== "false";
 const tokenMint = process.env.NEXT_PUBLIC_TOKEN_MINT?.trim();
 const pumpUrl = process.env.NEXT_PUBLIC_PUMP_URL?.trim();
 const jupiterUrl = process.env.NEXT_PUBLIC_JUPITER_URL?.trim();
@@ -109,16 +108,6 @@ function Reveal({
   );
 }
 
-function PreviewBanner() {
-  if (!previewMode) return null;
-  return (
-    <div className="preview-mode-banner" role="status">
-      <span>PROTOCOL PREVIEW</span>
-      <p>Live rounds begin once the protocol launches.</p>
-    </div>
-  );
-}
-
 function StickyBuyBar({ onCopy }: { onCopy: (message: string) => void }) {
   if (!tokenMint && buyLinks.length === 0 && !xUrl && !telegramUrl) return null;
 
@@ -155,24 +144,24 @@ function ExperimentPanel({
 }) {
   return (
     <div className="experiment-panel live-protocol-panel">
-      <div className="live-preview-heading">
+      <div className="live-status-heading">
         <p><i className="live-dot" /> BANKER ONLINE / LIVE BROADCAST</p>
         <h2>WAITING FOR THE BANKER&apos;S CALL.</h2>
         <span>The first case stays sealed until the funded pot is ready. Every holder eventually faces the same offer.</span>
       </div>
 
-      <div className="live-preview-grid" aria-label="Round model data">
-        <article className="live-preview-card round-preview-card">
+      <div className="live-status-grid" aria-label="Round model data">
+        <article className="live-status-card round-status-card">
           <span>BROADCAST STATUS</span>
           <strong><AnimatedValue>{broadcastStatus}</AnimatedValue></strong>
           <small>THE BANKER IS REVIEWING</small>
 
           <span>NEXT CALL</span>
-          <strong><AnimatedValue>Launching Soon</AnimatedValue></strong>
-          <small>COUNTDOWN APPEARS WHEN LIVE</small>
+          <strong><AnimatedValue>Awaiting Call</AnimatedValue></strong>
+          <small>THE BANKER CONTROLS THE CLOCK</small>
         </article>
 
-        <article className="live-preview-card signal-preview-card">
+        <article className="live-status-card signal-status-card">
           <span>THE OFFER</span>
           <strong><AnimatedValue>Decision pending</AnimatedValue></strong>
           <small>NO OFFER AVAILABLE YET</small>
@@ -184,13 +173,13 @@ function ExperimentPanel({
           <strong><AnimatedValue>Locked</AnimatedValue></strong>
         </article>
 
-        <article className="live-preview-card pot-preview-card">
+        <article className="live-status-card pot-status-card">
           <span>WHAT&apos;S IN THE BOX?</span>
           <strong><AnimatedValue>?</AnimatedValue></strong>
           <small>THE CASE IS SEALED</small>
           <p>The Banker opens the round when the first funded pot is ready.</p>
 
-          <div className="decision-grid" aria-label="Decision demonstration">
+          <div className="decision-grid" aria-label="Decision controls">
           <motion.button
             type="button"
             className={`decision-button cooperate ${decision === "cooperate" ? "selected" : ""}`}
@@ -256,7 +245,7 @@ export function HoldersDilemma() {
     return () => window.clearTimeout(reset);
   }, [decision]);
 
-  const showPreviewNotice = (message: string) => {
+  const showUiNotice = (message: string) => {
     setUiNotice(message);
     window.setTimeout(() => setUiNotice(""), 2800);
   };
@@ -289,8 +278,7 @@ export function HoldersDilemma() {
       </AnimatePresence>
       <AmbientBackground />
       <a className="skip-link" href="#main-content">Skip to main content</a>
-      <PreviewBanner />
-      <StickyBuyBar onCopy={showPreviewNotice} />
+      <StickyBuyBar onCopy={showUiNotice} />
 
       <header className="site-header">
         <nav className="site-nav" aria-label="Primary navigation">
@@ -388,7 +376,7 @@ export function HoldersDilemma() {
             >
               <OfficialMark className="official-mark-hero" />
             </motion.div>
-            <div className="hero-logo-caption"><span>THE BANKER IS CALLING</span><i /> <span>ROUND ARMING</span></div>
+            <div className="hero-logo-caption"><span>THE BANKER IS CALLING</span><i /> <span>BANKER ONLINE</span></div>
           </motion.div>
 
           <div className="hero-dossier" aria-label="Experiment classification">
@@ -709,9 +697,9 @@ export function HoldersDilemma() {
             {xUrl ? <a href={xUrl} target="_blank" rel="noreferrer">X</a> : null}
             {telegramUrl ? <a href={telegramUrl} target="_blank" rel="noreferrer">Telegram</a> : null}
             {buyLinks.map((link) => <a key={link.label} href={link.href} target="_blank" rel="noreferrer">{link.label}</a>)}
-            {tokenMint ? <button type="button" onClick={() => void navigator.clipboard?.writeText(tokenMint).then(() => showPreviewNotice("Contract copied."))}>Copy CA</button> : null}
+            {tokenMint ? <button type="button" onClick={() => void navigator.clipboard?.writeText(tokenMint).then(() => showUiNotice("Contract copied."))}>Copy CA</button> : null}
           </div>
-          <div className="footer-coming-soon"><span>BANKER STATUS <b>AWAITING FIRST CALL</b></span></div>
+          <div className="footer-status"><span>BANKER STATUS <b>AWAITING FIRST CALL</b></span></div>
         </div>
         <div className="footer-bottom">
           <p>Participation involves financial, wallet, and smart-contract risk. Verify the contract address before trading.</p>

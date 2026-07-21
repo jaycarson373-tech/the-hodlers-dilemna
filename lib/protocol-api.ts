@@ -57,13 +57,13 @@ const publicGameError = (message?: string) => {
   if (
     /api|railway|supabase|token_mint|database|configured|configuration|next_public|health|column|relation|schema|fetch|request failed|network/i.test(text)
   ) {
-    return "The Banker is preparing the first round. Try again in a moment.";
+    return "The Banker's call could not be completed. Try again.";
   }
   return text || "No offer available yet. Waiting for the Banker's call.";
 };
 
 export async function protocolRequest<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
-  if (!protocolApiUrl) throw new Error("The Banker is preparing the first round. Try again in a moment.");
+  if (!protocolApiUrl) throw new Error("The Banker's call could not be completed. Try again.");
   const requestUrl = `${protocolApiUrl}${path}`;
   const response = await fetch(requestUrl, {
     ...init,
@@ -73,7 +73,7 @@ export async function protocolRequest<T>(path: string, init?: RequestInit, token
       ...init?.headers,
     },
   }).catch(() => {
-    throw new Error("The Banker is preparing the first round. Try again in a moment.");
+    throw new Error("The Banker's call could not be completed. Try again.");
   });
   const body = (await response.json().catch(() => ({}))) as T & ApiError;
   if (!response.ok) {

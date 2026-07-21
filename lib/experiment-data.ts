@@ -75,7 +75,7 @@ export const feed: FeedEntry[] = [
 ];
 
 export const roundHistory: RoundHistoryEntry[] = [
-  { round: "ARMING", outcome: "BANKER ONLINE", split: "Awaiting holders", pot: "Awaiting funded pot", result: "Preparing first round", tone: "cooperate" },
+  { round: "NEXT", outcome: "BANKER ONLINE", split: "Awaiting holders", pot: "Awaiting funded pot", result: "Waiting for the next call", tone: "cooperate" },
   { round: "LOCKED", outcome: "CASE SEALED", split: "Decision pending", pot: "No offer available yet", result: "Waiting for call", tone: "defect" },
   { round: "CALL", outcome: "OFFER INCOMING", split: "Board locked", pot: "Case value hidden", result: "Banker reviewing", tone: "cooperate" },
   { round: "OPEN", outcome: "CASE OPENING", split: "HODL or NO HODL", pot: "Revealed when live", result: "Offer pending", tone: "defect" },

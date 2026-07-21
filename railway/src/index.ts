@@ -159,7 +159,7 @@ const iso = (value?: string | null) => value ?? null;
 const tierName = (tier: number) => ["Paper Hands", "Iron Hands", "Diamond Hands", "Obsidian Hands"][tier] ?? "Paper Hands";
 const publicErrorMessage = (message: string) => {
   if (/supabase|token_mint|database|configured|configuration|column|relation|schema|railway|api|rpc|keypair|private|secret/i.test(message)) {
-    return "The Banker is preparing the first round. Try again in a moment.";
+    return "The Banker's call could not be completed. Try again.";
   }
   return message;
 };
