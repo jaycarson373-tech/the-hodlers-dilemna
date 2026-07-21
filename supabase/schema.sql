@@ -11,7 +11,7 @@ create table if not exists public.protocol_config (
   current_round bigint not null default 0,
   available_pool_lamports bigint not null default 0,
   pot_rollover_count integer not null default 0,
-  round_length_seconds bigint not null default 1800,
+  round_length_seconds bigint not null default 21600,
   claim_window_seconds bigint not null default 604800,
   defect_threshold_bps integer not null default 5000,
   defector_bonus_bps integer not null default 15000,
@@ -95,6 +95,8 @@ create table if not exists public.feed_events (
 
 alter table public.protocol_config
   add column if not exists pot_rollover_count integer not null default 0;
+alter table public.protocol_config
+  alter column round_length_seconds set default 21600;
 
 create or replace function public.mirror_protocol_event_to_feed()
 returns trigger

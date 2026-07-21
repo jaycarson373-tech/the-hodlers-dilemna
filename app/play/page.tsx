@@ -5,13 +5,13 @@ import { WalletConnect } from "@/components/wallet-connect";
 
 export const metadata: Metadata = {
   title: "Enter Game | Hodl or No Hodl.fun",
-  description: "Enter the Hodl or No Hodl game room. Connect, verify 500K tokens, then choose HODL or NO HODL.",
+  description: "Enter the Hodl or No Hodl game room. Connect, verify 1M tokens, then choose HODL or NO HODL.",
 };
 
 const entrySteps = [
   ["01", "Connect Wallet", "Use a Solana wallet. No private key leaves your wallet."],
   ["02", "Answer the Call", "Sign one message so the Banker knows your seat."],
-  ["03", "Claim Seat", "A 500K-token hold gets you to the table."],
+  ["03", "Claim Seat", "A 1M-token hold gets you to the table."],
   ["04", "Choose", "Pick HODL or NO HODL before the Banker closes the case."],
 ];
 

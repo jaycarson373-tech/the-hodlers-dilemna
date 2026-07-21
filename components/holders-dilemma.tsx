@@ -461,7 +461,7 @@ export function HoldersDilemma() {
               <div className="game-entry-steps" aria-label="Game entry steps">
                 <span>01 CONNECT</span>
                 <span>02 SIGN</span>
-                <span>03 VERIFY 500K</span>
+                <span>03 VERIFY 1M</span>
                 <span>04 CHOOSE</span>
               </div>
               <a className="button button-primary game-entry-button" href="/play">Enter the Game <span>→</span></a>
@@ -488,6 +488,8 @@ export function HoldersDilemma() {
                 <article><span>SILENCE</span><p>Silence counts as HODL at normal weight. Passive holders are never punished.</p></article>
                 <article><span>SELL / TRANSFER OUT</span><p>Any balance decrease forces NO HODL, fully resets the streak, and makes the wallet ineligible for the defector tranche.</p></article>
                 <article><span>SIGNED NO HODL</span><p>If the line holds, signed defectors are paid at 1.5x weight from a capped 20% tranche, then drop one streak tier.</p></article>
+                <article><span>80 / 20 SPLIT</span><p>Every fee sweep sends 80% to the episode pot and 20% to the Banker reserve. The main episode tranche is never used for Banker offers.</p></article>
+                <article><span>BANKER&apos;S OFFER</span><p>At random moments, NO HODL becomes TAKE THE DEAL with a live reserve-backed quote. Accept and reset to 1.0x. Refuse and earn +0.5x next episode.</p></article>
               </div>
               <p className="rules-terminal-lock">SELL AND YOU&apos;RE OUT. DEFECT AND YOU&apos;RE PAID.</p>
             </div>
@@ -503,6 +505,19 @@ export function HoldersDilemma() {
                   <p>{outcome.copy}</p>
                 </article>
               ))}
+            </div>
+          </Reveal>
+
+          <Reveal className="banker-utility-card">
+            <div>
+              <span>THE BANKER&apos;S OFFER</span>
+              <h3>A NUMBER CHANGES THE DECISION.</h3>
+              <p>At random moments, the phone rings and NO HODL transforms into TAKE THE DEAL. The offer is a live lump-sum quote paid from the Banker reserve. Accepted deals appear in the Banker Feed and their forfeited streak value tops up the Betrayal Bounty for holders who remain.</p>
+            </div>
+            <div className="banker-safety-grid">
+              <article><span>OFFER CAP</span><p>The quote is the lower of 1.5x projected share or the configured percentage cap of the current reserve.</p></article>
+              <article><span>RESERVE ONLY</span><p>The Banker never offers more than the reserve holds and never borrows from the 80% episode tranche.</p></article>
+              <article><span>CAPACITY</span><p>Offers are wallet-specific. If capacity is exhausted, the Banker&apos;s phone line is busy.</p></article>
             </div>
           </Reveal>
 
@@ -735,6 +750,57 @@ export function HoldersDilemma() {
               <span>05</span>
               <div><h3>05 — YOU DON&apos;T EVEN HAVE TO SHOW UP.</h3><p>Silence counts as HODL at full weight. Voting HODL yourself earns a small bonus. But sell during a round and it doesn&apos;t matter what you clicked — <strong>selling is NO HODL. Streak gone. No deal. Sell and you&apos;re out. Defect and you&apos;re paid.</strong></p><p>Payouts hit wallets automatically. No claiming. Then the next episode begins.</p></div>
             </Reveal>
+          </div>
+        </section>
+
+        <section className="content-section faq-section section-shell" id="faq">
+          <SectionHeading
+            number="08"
+            eyebrow="FAQ"
+            title="BEFORE THE BANKER CALLS."
+            description="The rules that matter before you decide to HODL or NO HODL."
+          />
+          <div className="faq-list">
+            <details>
+              <summary><span>01</span>WHEN CAN I CHOOSE HODL OR NO HODL?</summary>
+              <p>Each episode lasts six hours. The decision window is the final 60 minutes. Outside that window, both choices remain locked.</p>
+            </details>
+            <details>
+              <summary><span>02</span>WHAT HAPPENS IF I DO NOTHING?</summary>
+              <p>Silence counts as HODL at normal weight. Signing HODL earns a 5% participation bonus on payout weight for that episode only.</p>
+            </details>
+            <details>
+              <summary><span>03</span>WHAT IF I SELL OR TRANSFER TOKENS OUT?</summary>
+              <p>Any balance decrease during the episode forces NO HODL, fully resets your streak, removes you from the defector tranche, and pays you nothing.</p>
+            </details>
+            <details>
+              <summary><span>04</span>WHAT DOES SIGNED NO HODL DO?</summary>
+              <p>If weighted HODL reaches 70%, signed NO HODL is paid at 1.5x weight from the capped Banker reserve. Your streak drops one tier, but it does not fully reset.</p>
+            </details>
+            <details>
+              <summary><span>05</span>WHAT IS THE BANKER&apos;S OFFER?</summary>
+              <p>At random moments, NO HODL transforms into TAKE THE DEAL with a live lump-sum quote. Accepting pays from the Banker reserve and resets your multiplier to 1.0x. Refusing earns a +0.5x bonus for the next episode.</p>
+            </details>
+            <details>
+              <summary><span>06</span>CAN THE BANKER RUN OUT OF MONEY?</summary>
+              <p>The Banker can never offer more than the reserve holds. Offers are capped at the lower of 1.5x projected share or a configured percentage of the reserve, and the 80% main episode tranche is never touched.</p>
+            </details>
+            <details>
+              <summary><span>07</span>CAN I CHANGE MY DECISION?</summary>
+              <p>Yes. You can replace your sealed choice while the decision window remains open. The new commitment supersedes the old one.</p>
+            </details>
+            <details>
+              <summary><span>08</span>CAN ANYONE SEE THE LIVE CHOICES?</summary>
+              <p>No. Choices stay sealed until settlement. The audience signal is non-binding estimated sentiment, not the final votes.</p>
+            </details>
+            <details>
+              <summary><span>09</span>DO MID-EPISODE BUYS COUNT?</summary>
+              <p>Buys are allowed, but payouts use the balance snapshot taken when the episode opened. New tokens count in the next episode.</p>
+            </details>
+            <details>
+              <summary><span>10</span>HOW DO PAYOUTS AND FEE SWEEPS WORK?</summary>
+              <p>Holding at least 1,000,000 tokens qualifies a wallet for a box. Creator fees sweep every 15 minutes: 80% enters the episode pot and 20% funds the Banker reserve. Eligible payouts are pushed directly to wallets after settlement. There is no claim step.</p>
+            </details>
           </div>
         </section>
 

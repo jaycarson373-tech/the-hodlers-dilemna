@@ -2238,7 +2238,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 
 .rules-terminal-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .rules-terminal-grid article {
@@ -2280,6 +2280,54 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 }
 
 .rules-outcome-grid .mobile-matrix-label { display: none; }
+
+.banker-utility-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 28px;
+  margin: 24px 0 0;
+  border: 1px solid rgba(229, 30, 36, 0.46);
+  border-radius: 18px;
+  padding: clamp(24px, 4vw, 42px);
+  background:
+    radial-gradient(circle at 10% 10%, rgba(226, 20, 27, 0.2), transparent 42%),
+    linear-gradient(145deg, rgba(47, 5, 9, 0.92), rgba(13, 2, 4, 0.98));
+  box-shadow: 0 20px 64px rgba(139, 3, 8, 0.18);
+}
+
+.banker-utility-card > div > span,
+.banker-safety-grid article > span {
+  color: #ff4548;
+  font: 950 0.62rem/1.2 var(--font-mono), monospace;
+  letter-spacing: 0.18em;
+}
+
+.banker-utility-card h3 {
+  margin: 16px 0;
+  color: #ffd161;
+  font: 950 clamp(1.55rem, 3vw, 2.7rem)/0.96 var(--font-display), Impact, sans-serif;
+  letter-spacing: 0.025em;
+}
+
+.banker-utility-card p {
+  margin: 0;
+  color: rgba(255, 238, 218, 0.76);
+  line-height: 1.66;
+}
+
+.banker-safety-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.banker-safety-grid article {
+  border: 1px solid rgba(255, 201, 80, 0.2);
+  border-radius: 13px;
+  padding: 18px 20px;
+  background: rgba(7, 1, 2, 0.3);
+}
+
+.banker-safety-grid article p { margin-top: 8px; font-size: 0.9rem; }
 
 .streak-ladder-wrap {
   overflow: hidden;
@@ -2355,10 +2403,77 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 .how-it-works-step p + p { margin-top: 14px; }
 .how-it-works-step strong { color: #fff2d8; }
 
+.faq-section {
+  background: radial-gradient(circle at 82% 12%, rgba(226, 20, 27, 0.09), transparent 36%);
+}
+
+.faq-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.faq-list details {
+  align-self: start;
+  overflow: hidden;
+  border: 1px solid rgba(255, 201, 80, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(35, 5, 8, 0.86), rgba(12, 2, 4, 0.96));
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.faq-list details:hover,
+.faq-list details[open] {
+  border-color: rgba(255, 205, 90, 0.5);
+  background: linear-gradient(145deg, rgba(50, 7, 11, 0.92), rgba(15, 2, 4, 0.98));
+}
+
+.faq-list summary {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 76px;
+  padding: 18px 52px 18px 20px;
+  color: #fff0d8;
+  font: 900 0.82rem/1.35 var(--font-mono), monospace;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+}
+
+.faq-list summary::-webkit-details-marker { display: none; }
+
+.faq-list summary::after {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  color: #ffd161;
+  content: "+";
+  font-size: 1.25rem;
+  transform: translateY(-50%);
+}
+
+.faq-list details[open] summary::after { content: "−"; }
+
+.faq-list summary span {
+  color: #e91d24;
+  font: 950 1.1rem/1 var(--font-display), Impact, sans-serif;
+}
+
+.faq-list details > p {
+  margin: 0;
+  padding: 0 24px 22px 70px;
+  color: rgba(255, 238, 218, 0.72);
+  line-height: 1.65;
+}
+
 @media (max-width: 900px) {
   .rules-terminal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rules-terminal-grid article:nth-child(2) { border-right: 0; }
-  .rules-terminal-grid article:nth-child(-n+2) { border-bottom: 1px solid rgba(255, 201, 80, 0.15); }
+  .rules-terminal-grid article:nth-child(even) { border-right: 0; }
+  .rules-terminal-grid article:not(:nth-last-child(-n+2)) { border-bottom: 1px solid rgba(255, 201, 80, 0.15); }
+  .banker-utility-card { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
@@ -2380,6 +2495,9 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   .how-it-works-step > span { font-size: 1.4rem; }
   .how-it-works-step p { font-size: 0.94rem; }
   .broadcast-status-row .simulation-tag { flex-basis: auto; }
+  .faq-list { grid-template-columns: 1fr; }
+  .faq-list summary { grid-template-columns: 32px minmax(0, 1fr); padding-right: 44px; }
+  .faq-list details > p { padding: 0 18px 20px; }
 }
 
 /* Premium visual polish pass */

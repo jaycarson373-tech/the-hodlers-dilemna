@@ -10,6 +10,8 @@ The full upgrade is being delivered in five ordered pull requests. Phase 1 cover
 
 - seeded simulation fallback when live configuration is unavailable
 - exact 70% cooperation rules and streak ladder
+- 1,000,000-token minimum box eligibility
+- 80% episode pot / 20% Banker reserve model and reserve safety rules
 - pot rollover display
 - Supabase Realtime Banker Feed with a scripted simulation fallback
 - six-hour episode, final-hour decision, and 15-minute fee-sweep copy
@@ -54,7 +56,7 @@ pnpm build
 pnpm start
 ```
 
-Fund-moving behavior is not enabled by Phase 1. The later worker phase adds feature-flagged, audited, idempotent sweep and payout execution.
+Phase 1 accepts a separate `BANKER_RESERVE_KEYPAIR_BASE64` Railway setting but does not use it to move funds. The later worker phase adds feature-flagged, audited, idempotent 80/20 sweep, Banker-offer, and payout execution.
 
 ## Structure
 
