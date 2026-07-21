@@ -533,19 +533,32 @@ app.use((req, res, next) => {
   next();
 });
 
+const healthResponse = () => ({
+  ok: true,
+  cluster: clusterName,
+  tokenMint: tokenMint?.toBase58() ?? null,
+  database: Boolean(supabase),
+  keeper: Boolean(keeper),
+  pumpCreator: Boolean(pumpCreator),
+  payoutWallet: payoutWallet?.publicKey.toBase58() ?? null,
+  feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
+  roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
+  minHoldingTokens: env.MIN_HOLDING_TOKENS,
+  warnings: keypairWarnings,
+});
+
+app.get("/", (_req, res) => {
+  res.json({ ok: true, service: "hodl-or-no-hodl-api", health: "/health", status: "/api/status" });
+});
+
 app.get("/health", (_req, res) => {
+  res.json(healthResponse());
+});
+
+app.get("/api/health", (_req, res) => {
   res.json({
-    ok: true,
-    cluster: clusterName,
-    tokenMint: tokenMint?.toBase58() ?? null,
-    database: Boolean(supabase),
-    keeper: Boolean(keeper),
-    pumpCreator: Boolean(pumpCreator),
-    payoutWallet: payoutWallet?.publicKey.toBase58() ?? null,
-    feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
-    roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
-    minHoldingTokens: env.MIN_HOLDING_TOKENS,
-    warnings: keypairWarnings,
+    ...healthResponse(),
+    canonical: "/health",
   });
 });
 

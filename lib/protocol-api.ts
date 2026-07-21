@@ -45,11 +45,17 @@ export type HolderState = {
 
 type ApiError = { error?: string };
 
-export const protocolApiUrl = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+const normalizeProtocolApiUrl = (value?: string) => {
+  const trimmed = (value ?? "").trim().replace(/\/+$/, "");
+  return trimmed.replace(/\/api$/i, "");
+};
+
+export const protocolApiUrl = normalizeProtocolApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
 export async function protocolRequest<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
   if (!protocolApiUrl) throw new Error("The game API has not been connected to this deployment yet.");
-  const response = await fetch(`${protocolApiUrl}${path}`, {
+  const requestUrl = `${protocolApiUrl}${path}`;
+  const response = await fetch(requestUrl, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -58,7 +64,9 @@ export async function protocolRequest<T>(path: string, init?: RequestInit, token
     },
   });
   const body = (await response.json().catch(() => ({}))) as T & ApiError;
-  if (!response.ok) throw new Error(body.error || `Game API request failed (${response.status}).`);
+  if (!response.ok) {
+    throw new Error(body.error || `Game API request failed (${response.status}) at ${requestUrl}. Set NEXT_PUBLIC_API_URL to the Railway service root, not the website URL.`);
+  }
   return body;
 }
 
