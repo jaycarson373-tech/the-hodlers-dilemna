@@ -17,9 +17,9 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : "https://jaycarson373-tech.github.io/the-hodlers-dilemna");
-const title = "The Hodler’s Dilemna — On-Chain Social Experiment";
+const title = "Hodlers Dilemma.fun — Hold Together. Or Don’t.";
 const description =
-  "A frontend preview of an on-chain social experiment about conviction, cooperation, betrayal, and the prisoner’s dilemma.";
+  "An on-chain social experiment about conviction, cooperation, betrayal, and the prisoner’s dilemma.";
 const socialImage = `${siteUrl}/official-wordmark.jpg`;
 
 export const metadata: Metadata = {
@@ -34,10 +34,10 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: siteUrl,
-    siteName: "The Hodler’s Dilemna",
+    siteName: "Hodlers Dilemma.fun",
     title,
     description,
-    images: [{ url: socialImage, width: 1280, height: 426, alt: title }],
+    images: [{ url: socialImage, width: 1280, height: 427, alt: title }],
   },
   twitter: {
     card: "summary_large_image",

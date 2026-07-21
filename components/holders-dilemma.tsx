@@ -15,6 +15,7 @@ import {
 } from "@/lib/experiment-data";
 
 type Decision = "cooperate" | "defect" | null;
+const CONTRACT_ADDRESS = "HfQqQ1SbpUD7NvPrP5wv2MqFooFcxsuJVcuc5utfpump";
 
 const formatTime = (seconds: number) => {
   const safeSeconds = Math.max(0, seconds);
@@ -32,7 +33,7 @@ function OfficialMark({ className = "" }: { className?: string }) {
     <span className={`official-mark ${className}`} aria-hidden="true">
       {/* Kept unprocessed so the supplied official artwork remains byte-for-byte unchanged. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="./official-mark.jpg" alt="" width="1254" height="1254" />
+      <img src="./official-mark.jpg" alt="" width="1024" height="1024" />
     </span>
   );
 }
@@ -312,7 +313,7 @@ export function HoldersDilemma() {
         <nav className="site-nav" aria-label="Primary navigation">
           <a className="brand" href="#experiment" onClick={closeMenu}>
             <OfficialMark className="official-mark-nav" />
-            <span>THE HODLER’S DILEMNA</span>
+            <span>HODLERS DILEMMA<span className="brand-domain">.FUN</span></span>
           </a>
 
           <button
@@ -363,6 +364,14 @@ export function HoldersDilemma() {
               transition={{ duration: 0.7, delay: 0.12 }}
             >
               Cooperate with the holders beside you, or defect and attempt to take more for yourself.
+            </motion.p>
+            <motion.p
+              className="brand-tagline"
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, delay: 0.17 }}
+            >
+              HOLD TOGETHER. OR DON&apos;T.
             </motion.p>
             <motion.div
               className="hero-actions"
@@ -676,14 +685,28 @@ export function HoldersDilemma() {
         </section>
       </main>
 
+      <section className="contract-strip section-shell" aria-label="Official contract address">
+        <span>OFFICIAL CONTRACT ADDRESS</span>
+        <code>{CONTRACT_ADDRESS}</code>
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard.writeText(CONTRACT_ADDRESS);
+            showPreviewNotice("Contract address copied.");
+          }}
+        >
+          COPY CA
+        </button>
+      </section>
+
       <footer className="site-footer section-shell">
         <div className="footer-top">
-          <a className="brand footer-brand" href="#experiment"><OfficialMark className="official-mark-footer" /><span>THE HODLER’S DILEMNA</span></a>
+          <a className="brand footer-brand" href="#experiment"><OfficialMark className="official-mark-footer" /><span>HODLERS DILEMMA<span className="brand-domain">.FUN</span></span></a>
           <div className="footer-links">
             <button type="button" onClick={() => showPreviewNotice("The official X account will be announced before launch.")}>X</button>
             <button type="button" onClick={() => showPreviewNotice("The official Telegram will be announced before launch.")}>Telegram</button>
           </div>
-          <div className="footer-coming-soon"><span>CONTRACT <b>COMING SOON</b></span><span>DOCUMENTATION <b>COMING SOON</b></span></div>
+          <div className="footer-coming-soon"><span>CONTRACT <b>{CONTRACT_ADDRESS}</b></span><span>DOCUMENTATION <b>COMING SOON</b></span></div>
         </div>
         <div className="footer-bottom">
           <p>The displayed data is illustrative until the live protocol and contracts are deployed. Participation involves financial and smart-contract risk.</p>
