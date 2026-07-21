@@ -67,18 +67,18 @@ export const leaderboard: LeaderboardEntry[] = [
 ];
 
 export const feed: FeedEntry[] = [
-  { time: "T−19:42", event: "ROUND 023 SETTLED", detail: "Majority chose HODL. Pot distributed.", tone: "cooperate" },
+  { time: "T−19:42", event: "OFFER DECLINED", detail: "Majority chose HODL. The case opened for holders.", tone: "cooperate" },
   { time: "T−18:07", event: "WALLET 8D4...2FA TOOK THE DEAL", detail: "Dealer bonus activated.", tone: "defect" },
   { time: "T−14:31", event: "BETRAYAL BOUNTY FUNDED", detail: "A 19-day streak was forfeited.", tone: "gold" },
-  { time: "T−08:12", event: "BANKER’S OFFER REFUSED", detail: "412 wallets said no hodl? No. HODL.", tone: "gold" },
-  { time: "T−00:00", event: "ROUND 024 OPENED", detail: "Decision window is now active.", tone: "neutral" },
+  { time: "T−08:12", event: "BANKER’S OFFER REFUSED", detail: "Holders kept their cases closed.", tone: "gold" },
+  { time: "T−00:00", event: "BANKER ONLINE", detail: "Waiting for the next call.", tone: "neutral" },
 ];
 
 export const roundHistory: RoundHistoryEntry[] = [
-  { round: "023", outcome: "MAJORITY HODLED", split: "67% / 33%", pot: "124.18 SOL", result: "DISTRIBUTED", tone: "cooperate" },
-  { round: "022", outcome: "TOO MANY TOOK THE OFFER", split: "46% / 54%", pot: "81.30 SOL", result: "ROLLED OVER", tone: "defect" },
-  { round: "021", outcome: "MAJORITY HODLED", split: "71% / 29%", pot: "76.44 SOL", result: "DISTRIBUTED", tone: "cooperate" },
-  { round: "020", outcome: "TOO MANY TOOK THE OFFER", split: "48% / 52%", pot: "42.06 SOL", result: "ROLLED OVER", tone: "defect" },
+  { round: "ARMING", outcome: "BANKER ONLINE", split: "Awaiting holders", pot: "Awaiting funded pot", result: "Preparing first round", tone: "cooperate" },
+  { round: "LOCKED", outcome: "CASE SEALED", split: "Decision pending", pot: "No offer available yet", result: "Waiting for call", tone: "defect" },
+  { round: "CALL", outcome: "OFFER INCOMING", split: "Board locked", pot: "Case value hidden", result: "Banker reviewing", tone: "cooperate" },
+  { round: "OPEN", outcome: "CASE OPENING", split: "HODL or NO HODL", pot: "Revealed when live", result: "Offer pending", tone: "defect" },
 ];
 
 export const mechanics = [

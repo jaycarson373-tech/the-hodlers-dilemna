@@ -16,6 +16,17 @@ import {
 
 type Decision = "cooperate" | "defect" | null;
 
+const previewMode = process.env.NEXT_PUBLIC_PREVIEW_MODE !== "false";
+const tokenMint = process.env.NEXT_PUBLIC_TOKEN_MINT?.trim();
+const pumpUrl = process.env.NEXT_PUBLIC_PUMP_URL?.trim();
+const jupiterUrl = process.env.NEXT_PUBLIC_JUPITER_URL?.trim();
+const xUrl = process.env.NEXT_PUBLIC_X_URL?.trim();
+const telegramUrl = process.env.NEXT_PUBLIC_TELEGRAM_URL?.trim();
+const buyLinks = [
+  { label: "Pump.fun", href: pumpUrl },
+  { label: "Jupiter", href: jupiterUrl },
+].filter((link): link is { label: string; href: string } => Boolean(link.href));
+
 const formatTime = (seconds: number) => {
   const safeSeconds = Math.max(0, seconds);
   const hours = Math.floor(safeSeconds / 3600);
@@ -32,7 +43,7 @@ function OfficialMark({ className = "" }: { className?: string }) {
     <span className={`official-mark ${className}`} aria-hidden="true">
       {/* Kept unprocessed so the supplied official artwork remains byte-for-byte unchanged. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="./official-mark.jpg" alt="" width="1024" height="1024" />
+      <img src="/official-mark.jpg" alt="" width="1254" height="1254" />
     </span>
   );
 }
@@ -96,67 +107,86 @@ function Reveal({
   );
 }
 
+function PreviewBanner() {
+  if (!previewMode) return null;
+  return (
+    <div className="preview-mode-banner" role="status">
+      <span>PROTOCOL PREVIEW</span>
+      <p>Live rounds begin once the protocol launches.</p>
+    </div>
+  );
+}
+
+function StickyBuyBar({ onCopy }: { onCopy: (message: string) => void }) {
+  if (!tokenMint && buyLinks.length === 0 && !xUrl && !telegramUrl) return null;
+
+  const copyContract = async () => {
+    if (!tokenMint) return;
+    await navigator.clipboard?.writeText(tokenMint).catch(() => undefined);
+    onCopy("Contract copied.");
+  };
+
+  return (
+    <aside className="sticky-buy-bar" aria-label="Buy and community links">
+      {buyLinks.length ? <a className="sticky-buy-button" href={buyLinks[0].href} target="_blank" rel="noreferrer">BUY</a> : null}
+      {tokenMint ? (
+        <button type="button" onClick={() => void copyContract()}>
+          <span>CA</span>
+          <strong>{tokenMint.slice(0, 4)}…{tokenMint.slice(-5)}</strong>
+        </button>
+      ) : null}
+      {buyLinks.map((link) => <a key={link.label} href={link.href} target="_blank" rel="noreferrer">{link.label}</a>)}
+      {xUrl ? <a href={xUrl} target="_blank" rel="noreferrer">X</a> : null}
+      {telegramUrl ? <a href={telegramUrl} target="_blank" rel="noreferrer">Telegram</a> : null}
+    </aside>
+  );
+}
+
 function ExperimentPanel({
-  seconds,
-  pot,
-  cooperateSignal,
+  broadcastStatus,
   decision,
   onDecision,
 }: {
-  seconds: number;
-  pot: number;
-  cooperateSignal: number;
+  broadcastStatus: string;
   decision: Decision;
   onDecision: (decision: Exclude<Decision, null>) => void;
 }) {
-  const defectSignal = 100 - cooperateSignal;
-
   return (
     <div className="experiment-panel live-protocol-panel">
       <div className="live-preview-heading">
-        <p>LIVE ROUND / PROTOCOL PREVIEW</p>
-        <h2>DECISION WINDOW OPEN.</h2>
-        <span>One private decision. One collective outcome. Every round rewards coordination, tempts betrayal, and records who chose conviction over extraction.</span>
+        <p><i className="live-dot" /> BANKER ONLINE / LIVE BROADCAST</p>
+        <h2>WAITING FOR THE BANKER&apos;S CALL.</h2>
+        <span>The first case stays sealed until the funded pot is ready. Every holder eventually faces the same offer.</span>
       </div>
 
       <div className="live-preview-grid" aria-label="Round model data">
         <article className="live-preview-card round-preview-card">
-          <span>CURRENT ROUND</span>
-          <strong><AnimatedValue>024</AnimatedValue></strong>
-          <small>PROPOSED ROUND STRUCTURE</small>
+          <span>BROADCAST STATUS</span>
+          <strong><AnimatedValue>{broadcastStatus}</AnimatedValue></strong>
+          <small>THE BANKER IS REVIEWING</small>
 
-          <span>TIME UNTIL NEXT DECISION</span>
-          <strong><AnimatedValue>{formatTime(seconds)}</AnimatedValue></strong>
-          <small>SIMULATED COUNTDOWN</small>
+          <span>NEXT CALL</span>
+          <strong><AnimatedValue>Launching Soon</AnimatedValue></strong>
+          <small>COUNTDOWN APPEARS WHEN LIVE</small>
         </article>
 
         <article className="live-preview-card signal-preview-card">
-          <span>AUDIENCE SIGNAL / NON-BINDING</span>
-          <div className="combined-signal" aria-hidden="true">
-            <motion.i
-              style={{ width: `${cooperateSignal}%` }}
-              animate={{ width: `${cooperateSignal}%` }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            />
-            <b />
-          </div>
-          <div className="combined-signal-labels">
-            <strong>HODL — <AnimatedValue>{cooperateSignal}%</AnimatedValue></strong>
-            <strong>NO HODL — <AnimatedValue>{defectSignal}%</AnimatedValue></strong>
-          </div>
+          <span>THE OFFER</span>
+          <strong><AnimatedValue>Decision pending</AnimatedValue></strong>
+          <small>NO OFFER AVAILABLE YET</small>
 
-          <span>ACTIVE HOLDERS</span>
-          <strong><AnimatedValue>10,842</AnimatedValue></strong>
+          <span>CURRENT POT</span>
+          <strong><AnimatedValue>Awaiting funded pot</AnimatedValue></strong>
 
-          <span>LONGEST HOLD STREAK</span>
-          <strong><AnimatedValue>94 Days</AnimatedValue></strong>
+          <span>CASE STATUS</span>
+          <strong><AnimatedValue>Locked</AnimatedValue></strong>
         </article>
 
         <article className="live-preview-card pot-preview-card">
-          <span>WHAT&apos;S IN THE BOX / ILLUSTRATIVE</span>
-          <strong><AnimatedValue>{pot.toFixed(2)}</AnimatedValue></strong>
-          <small>SOL</small>
-          <p>DISTRIBUTED TO HODLERS, WEIGHTED BY STREAK</p>
+          <span>WHAT&apos;S IN THE BOX?</span>
+          <strong><AnimatedValue>?</AnimatedValue></strong>
+          <small>THE CASE IS SEALED</small>
+          <p>The Banker opens the round when the first funded pot is ready.</p>
 
           <div className="decision-grid" aria-label="Decision demonstration">
           <motion.button
@@ -180,7 +210,7 @@ function ExperimentPanel({
           </div>
 
           <p className="panel-footnote" role="status" aria-live="polite">
-            DEMONSTRATION CONTROLS ONLY — NO TRANSACTION IS CREATED.
+            Live controls activate when the Banker opens the round.
           </p>
         </article>
       </div>
@@ -191,8 +221,7 @@ function ExperimentPanel({
 export function HoldersDilemma() {
   const reduceMotion = useReducedMotion();
   const [seconds, setSeconds] = useState(6138);
-  const [pot, setPot] = useState(128.42);
-  const [cooperateSignal, setCooperateSignal] = useState(62);
+  const [broadcastIndex, setBroadcastIndex] = useState(0);
   const [decision, setDecision] = useState<Decision>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [uiNotice, setUiNotice] = useState("");
@@ -209,14 +238,13 @@ export function HoldersDilemma() {
       setSeconds((current) => (current > 0 ? current - 1 : 6138));
     }, 1000);
 
-    const dataPulse = window.setInterval(() => {
-      setCooperateSignal((current) => (current === 62 ? 61 : 62));
-      setPot((current) => (current >= 128.45 ? 128.42 : current + 0.01));
-    }, 5600);
+    const statusPulse = window.setInterval(() => {
+      setBroadcastIndex((current) => (current + 1) % 6);
+    }, 4600);
 
     return () => {
       window.clearInterval(timer);
-      window.clearInterval(dataPulse);
+      window.clearInterval(statusPulse);
     };
   }, [reduceMotion]);
 
@@ -232,6 +260,7 @@ export function HoldersDilemma() {
   };
 
   const closeMenu = () => setMenuOpen(false);
+  const broadcastStatus = ["BANKER ONLINE", "ROUND LOCKED", "OFFER INCOMING", "CASE OPENING", "DECISION PENDING", "OFFER LOCKED"][broadcastIndex];
 
   return (
     <>
@@ -258,6 +287,8 @@ export function HoldersDilemma() {
       </AnimatePresence>
       <AmbientBackground />
       <a className="skip-link" href="#main-content">Skip to main content</a>
+      <PreviewBanner />
+      <StickyBuyBar onCopy={showPreviewNotice} />
 
       <header className="site-header">
         <nav className="site-nav" aria-label="Primary navigation">
@@ -298,7 +329,7 @@ export function HoldersDilemma() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
             >
-              <span>ON-CHAIN SOCIAL EXPERIMENT / ROUND 024</span>
+              <span><i className="live-dot" /> LIVE BROADCAST / BANKER ONLINE</span>
             </motion.p>
             <motion.h1
               initial={false}
@@ -313,7 +344,7 @@ export function HoldersDilemma() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.12 }}
             >
-              Every holder gets the call. Hold the box with the holders beside you — or take the offer and walk away with yours. Conviction, cooperation, betrayal. Live on Solana.
+              Every holder gets the call. Keep the box closed, or take the Banker&apos;s offer.
             </motion.p>
             <motion.p
               className="brand-tagline"
@@ -355,7 +386,7 @@ export function HoldersDilemma() {
             >
               <OfficialMark className="official-mark-hero" />
             </motion.div>
-            <div className="hero-logo-caption"><span>THE BANKER IS CALLING</span><i /> <span>ROUND 024 LIVE</span></div>
+            <div className="hero-logo-caption"><span>THE BANKER IS CALLING</span><i /> <span>ROUND ARMING</span></div>
           </motion.div>
 
           <div className="hero-dossier" aria-label="Experiment classification">
@@ -370,9 +401,7 @@ export function HoldersDilemma() {
         <section className="live-dilemma-section section-shell" aria-label="Hodl or no hodl round model">
           <Reveal>
             <ExperimentPanel
-              seconds={seconds}
-              pot={pot}
-              cooperateSignal={cooperateSignal}
+              broadcastStatus={broadcastStatus}
               decision={decision}
               onDecision={setDecision}
             />
@@ -385,7 +414,7 @@ export function HoldersDilemma() {
               <div className="game-entry-copy">
                 <span>LIVE GAME ROOM / 30-MINUTE ROUNDS</span>
                 <h2>READY TO OPEN YOUR BOX?</h2>
-                <p>Connect a Solana wallet, sign in, verify a 500K-token hold, then choose HODL or NO HODL before the decision window closes.</p>
+                <p>Connect a Solana wallet, claim your 500K-token seat, then choose HODL or NO HODL before the Banker closes the case.</p>
               </div>
               <div className="game-entry-steps" aria-label="Game entry steps">
                 <span>01 CONNECT</span>
@@ -484,7 +513,7 @@ export function HoldersDilemma() {
 
             <Reveal className="wallet-card-wrap" delay={0.12}>
               <div className="wallet-card terminal-frame">
-                <div className="wallet-card-header"><span>SAMPLE WALLET</span><span className="status-dot">TRACKING</span></div>
+                <div className="wallet-card-header"><span>WALLET SEAT</span><span className="status-dot">BANKER WATCH</span></div>
                 <div className="wallet-ident"><OfficialMark className="official-mark-wallet" /><strong>7F3...A91</strong></div>
                 <dl>
                   <div><dt>Current Streak</dt><dd>12 Days</dd></div>
@@ -588,7 +617,7 @@ export function HoldersDilemma() {
           />
 
           <Reveal className="leaderboard-shell terminal-frame">
-            <div className="leaderboard-meta"><span>SEASON 00</span><span>6 SAMPLE SUBJECTS SHOWN</span></div>
+            <div className="leaderboard-meta"><span>SEASON 00</span><span>BOARD FORMAT LOCKED</span></div>
             <div className="leaderboard-table-wrap">
               <table>
                 <caption className="sr-only">Last Holder Standing leaderboard format</caption>
@@ -668,12 +697,19 @@ export function HoldersDilemma() {
       </main>
 
       <footer className="site-footer section-shell">
-        <div className="footer-top">
+          <div className="footer-top">
           <a className="brand footer-brand" href="#experiment"><OfficialMark className="official-mark-footer" /><span>HODL OR NO HODL<span className="brand-domain">.FUN</span></span></a>
-          <div className="footer-links">
-            <button type="button" onClick={() => showPreviewNotice("Telegram link will be added when the channel is live.")}>Telegram</button>
+          <div className="footer-banner" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/official-wordmark.jpg" alt="" width="1280" height="426" />
           </div>
-          <div className="footer-coming-soon"><span>DOCUMENTATION <b>IN PROGRESS</b></span></div>
+          <div className="footer-links">
+            {xUrl ? <a href={xUrl} target="_blank" rel="noreferrer">X</a> : null}
+            {telegramUrl ? <a href={telegramUrl} target="_blank" rel="noreferrer">Telegram</a> : null}
+            {buyLinks.map((link) => <a key={link.label} href={link.href} target="_blank" rel="noreferrer">{link.label}</a>)}
+            {tokenMint ? <button type="button" onClick={() => void navigator.clipboard?.writeText(tokenMint).then(() => showPreviewNotice("Contract copied."))}>Copy CA</button> : null}
+          </div>
+          <div className="footer-coming-soon"><span>BANKER STATUS <b>AWAITING FIRST CALL</b></span></div>
         </div>
         <div className="footer-bottom">
           <p>Participation involves financial, wallet, and smart-contract risk. Verify the contract address before trading.</p>

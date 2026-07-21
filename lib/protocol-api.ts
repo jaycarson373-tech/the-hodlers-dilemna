@@ -52,8 +52,18 @@ const normalizeProtocolApiUrl = (value?: string) => {
 
 export const protocolApiUrl = normalizeProtocolApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
+const publicGameError = (message?: string) => {
+  const text = message ?? "";
+  if (
+    /api|railway|supabase|token_mint|database|configured|configuration|next_public|health|column|relation|schema|fetch|request failed|network/i.test(text)
+  ) {
+    return "The Banker is preparing the first round. Try again in a moment.";
+  }
+  return text || "No offer available yet. Waiting for the Banker's call.";
+};
+
 export async function protocolRequest<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
-  if (!protocolApiUrl) throw new Error("The game API has not been connected to this deployment yet.");
+  if (!protocolApiUrl) throw new Error("The Banker is preparing the first round. Try again in a moment.");
   const requestUrl = `${protocolApiUrl}${path}`;
   const response = await fetch(requestUrl, {
     ...init,
@@ -62,14 +72,12 @@ export async function protocolRequest<T>(path: string, init?: RequestInit, token
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
+  }).catch(() => {
+    throw new Error("The Banker is preparing the first round. Try again in a moment.");
   });
   const body = (await response.json().catch(() => ({}))) as T & ApiError;
   if (!response.ok) {
-    const healthUrl = `${protocolApiUrl}/health`;
-    throw new Error(
-      body.error ||
-        `Game API request failed (${response.status}) at ${requestUrl}. The configured Railway backend URL is not serving the game API. Open ${healthUrl}; it must show {"ok":true}. If it shows 404, replace NEXT_PUBLIC_API_URL in Vercel with the real Railway service root and redeploy.`,
-    );
+    throw new Error(publicGameError(body.error || `Request failed ${response.status}`));
   }
   return body;
 }

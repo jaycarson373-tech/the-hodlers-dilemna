@@ -157,6 +157,12 @@ const addSeconds = (date: Date, seconds: number) => new Date(date.getTime() + se
 const bigintValue = (value: unknown) => BigInt(String(value ?? "0"));
 const iso = (value?: string | null) => value ?? null;
 const tierName = (tier: number) => ["Paper Hands", "Iron Hands", "Diamond Hands", "Obsidian Hands"][tier] ?? "Paper Hands";
+const publicErrorMessage = (message: string) => {
+  if (/supabase|token_mint|database|configured|configuration|column|relation|schema|railway|api|rpc|keypair|private|secret/i.test(message)) {
+    return "The Banker is preparing the first round. Try again in a moment.";
+  }
+  return message;
+};
 
 function requireDb() {
   if (!supabase) throw new Error("Supabase is not configured.");
@@ -167,7 +173,7 @@ async function authenticate(req: Request) {
   if (!sessionKey) throw new Error("Wallet authentication is not configured.");
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (!token) throw new Error("Wallet sign-in is required.");
-  const { payload } = await jwtVerify(token, sessionKey, { issuer: "hodlersdilemma.fun", audience: "game" });
+  const { payload } = await jwtVerify(token, sessionKey, { issuer: "hodlornohodl.fun", audience: "game" });
   if (typeof payload.sub !== "string") throw new Error("Invalid wallet session.");
   return payload.sub;
 }
@@ -624,7 +630,7 @@ app.get("/api/auth/challenge", (req, res, next) => {
     const nonce = randomUUID();
     const expiresAt = Date.now() + 5 * 60_000;
     nonces.set(wallet, { nonce, expiresAt });
-    const message = `Hodlers Dilemma.fun\nSign in to play.\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
+  const message = `Hodl or No Hodl.fun\nSign in to play.\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
     res.json({ message, expiresAt: new Date(expiresAt).toISOString() });
   } catch (error) { next(error); }
 });
@@ -640,7 +646,7 @@ app.post("/api/auth/verify", async (req, res, next) => {
     const valid = nacl.sign.detached.verify(new TextEncoder().encode(body.message), signature, new PublicKey(wallet).toBytes());
     if (!valid) throw new Error("The wallet signature is invalid.");
     nonces.delete(wallet);
-    const token = await new SignJWT({ wallet }).setProtectedHeader({ alg: "HS256" }).setSubject(wallet).setIssuer("hodlersdilemma.fun").setAudience("game").setIssuedAt().setExpirationTime("12h").sign(sessionKey);
+    const token = await new SignJWT({ wallet }).setProtectedHeader({ alg: "HS256" }).setSubject(wallet).setIssuer("hodlornohodl.fun").setAudience("game").setIssuedAt().setExpirationTime("12h").sign(sessionKey);
     res.json({ token, wallet, expiresIn: 43_200 });
   } catch (error) { next(error); }
 });
@@ -663,7 +669,7 @@ app.post("/api/tx/initialize", async (req, res, next) => {
       throw new Error("Only the configured admin can initialize the game.");
     }
     await ensureGameConfig();
-    res.json({ ok: true, message: "Mainnet game is initialized." });
+    res.json({ ok: true, message: "The Banker is preparing the first offer." });
   } catch (error) { next(error); }
 });
 
@@ -673,7 +679,7 @@ app.post("/api/tx/open-position", async (req, res, next) => {
     await requireSameWallet(req, raw);
     const holder = await syncHolder(new PublicKey(raw));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens.`);
-    res.json({ ok: true, message: "Holding verified. Streak tracking is active.", holder });
+    res.json({ ok: true, message: "Seat claimed. The Banker has your wallet on the board.", holder });
   } catch (error) { next(error); }
 });
 
@@ -683,7 +689,7 @@ app.post("/api/tx/deposit", async (req, res, next) => {
     await requireSameWallet(req, raw);
     const holder = await syncHolder(new PublicKey(raw));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens.`);
-    res.json({ ok: true, message: "Holding synced from mainnet balance.", holder });
+    res.json({ ok: true, message: "Seat refreshed. Keep the box closed.", holder });
   } catch (error) { next(error); }
 });
 
@@ -692,7 +698,7 @@ app.post("/api/tx/withdraw", async (req, res, next) => {
     const { wallet: raw } = walletBody.parse(req.body);
     await requireSameWallet(req, raw);
     const holder = await syncHolder(new PublicKey(raw));
-    res.json({ ok: true, message: "Holding state refreshed from mainnet balance.", holder });
+    res.json({ ok: true, message: "Seat refreshed from the board.", holder });
   } catch (error) { next(error); }
 });
 
@@ -758,7 +764,7 @@ app.post("/api/tx/vote", async (req, res, next) => {
       wallet: vote.wallet,
       detail: `${vote.wallet.slice(0, 4)}...${vote.wallet.slice(-4)} chose ${body.choice}.`,
     });
-    res.json({ ok: true, message: `${body.choice.toUpperCase()} vote recorded.`, weight: weight.toString() });
+    res.json({ ok: true, message: body.choice === "cooperate" ? "HODL locked in." : "NO HODL locked in.", weight: weight.toString() });
   } catch (error) { next(error); }
 });
 
@@ -820,7 +826,7 @@ app.post("/api/tx/claim", async (req, res, next) => {
         detail: `${amount.toString()} lamports claimed from round ${body.roundNumber}.`,
         transaction_signature: signature,
       });
-      res.json({ ok: true, message: "Reward sent.", signature, amountLamports: amount.toString() });
+      res.json({ ok: true, message: "Offer paid.", signature, amountLamports: amount.toString() });
     } catch (sendError) {
       await db.from("reward_claims").delete().eq("round_number", body.roundNumber).eq("wallet", wallet.toBase58());
       throw sendError;
@@ -837,12 +843,13 @@ app.post("/api/tx/fund", async (_req, res, next) => {
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   void _next;
   const message = error instanceof Error ? error.message : "Unexpected server error.";
+  console.error("api request failed", error);
   const status = /required|invalid|expired|match|initialized|open|configured|claimed|hold|vote/i.test(message) ? 400 : 500;
-  res.status(status).json({ error: message });
+  res.status(status).json({ error: publicErrorMessage(message) });
 });
 
 app.listen(env.PORT, () => {
-  console.log(`Hodlers Dilemma keeper/API listening on ${env.PORT}`);
+  console.log(`Hodl or No Hodl keeper/API listening on ${env.PORT}`);
   console.log(`Mainnet game mode: rounds=${env.ROUND_LENGTH_SECONDS}s feeCollection=${env.FEE_COLLECTION_INTERVAL_MS}ms`);
   void keeperTick();
   void collectPumpCreatorFees();

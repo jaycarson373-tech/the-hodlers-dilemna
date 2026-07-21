@@ -27,6 +27,14 @@ const formatCountdown = (seconds: number) => {
 
 type GameResponse = { ok?: boolean; message?: string; signature?: string; amountLamports?: string };
 
+const hasPositiveLamports = (value?: string) => {
+  try {
+    return BigInt(value ?? "0") > 0n;
+  } catch {
+    return false;
+  }
+};
+
 export function ProtocolConsole() {
   const { connected, wallet } = useWalletConnection();
   const address = wallet?.account.address.toString();
@@ -86,7 +94,7 @@ export function ProtocolConsole() {
         body: JSON.stringify({ wallet: address, message: challenge.message, signature: base64FromBytes(signature) }),
       });
       setSessionToken(verified.token);
-      setMessage("Wallet verified. The game room is open — verify your holding, then choose HODL or NO HODL.");
+      setMessage("Wallet verified. Claim your seat, then wait for the Banker's call.");
       return verified.token;
     } finally {
       setBusy("");
@@ -122,30 +130,56 @@ export function ProtocolConsole() {
   const canVote = Boolean(connected && sessionToken && hasPosition && status?.roundActive && round?.status === "open");
   const canClaim = Boolean(connected && sessionToken && round?.status === "settled");
   const protocolReady = Boolean(protocolApiUrl && status?.configured);
+  const hasLiveRound = Boolean(protocolReady && status?.roundActive && round);
+  const currentPot = round?.potLamports ?? status?.availablePoolLamports;
+  const hasFundedPot = hasPositiveLamports(currentPot);
+  const hasVotes = Boolean(round && round.voterCount > 0);
+  const inFinalMinute = countdown > 0 && countdown <= 60 && Boolean(status?.roundActive);
+  const countdownText = countdown > 0 ? formatCountdown(countdown) : "Launching Soon";
   const headline = useMemo(() => {
-    if (!protocolApiUrl) return "GAME ROOM NOT CONNECTED";
-    if (!status) return "CALLING THE BANKER";
-    if (!status.configured) return "OPEN THE FIRST BOX";
-    return status.roundActive ? `ROUND ${status.currentRound} / HODL OR NO HODL` : "NEXT BOX IS BEING PREPARED";
-  }, [status]);
+    if (!protocolReady) return "ROUND 001 ARMING";
+    if (status?.roundActive) return "THE OFFER IS LIVE.";
+    if (hasFundedPot) return "OFFER INCOMING.";
+    return "WAITING FOR THE BANKER'S CALL.";
+  }, [hasFundedPot, protocolReady, status?.roundActive]);
 
   return (
-    <section className="protocol-console section-shell" id="play" aria-labelledby="protocol-console-title">
+    <section className={`protocol-console section-shell ${inFinalMinute ? "final-minute" : ""}`} id="play" aria-labelledby="protocol-console-title">
       <div className="protocol-console-head">
-        <div><span>THE BANKER&apos;S ROOM / LIVE SOLANA GAME</span><h2 id="protocol-console-title">{headline}</h2></div>
-        <div className="protocol-countdown"><span>{status?.roundActive ? "ROUND CLOSES IN" : "NEXT ROUND IN"}</span><strong>{formatCountdown(countdown)}</strong></div>
+        <div>
+          <div className="broadcast-status-row" aria-label="Broadcast status">
+            <span><i /> LIVE</span>
+            <span>BANKER ONLINE</span>
+            <span>{hasLiveRound ? `ROUND ${status?.currentRound}` : "ROUND ARMING"}</span>
+            <span>{inFinalMinute ? "BANKER PREPARING OFFER" : hasLiveRound ? "DECISION PENDING" : "AWAITING FUNDED POT"}</span>
+          </div>
+          <span>THE BANKER&apos;S ROOM / LIVE SOLANA GAME</span>
+          <h2 id="protocol-console-title">{headline}</h2>
+        </div>
+        <div className="protocol-countdown">
+          <span>{inFinalMinute ? "BANKER PREPARING OFFER" : hasLiveRound ? "BANKER CLOSES CASE IN" : "NEXT CALL"}</span>
+          <strong>{countdownText}</strong>
+        </div>
       </div>
 
-      <div className="protocol-stats">
-        <div><span>ROUND</span><strong>{status?.currentRound ?? "—"}</strong></div>
-        <div><span>POT</span><strong>{lamportsToSol(round?.potLamports ?? status?.availablePoolLamports)} SOL</strong></div>
-        <div><span>HODL</span><strong>{round ? `${round.cooperatePercent.toFixed(1)}%` : "—"}</strong></div>
-        <div><span>NO HODL</span><strong>{round ? `${round.defectPercent.toFixed(1)}%` : "—"}</strong></div>
-        <div><span>VOTERS</span><strong>{round?.voterCount ?? 0}</strong></div>
-        <div><span>WALLET / POSITION</span><strong>{holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : "—"}</strong></div>
-      </div>
+      {hasLiveRound || hasFundedPot ? (
+        <div className="protocol-stats">
+          <div><span>ROUND</span><strong>{hasLiveRound ? status?.currentRound : "Offer incoming"}</strong></div>
+          <div><span>CURRENT POT</span><strong>{hasFundedPot ? `${lamportsToSol(currentPot)} SOL` : "Awaiting funded pot"}</strong></div>
+          <div><span>HODL</span><strong>{hasVotes ? `${round?.cooperatePercent.toFixed(1)}%` : "Decision pending"}</strong></div>
+          <div><span>NO HODL</span><strong>{hasVotes ? `${round?.defectPercent.toFixed(1)}%` : "Decision pending"}</strong></div>
+          <div><span>CONTESTANTS</span><strong>{status?.activeHolders ? status.activeHolders.toLocaleString() : "Waiting for holders"}</strong></div>
+          <div><span>YOUR SEAT</span><strong>{holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : connected ? "Claim seat" : "Connect wallet"}</strong></div>
+        </div>
+      ) : (
+        <div className="protocol-arming-card" role="status" aria-live="polite">
+          <span>ROUND 001 ARMING</span>
+          <strong>The Banker is preparing the first round.</strong>
+          <p>{countdown > 0 ? "Waiting for the Banker's call." : "Launching Soon"}</p>
+        </div>
+      )}
 
-      {!protocolReady ? <div className="protocol-console-message"><strong>{protocolApiUrl ? "GAME CONFIGURATION PENDING" : "API URL MISSING"}</strong><p>{protocolApiUrl ? "The API is reachable, but Supabase or TOKEN_MINT is not configured yet." : "Set NEXT_PUBLIC_API_URL in Vercel to the Railway public URL to activate this panel."}</p></div> : null}
+      {!protocolReady ? <div className="protocol-console-message"><strong>ROUND ARMING</strong><p>Banker preparing first call.</p></div> : null}
 
       <div className="protocol-wallet-row">
         <div><span>WALLET ACCESS</span><strong>{address ? `${address.slice(0, 5)}…${address.slice(-5)}` : "NOT CONNECTED"}</strong><small>{sessionToken ? "SIGNED IN / GAME ENABLED" : connected ? "SIGN IN TO PLAY" : "CONNECT ABOVE TO CONTINUE"}</small></div>
@@ -154,18 +188,18 @@ export function ProtocolConsole() {
 
       {protocolApiUrl && status && !status.configured && connected && sessionToken ? (
         <div className="protocol-actions">
-          <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/initialize", {}, "GAME INITIALIZATION")}>OPEN FIRST 30-MINUTE ROUND</button>
+          <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/initialize", {}, "FIRST OFFER")}>ARM FIRST OFFER</button>
         </div>
       ) : null}
 
       {protocolReady && connected && sessionToken ? (
         <div className="protocol-actions">
-          {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/open-position", {}, "HOLDING VERIFICATION")}>VERIFY 500K HOLDING</button> : (
+          {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/open-position", {}, "SEAT CLAIM")}>CLAIM YOUR SEAT</button> : (
             <>
-              <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/deposit", {}, "HOLDING SYNC")}>SYNC HOLDING</button>
+              <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/deposit", {}, "SEAT REFRESH")}>REFRESH SEAT</button>
               <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "cooperate" }, "HODL VOTE")}>HODL</button>
               <button className="defect-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "defect" }, "NO HODL VOTE")}>NO HODL</button>
-              <button type="button" disabled={Boolean(busy) || !canClaim} onClick={() => void sendGameAction("/api/tx/claim", { roundNumber: status?.currentRound ?? "0" }, "REWARD CLAIM")}>CLAIM ROUND REWARD</button>
+              <button type="button" disabled={Boolean(busy) || !canClaim} onClick={() => void sendGameAction("/api/tx/claim", { roundNumber: status?.currentRound ?? "0" }, "OFFER CLAIM")}>CLAIM OFFER</button>
             </>
           )}
         </div>
@@ -174,7 +208,7 @@ export function ProtocolConsole() {
       {holder?.position ? <div className="protocol-position-line"><span>TIER <b>{tierNames[holder.position.tier] ?? holder.position.tierName}</b></span><span>STREAK <b>{Math.floor(Number(holder.position.streakSeconds) / 86_400)} DAYS</b></span><span>HELD <b>{positionAmount}</b></span></div> : null}
       {message ? <p className="protocol-success" role="status">{message}</p> : null}
       {error ? <p className="protocol-error" role="alert">{error}</p> : null}
-      <p className="protocol-console-foot">Connect wallet → sign in → verify 500K tokens → choose HODL or NO HODL. Mainnet balance controls eligibility; rewards depend on round outcome and available pot.</p>
+      <p className="protocol-console-foot">Connect wallet → sign in → claim your 500K-token seat → wait for the Banker&apos;s call → choose HODL or NO HODL.</p>
     </section>
   );
 }

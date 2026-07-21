@@ -5,13 +5,16 @@ import "./globals.css";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://hodlornohodl.fun";
 const title = "Hodl or No Hodl.fun";
 const description =
-  "A mainnet holder game where every round asks the same question: hodl, or no hodl?";
+  "A live holder game where every round ends with one question: HODL, or NO HODL?";
 const socialImage = `${siteUrl}/og.png`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
+  alternates: {
+    canonical: siteUrl,
+  },
   icons: {
     icon: `${siteUrl}/official-mark.jpg`,
     shortcut: `${siteUrl}/official-mark.jpg`,
@@ -29,6 +32,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title,
     description,
+    site: "@hodlornohodl",
     images: [socialImage],
   },
 };

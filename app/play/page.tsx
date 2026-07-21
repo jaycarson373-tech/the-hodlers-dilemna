@@ -10,16 +10,16 @@ export const metadata: Metadata = {
 
 const entrySteps = [
   ["01", "Connect Wallet", "Use a Solana wallet. No private key leaves your wallet."],
-  ["02", "Sign In", "Sign one message so the game knows the wallet is yours."],
-  ["03", "Verify 500K", "Mainnet balance confirms your seat at the table."],
-  ["04", "Choose", "Pick HODL or NO HODL before the round closes."],
+  ["02", "Answer the Call", "Sign one message so the Banker knows your seat."],
+  ["03", "Claim Seat", "A 500K-token hold gets you to the table."],
+  ["04", "Choose", "Pick HODL or NO HODL before the Banker closes the case."],
 ];
 
 function GameMark() {
   return (
     <span className="game-mark" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/official-mark.jpg" alt="" width="1024" height="1024" />
+      <img src="/official-mark.jpg" alt="" width="1254" height="1254" />
     </span>
   );
 }
@@ -49,7 +49,7 @@ export default function PlayPage() {
         <div className="game-room-copy">
           <p>LIVE GAME ROOM / 30-MINUTE ROUNDS</p>
           <h1>THE BANKER IS CALLING.</h1>
-          <span>Get in fast: connect your wallet, verify the 500K-token minimum, then answer the only question that matters.</span>
+          <span>Connect your wallet, claim your 500K-token seat, then wait for the Banker&apos;s offer.</span>
           <div className="game-room-actions">
             <a className="button button-primary" href="#game-console">Enter Game <b>↓</b></a>
             <Link className="button button-secondary" href="/">Back to Rules</Link>
@@ -82,7 +82,7 @@ export default function PlayPage() {
         <div className="game-console-stage-heading section-shell">
           <span>OPEN THE BOX</span>
           <h2>CHOOSE HODL OR NO HODL.</h2>
-          <p>The buttons below are the live game controls once Railway and Vercel point to the working API.</p>
+          <p>The live controls appear here when the Banker opens the round.</p>
         </div>
         <ProtocolConsole />
       </section>
