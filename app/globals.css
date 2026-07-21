@@ -6939,7 +6939,7 @@ th,
 /* Keep wallet access isolated from the game stage at every mobile breakpoint. */
 .wallet-modal-backdrop {
   z-index: 1000 !important;
-  background: rgba(5, 0, 1, 0.97) !important;
+  background: #050001 !important;
   backdrop-filter: blur(18px) !important;
 }
 
