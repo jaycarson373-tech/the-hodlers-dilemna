@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -7,15 +7,8 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
-  TransactionInstruction,
-  type AccountInfo,
 } from "@solana/web3.js";
-import {
-  getOrCreateAssociatedTokenAccount,
-  getAssociatedTokenAddressSync,
-  mintTo,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
+import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import bs58 from "bs58";
 import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
 import { jwtVerify, SignJWT } from "jose";
@@ -25,310 +18,122 @@ import { z } from "zod";
 const envSchema = z.object({
   PORT: z.coerce.number().default(3001),
   SITE_ORIGIN: z.string().url().default("http://localhost:3000"),
-  SOLANA_RPC_URL: z.string().url().default("https://api.devnet.solana.com"),
-  PROTOCOL_PROGRAM_ID: z.string().default("GT42vQcCtut8XU4z7rm9MAoGrV462xB7qK16CDgMgWha"),
+  SOLANA_RPC_URL: z.string().url().default("https://api.mainnet-beta.solana.com"),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SECRET_KEY: z.string().optional(),
   SESSION_SECRET: z.string().min(32).optional(),
   KEEPER_KEYPAIR_BASE64: z.string().optional(),
   PUMP_CREATOR_KEYPAIR_BASE64: z.string().optional(),
   FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
+  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(3_600),
+  CLAIM_WINDOW_SECONDS: z.coerce.number().int().positive().default(604_800),
+  DEFECT_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
+  DEFECTOR_BONUS_BPS: z.coerce.number().int().min(10_000).max(100_000).default(15_000),
   TOKEN_MINT: z.string().optional(),
   INITIAL_ADMIN: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
 const connection = new Connection(env.SOLANA_RPC_URL, "confirmed");
-const programId = new PublicKey(env.PROTOCOL_PROGRAM_ID);
-const bpfLoaderUpgradeableProgramId = new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
 const clusterName = env.SOLANA_RPC_URL.includes("devnet") ? "devnet" : "mainnet-beta";
 const sessionKey = env.SESSION_SECRET ? new TextEncoder().encode(env.SESSION_SECRET) : undefined;
+const tokenMint = env.TOKEN_MINT ? new PublicKey(env.TOKEN_MINT) : undefined;
 const supabase: SupabaseClient | undefined = env.SUPABASE_URL && env.SUPABASE_SECRET_KEY
   ? createClient(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
   : undefined;
 
-const keeper = (() => {
-  if (!env.KEEPER_KEYPAIR_BASE64) return undefined;
-  const decoded = Buffer.from(env.KEEPER_KEYPAIR_BASE64, "base64");
-  const secret = decoded[0] === 91
-    ? Uint8Array.from(JSON.parse(decoded.toString("utf8")) as number[])
-    : Uint8Array.from(decoded);
-  return Keypair.fromSecretKey(secret);
-})();
+const keypairWarnings: string[] = [];
 
-const pumpCreator = (() => {
-  if (!env.PUMP_CREATOR_KEYPAIR_BASE64) return undefined;
-  const decoded = Buffer.from(env.PUMP_CREATOR_KEYPAIR_BASE64, "base64");
-  const secret = decoded[0] === 91
-    ? Uint8Array.from(JSON.parse(decoded.toString("utf8")) as number[])
-    : Uint8Array.from(decoded);
-  return Keypair.fromSecretKey(secret);
-})();
+function secretFromBytes(bytes: Uint8Array) {
+  if (bytes.length !== 64) throw new Error(`Expected 64 secret-key bytes, received ${bytes.length}.`);
+  return Keypair.fromSecretKey(bytes);
+}
+
+function parseKeypairValue(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("[")) {
+    return secretFromBytes(Uint8Array.from(JSON.parse(trimmed) as number[]));
+  }
+
+  const decodedBase64 = Buffer.from(trimmed, "base64");
+  if (decodedBase64[0] === 91) {
+    return secretFromBytes(Uint8Array.from(JSON.parse(decodedBase64.toString("utf8")) as number[]));
+  }
+  if (decodedBase64.length === 64) return secretFromBytes(Uint8Array.from(decodedBase64));
+
+  const decodedBase58 = bs58.decode(trimmed);
+  return secretFromBytes(decodedBase58);
+}
+
+function optionalKeypair(name: string, value?: string) {
+  if (!value) return undefined;
+  try {
+    return parseKeypairValue(value);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid keypair.";
+    keypairWarnings.push(`${name}: ${message}`);
+    return undefined;
+  }
+}
+
+const keeper = optionalKeypair("KEEPER_KEYPAIR_BASE64", env.KEEPER_KEYPAIR_BASE64);
+const pumpCreator = optionalKeypair("PUMP_CREATOR_KEYPAIR_BASE64", env.PUMP_CREATOR_KEYPAIR_BASE64);
+const payoutWallet = pumpCreator ?? keeper;
 const pumpSdk = new OnlinePumpSdk(connection);
 
-const CONFIG_SEED = Buffer.from("config");
-const SOL_VAULT_SEED = Buffer.from("sol-vault");
-const POSITION_SEED = Buffer.from("position");
-const ESCROW_SEED = Buffer.from("escrow");
-const ROUND_SEED = Buffer.from("round");
-const VOTE_SEED = Buffer.from("vote");
-const CLAIM_SEED = Buffer.from("claim");
-const configPda = PublicKey.findProgramAddressSync([CONFIG_SEED], programId)[0];
-const vaultPda = PublicKey.findProgramAddressSync([SOL_VAULT_SEED], programId)[0];
-const programDataPda = PublicKey.findProgramAddressSync([programId.toBuffer()], bpfLoaderUpgradeableProgramId)[0];
-
-type ProtocolConfig = {
-  admin: PublicKey;
-  tokenMint: PublicKey;
-  tokenProgram: PublicKey;
-  currentRound: bigint;
-  availablePool: bigint;
-  roundLengthSeconds: bigint;
-  claimWindowSeconds: bigint;
-  defectThresholdBps: number;
-  defectorBonusBps: number;
-  nextRoundAt: bigint;
-  roundActive: boolean;
+type DbConfig = {
+  current_round: number | string;
+  available_pool_lamports: number | string;
+  round_length_seconds: number | string;
+  claim_window_seconds: number | string;
+  defect_threshold_bps: number;
+  defector_bonus_bps: number;
+  next_round_at: string | null;
+  round_active: boolean;
   paused: boolean;
-  configBump: number;
-  vaultBump: number;
 };
 
-type Round = {
-  roundNumber: bigint;
-  openedAt: bigint;
-  closesAt: bigint;
-  claimDeadline: bigint;
-  potLamports: bigint;
-  remainingLamports: bigint;
-  cooperateWeight: bigint;
-  defectWeight: bigint;
-  distributionWeight: bigint;
-  voterCount: number;
-  status: number;
-  bump: number;
+type DbRound = {
+  round_number: number | string;
+  status: "open" | "settled" | "rolled_over" | "closed";
+  opened_at: string;
+  closes_at: string;
+  claim_deadline: string | null;
+  pot_lamports: number | string;
+  remaining_lamports: number | string;
+  cooperate_weight: number | string;
+  defect_weight: number | string;
+  distribution_weight: number | string;
+  voter_count: number;
 };
 
-type Position = {
-  owner: PublicKey;
-  amount: bigint;
-  streakStartedAt: bigint;
-  lastWithdrawAt: bigint;
-  lockedUntil: bigint;
-  bonusBps: number;
+type DbHolder = {
+  wallet: string;
+  position_amount: number | string;
+  streak_started_at: string | null;
+  last_withdraw_at: string | null;
+  bonus_bps: number;
   tier: number;
-  bump: number;
+  cooperate_votes: number;
+  defect_votes: number;
 };
-
-const discriminator = (namespace: "global" | "account", name: string) =>
-  createHash("sha256").update(`${namespace}:${name}`).digest().subarray(0, 8);
-
-const ensureDiscriminator = (data: Buffer, name: string) => {
-  if (!data.subarray(0, 8).equals(discriminator("account", name))) {
-    throw new Error(`Unexpected ${name} account discriminator.`);
-  }
-};
-
-const readU16 = (data: Buffer, offset: number) => data.readUInt16LE(offset);
-const readU32 = (data: Buffer, offset: number) => data.readUInt32LE(offset);
-const readU64 = (data: Buffer, offset: number) => data.readBigUInt64LE(offset);
-const readI64 = (data: Buffer, offset: number) => data.readBigInt64LE(offset);
-const readKey = (data: Buffer, offset: number) => new PublicKey(data.subarray(offset, offset + 32));
-
-function decodeConfig(info: AccountInfo<Buffer>): ProtocolConfig {
-  const data = info.data;
-  ensureDiscriminator(data, "ProtocolConfig");
-  let o = 8;
-  const admin = readKey(data, o); o += 32;
-  const tokenMint = readKey(data, o); o += 32;
-  const tokenProgram = readKey(data, o); o += 32;
-  const currentRound = readU64(data, o); o += 8;
-  const availablePool = readU64(data, o); o += 8;
-  const roundLengthSeconds = readU64(data, o); o += 8;
-  const claimWindowSeconds = readU64(data, o); o += 8;
-  const defectThresholdBps = readU16(data, o); o += 2;
-  const defectorBonusBps = readU16(data, o); o += 2;
-  const nextRoundAt = readI64(data, o); o += 8;
-  const roundActive = data[o++] === 1;
-  const paused = data[o++] === 1;
-  const configBump = data[o++];
-  const vaultBump = data[o];
-  return { admin, tokenMint, tokenProgram, currentRound, availablePool, roundLengthSeconds, claimWindowSeconds, defectThresholdBps, defectorBonusBps, nextRoundAt, roundActive, paused, configBump, vaultBump };
-}
-
-function decodeRound(info: AccountInfo<Buffer>): Round {
-  const data = info.data;
-  ensureDiscriminator(data, "DilemmaRound");
-  let o = 8;
-  const roundNumber = readU64(data, o); o += 8;
-  const openedAt = readI64(data, o); o += 8;
-  const closesAt = readI64(data, o); o += 8;
-  const claimDeadline = readI64(data, o); o += 8;
-  const potLamports = readU64(data, o); o += 8;
-  const remainingLamports = readU64(data, o); o += 8;
-  const cooperateWeight = readU64(data, o); o += 8;
-  const defectWeight = readU64(data, o); o += 8;
-  const distributionWeight = readU64(data, o); o += 8;
-  const voterCount = readU32(data, o); o += 4;
-  const status = data[o++];
-  const bump = data[o];
-  return { roundNumber, openedAt, closesAt, claimDeadline, potLamports, remainingLamports, cooperateWeight, defectWeight, distributionWeight, voterCount, status, bump };
-}
-
-function decodePosition(info: AccountInfo<Buffer>): Position {
-  const data = info.data;
-  ensureDiscriminator(data, "HolderPosition");
-  let o = 8;
-  const owner = readKey(data, o); o += 32;
-  const amount = readU64(data, o); o += 8;
-  const streakStartedAt = readI64(data, o); o += 8;
-  const lastWithdrawAt = readI64(data, o); o += 8;
-  const lockedUntil = readI64(data, o); o += 8;
-  const bonusBps = readU16(data, o); o += 2;
-  const tier = data[o++];
-  const bump = data[o];
-  return { owner, amount, streakStartedAt, lastWithdrawAt, lockedUntil, bonusBps, tier, bump };
-}
-
-const roundPda = (round: bigint) => {
-  const n = Buffer.alloc(8); n.writeBigUInt64LE(round);
-  return PublicKey.findProgramAddressSync([ROUND_SEED, n], programId)[0];
-};
-const positionPda = (wallet: PublicKey) => PublicKey.findProgramAddressSync([POSITION_SEED, wallet.toBuffer()], programId)[0];
-const escrowPda = (wallet: PublicKey) => PublicKey.findProgramAddressSync([ESCROW_SEED, wallet.toBuffer()], programId)[0];
-const votePda = (round: bigint, wallet: PublicKey) => {
-  const n = Buffer.alloc(8); n.writeBigUInt64LE(round);
-  return PublicKey.findProgramAddressSync([VOTE_SEED, n, wallet.toBuffer()], programId)[0];
-};
-const claimPda = (round: bigint, wallet: PublicKey) => {
-  const n = Buffer.alloc(8); n.writeBigUInt64LE(round);
-  return PublicKey.findProgramAddressSync([CLAIM_SEED, n, wallet.toBuffer()], programId)[0];
-};
-
-const u64 = (value: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(value); return b; };
-const u16 = (value: number) => { const b = Buffer.alloc(2); b.writeUInt16LE(value); return b; };
-
-function ix(name: string, keys: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[], args: Buffer[] = []) {
-  return new TransactionInstruction({
-    programId,
-    keys,
-    data: Buffer.concat([discriminator("global", name), ...args]),
-  });
-}
-
-async function unsignedTransaction(feePayer: PublicKey, instructions: TransactionInstruction[]) {
-  const latest = await connection.getLatestBlockhash("confirmed");
-  const transaction = new Transaction({
-    feePayer,
-    blockhash: latest.blockhash,
-    lastValidBlockHeight: latest.lastValidBlockHeight,
-  }).add(...instructions);
-  return {
-    transaction: transaction.serialize({ requireAllSignatures: false, verifySignatures: false }).toString("base64"),
-    blockhash: latest.blockhash,
-    lastValidBlockHeight: latest.lastValidBlockHeight,
-  };
-}
-
-const statusName = (status: number) => ["open", "settled", "rolled_over", "closed"][status] ?? "unknown";
-const iso = (seconds: bigint) => seconds > 0n ? new Date(Number(seconds) * 1000).toISOString() : null;
-const tierName = (tier: number) => ["Paper Hands", "Iron Hands", "Diamond Hands", "Obsidian Hands"][tier] ?? "Paper Hands";
-
-async function fetchConfig() {
-  const info = await connection.getAccountInfo(configPda, "confirmed");
-  return info ? decodeConfig(info) : null;
-}
-
-async function fetchRound(roundNumber: bigint) {
-  if (roundNumber <= 0n) return null;
-  const info = await connection.getAccountInfo(roundPda(roundNumber), "confirmed");
-  return info ? decodeRound(info) : null;
-}
-
-function publicRound(round: Round | null) {
-  if (!round) return null;
-  const total = round.cooperateWeight + round.defectWeight;
-  const cooperatePercent = total === 0n ? 50 : Number((round.cooperateWeight * 10_000n) / total) / 100;
-  return {
-    roundNumber: round.roundNumber.toString(),
-    openedAt: iso(round.openedAt),
-    closesAt: iso(round.closesAt),
-    claimDeadline: iso(round.claimDeadline),
-    potLamports: round.potLamports.toString(),
-    remainingLamports: round.remainingLamports.toString(),
-    cooperateWeight: round.cooperateWeight.toString(),
-    defectWeight: round.defectWeight.toString(),
-    cooperatePercent,
-    defectPercent: 100 - cooperatePercent,
-    voterCount: round.voterCount,
-    status: statusName(round.status),
-  };
-}
-
-async function syncProjection(config: ProtocolConfig) {
-  if (!supabase) return;
-  const round = await fetchRound(config.currentRound);
-  await supabase.from("protocol_config").upsert({
-    id: true,
-    program_id: programId.toBase58(),
-    token_mint: config.tokenMint.toBase58(),
-    cluster: clusterName,
-    current_round: config.currentRound.toString(),
-    available_pool_lamports: config.availablePool.toString(),
-    round_length_seconds: config.roundLengthSeconds.toString(),
-    claim_window_seconds: config.claimWindowSeconds.toString(),
-    defect_threshold_bps: config.defectThresholdBps,
-    defector_bonus_bps: config.defectorBonusBps,
-    next_round_at: iso(config.nextRoundAt),
-    round_active: config.roundActive,
-    paused: config.paused,
-    updated_at: new Date().toISOString(),
-  });
-  if (round) {
-    await supabase.from("rounds").upsert({
-      round_number: round.roundNumber.toString(),
-      status: statusName(round.status),
-      opened_at: iso(round.openedAt),
-      closes_at: iso(round.closesAt),
-      claim_deadline: iso(round.claimDeadline),
-      pot_lamports: round.potLamports.toString(),
-      remaining_lamports: round.remainingLamports.toString(),
-      cooperate_weight: round.cooperateWeight.toString(),
-      defect_weight: round.defectWeight.toString(),
-      distribution_weight: round.distributionWeight.toString(),
-      voter_count: round.voterCount,
-      updated_at: new Date().toISOString(),
-    });
-  }
-}
-
-async function syncHolders() {
-  if (!supabase) return;
-  const accounts = await connection.getProgramAccounts(programId, {
-    commitment: "confirmed",
-    filters: [{ memcmp: { offset: 0, bytes: bs58.encode(discriminator("account", "HolderPosition")) } }],
-  });
-  if (!accounts.length) return;
-  const rows = accounts.map(({ account }) => {
-    const p = decodePosition(account);
-    return {
-      wallet: p.owner.toBase58(),
-      position_amount: p.amount.toString(),
-      streak_started_at: iso(p.streakStartedAt),
-      last_withdraw_at: iso(p.lastWithdrawAt),
-      locked_until: iso(p.lockedUntil),
-      bonus_bps: p.bonusBps,
-      tier: p.tier,
-      updated_at: new Date().toISOString(),
-    };
-  });
-  await supabase.from("holders").upsert(rows);
-}
 
 const nonces = new Map<string, { nonce: string; expiresAt: number }>();
-const faucetClaims = new Set<string>();
+let keeperBusy = false;
+let feeCollectorBusy = false;
+
+const nowIso = () => new Date().toISOString();
+const addSeconds = (date: Date, seconds: number) => new Date(date.getTime() + seconds * 1000).toISOString();
+const bigintValue = (value: unknown) => BigInt(String(value ?? "0"));
+const iso = (value?: string | null) => value ?? null;
+const tierName = (tier: number) => ["Paper Hands", "Iron Hands", "Diamond Hands", "Obsidian Hands"][tier] ?? "Paper Hands";
+
+function requireDb() {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  return supabase;
+}
 
 async function authenticate(req: Request) {
   if (!sessionKey) throw new Error("Wallet authentication is not configured.");
@@ -337,6 +142,325 @@ async function authenticate(req: Request) {
   const { payload } = await jwtVerify(token, sessionKey, { issuer: "hodlersdilemma.fun", audience: "game" });
   if (typeof payload.sub !== "string") throw new Error("Invalid wallet session.");
   return payload.sub;
+}
+
+async function requireSameWallet(req: Request, expected: string) {
+  const authenticated = await authenticate(req);
+  if (new PublicKey(authenticated).toBase58() !== new PublicKey(expected).toBase58()) {
+    throw new Error("Wallet session does not match.");
+  }
+}
+
+async function tokenSupplyDecimals() {
+  if (!tokenMint) return 6;
+  const supply = await connection.getTokenSupply(tokenMint, "confirmed");
+  return supply.value.decimals;
+}
+
+async function walletTokenBalance(wallet: PublicKey) {
+  if (!tokenMint) return { amount: 0n, decimals: 6 };
+  const account = getAssociatedTokenAddressSync(tokenMint, wallet, false, TOKEN_PROGRAM_ID);
+  const balance = await connection.getTokenAccountBalance(account, "confirmed").catch(() => null);
+  return {
+    amount: BigInt(balance?.value.amount ?? "0"),
+    decimals: balance?.value.decimals ?? await tokenSupplyDecimals(),
+  };
+}
+
+function multiplierBps(streakStartedAt: string | null) {
+  if (!streakStartedAt) return 10_000;
+  const days = Math.max(0, Math.floor((Date.now() - new Date(streakStartedAt).getTime()) / 86_400_000));
+  if (days >= 14) return 30_000;
+  if (days >= 7) return 20_000;
+  if (days >= 3) return 15_000;
+  return 10_000;
+}
+
+function tierFor(streakStartedAt: string | null) {
+  if (!streakStartedAt) return 0;
+  const days = Math.max(0, Math.floor((Date.now() - new Date(streakStartedAt).getTime()) / 86_400_000));
+  if (days >= 30) return 3;
+  if (days >= 14) return 2;
+  if (days >= 3) return 1;
+  return 0;
+}
+
+async function ensureGameConfig() {
+  const db = requireDb();
+  if (!tokenMint) throw new Error("TOKEN_MINT is not configured.");
+
+  const { data, error } = await db.from("protocol_config").select("*").eq("id", true).maybeSingle<DbConfig>();
+  if (error) throw error;
+  if (data) return data;
+
+  const created = {
+    id: true,
+    program_id: "supabase-mainnet-game",
+    token_mint: tokenMint.toBase58(),
+    cluster: clusterName,
+    current_round: "0",
+    available_pool_lamports: "0",
+    round_length_seconds: env.ROUND_LENGTH_SECONDS.toString(),
+    claim_window_seconds: env.CLAIM_WINDOW_SECONDS.toString(),
+    defect_threshold_bps: env.DEFECT_THRESHOLD_BPS,
+    defector_bonus_bps: env.DEFECTOR_BONUS_BPS,
+    next_round_at: nowIso(),
+    round_active: false,
+    paused: false,
+    updated_at: nowIso(),
+  };
+  const { data: inserted, error: insertError } = await db
+    .from("protocol_config")
+    .insert(created)
+    .select("*")
+    .single<DbConfig>();
+  if (insertError) throw insertError;
+  await db.from("protocol_events").insert({
+    event_type: "GAME_INITIALIZED",
+    detail: `Mainnet game initialized for ${tokenMint.toBase58()}.`,
+  });
+  return inserted;
+}
+
+async function fetchCurrentRound(config: DbConfig) {
+  const current = bigintValue(config.current_round);
+  if (current <= 0n) return null;
+  const db = requireDb();
+  const { data, error } = await db
+    .from("rounds")
+    .select("*")
+    .eq("round_number", current.toString())
+    .maybeSingle<DbRound>();
+  if (error) throw error;
+  return data;
+}
+
+function publicRound(round: DbRound | null) {
+  if (!round) return null;
+  const cooperate = bigintValue(round.cooperate_weight);
+  const defect = bigintValue(round.defect_weight);
+  const total = cooperate + defect;
+  const cooperatePercent = total === 0n ? 50 : Number((cooperate * 10_000n) / total) / 100;
+  return {
+    roundNumber: String(round.round_number),
+    openedAt: iso(round.opened_at),
+    closesAt: iso(round.closes_at),
+    claimDeadline: iso(round.claim_deadline),
+    potLamports: String(round.pot_lamports),
+    remainingLamports: String(round.remaining_lamports),
+    cooperateWeight: cooperate.toString(),
+    defectWeight: defect.toString(),
+    cooperatePercent,
+    defectPercent: 100 - cooperatePercent,
+    voterCount: round.voter_count,
+    status: round.status,
+  };
+}
+
+async function syncHolder(wallet: PublicKey) {
+  const db = requireDb();
+  const balance = await walletTokenBalance(wallet);
+  const walletAddress = wallet.toBase58();
+  const { data: existing, error } = await db
+    .from("holders")
+    .select("*")
+    .eq("wallet", walletAddress)
+    .maybeSingle<DbHolder>();
+  if (error) throw error;
+
+  const previousAmount = bigintValue(existing?.position_amount);
+  const soldOrDropped = balance.amount > 0n && existing && previousAmount > balance.amount;
+  const entered = balance.amount > 0n && (!existing || previousAmount === 0n || !existing.streak_started_at);
+  const streakStartedAt = balance.amount === 0n
+    ? null
+    : soldOrDropped || entered
+      ? nowIso()
+      : existing?.streak_started_at ?? nowIso();
+  const tier = tierFor(streakStartedAt);
+  const bonusBps = Math.max(0, multiplierBps(streakStartedAt) - 10_000);
+
+  const row = {
+    wallet: walletAddress,
+    position_amount: balance.amount.toString(),
+    streak_started_at: streakStartedAt,
+    last_withdraw_at: soldOrDropped ? nowIso() : existing?.last_withdraw_at ?? null,
+    bonus_bps: bonusBps,
+    tier,
+    cooperate_votes: existing?.cooperate_votes ?? 0,
+    defect_votes: existing?.defect_votes ?? 0,
+    updated_at: nowIso(),
+  };
+
+  const { error: upsertError } = await db.from("holders").upsert(row);
+  if (upsertError) throw upsertError;
+
+  const streakSeconds = streakStartedAt
+    ? Math.max(0, Math.floor((Date.now() - new Date(streakStartedAt).getTime()) / 1000))
+    : 0;
+
+  return {
+    wallet: walletAddress,
+    walletTokenBalance: balance.amount.toString(),
+    position: balance.amount > 0n ? {
+      amount: balance.amount.toString(),
+      streakStartedAt,
+      streakSeconds: streakSeconds.toString(),
+      lockedUntil: null,
+      bonusBps,
+      tier,
+      tierName: tierName(tier),
+    } : null,
+  };
+}
+
+async function openRound(config: DbConfig) {
+  const db = requireDb();
+  const current = bigintValue(config.current_round);
+  const next = current + 1n;
+  const openedAt = new Date();
+  const closesAt = addSeconds(openedAt, Number(config.round_length_seconds));
+  const claimDeadline = addSeconds(new Date(closesAt), Number(config.claim_window_seconds));
+  const pot = bigintValue(config.available_pool_lamports);
+
+  const round = {
+    round_number: next.toString(),
+    status: "open",
+    opened_at: openedAt.toISOString(),
+    closes_at: closesAt,
+    claim_deadline: claimDeadline,
+    pot_lamports: pot.toString(),
+    remaining_lamports: pot.toString(),
+    cooperate_weight: "0",
+    defect_weight: "0",
+    distribution_weight: "0",
+    voter_count: 0,
+    updated_at: nowIso(),
+  };
+  const { error: roundError } = await db.from("rounds").upsert(round);
+  if (roundError) throw roundError;
+  const { error: configError } = await db.from("protocol_config").update({
+    current_round: next.toString(),
+    available_pool_lamports: "0",
+    round_active: true,
+    next_round_at: closesAt,
+    updated_at: nowIso(),
+  }).eq("id", true);
+  if (configError) throw configError;
+  await db.from("protocol_events").insert({
+    event_type: "ROUND_OPENED",
+    round_number: next.toString(),
+    detail: `Round ${next.toString()} opened for one hour.`,
+  });
+}
+
+async function settleRound(config: DbConfig, round: DbRound) {
+  const db = requireDb();
+  const cooperate = bigintValue(round.cooperate_weight);
+  const defect = bigintValue(round.defect_weight);
+  const total = cooperate + defect;
+  const pot = bigintValue(round.pot_lamports);
+  const defectBps = total === 0n ? 10_000n : (defect * 10_000n) / total;
+  const rollsOver = total === 0n || defectBps >= BigInt(config.defect_threshold_bps);
+  const status = rollsOver ? "rolled_over" : "settled";
+  const detail = rollsOver
+    ? `Round ${round.round_number} rolled over. Too many holders defected.`
+    : `Round ${round.round_number} settled. Majority cooperated. Rewards are claimable.`;
+
+  const { error: roundError } = await db.from("rounds").update({
+    status,
+    remaining_lamports: pot.toString(),
+    updated_at: nowIso(),
+  }).eq("round_number", String(round.round_number));
+  if (roundError) throw roundError;
+
+  const availablePool = rollsOver ? bigintValue(config.available_pool_lamports) + pot : bigintValue(config.available_pool_lamports);
+  const { error: configError } = await db.from("protocol_config").update({
+    available_pool_lamports: availablePool.toString(),
+    round_active: false,
+    next_round_at: nowIso(),
+    updated_at: nowIso(),
+  }).eq("id", true);
+  if (configError) throw configError;
+
+  await db.from("protocol_events").insert({
+    event_type: rollsOver ? "ROUND_ROLLED_OVER" : "ROUND_SETTLED",
+    round_number: String(round.round_number),
+    detail,
+  });
+}
+
+async function keeperTick() {
+  if (!supabase || !tokenMint || keeperBusy) return;
+  keeperBusy = true;
+  try {
+    const config = await ensureGameConfig();
+    if (config.paused) return;
+
+    const now = Date.now();
+    const nextAt = config.next_round_at ? new Date(config.next_round_at).getTime() : 0;
+    const round = await fetchCurrentRound(config);
+
+    if (config.round_active && round?.status === "open" && now >= nextAt) {
+      await settleRound(config, round);
+    }
+
+    const freshConfig = await ensureGameConfig();
+    const freshNextAt = freshConfig.next_round_at ? new Date(freshConfig.next_round_at).getTime() : 0;
+    if (!freshConfig.round_active && now >= freshNextAt) {
+      await openRound(freshConfig);
+    }
+  } catch (error) {
+    console.error("keeper tick failed", error);
+  } finally {
+    keeperBusy = false;
+  }
+}
+
+async function addCollectedFeesToPot(amount: bigint, signature: string) {
+  const db = requireDb();
+  const config = await ensureGameConfig();
+  const nextPool = bigintValue(config.available_pool_lamports) + amount;
+  const { error } = await db.from("protocol_config").update({
+    available_pool_lamports: nextPool.toString(),
+    updated_at: nowIso(),
+  }).eq("id", true);
+  if (error) throw error;
+  await db.from("protocol_events").insert({
+    event_type: "PUMP_FEES_COLLECTED",
+    detail: `${amount.toString()} lamports collected from Pump creator fees and added to the next game pot.`,
+    transaction_signature: signature,
+  });
+}
+
+async function collectPumpCreatorFees() {
+  if (!pumpCreator || feeCollectorBusy) return;
+  feeCollectorBusy = true;
+  try {
+    const available = await pumpSdk.getCreatorVaultBalanceBothPrograms(pumpCreator.publicKey);
+    const amount = BigInt(available.toString());
+    if (amount <= 0n) return;
+
+    const collectInstructions = await pumpSdk.collectCoinCreatorFeeInstructions(
+      pumpCreator.publicKey,
+      pumpCreator.publicKey,
+    );
+    const latest = await connection.getLatestBlockhash("confirmed");
+    const transaction = new Transaction({
+      feePayer: pumpCreator.publicKey,
+      blockhash: latest.blockhash,
+      lastValidBlockHeight: latest.lastValidBlockHeight,
+    }).add(...collectInstructions);
+    const signature = await connection.sendTransaction(transaction, [pumpCreator], {
+      preflightCommitment: "confirmed",
+      maxRetries: 3,
+    });
+    await connection.confirmTransaction(signature, "confirmed");
+    if (supabase && tokenMint) await addCollectedFeesToPot(amount, signature);
+  } catch (error) {
+    console.error("pump creator fee collection failed", error);
+  } finally {
+    feeCollectorBusy = false;
+  }
 }
 
 const app = express();
@@ -354,43 +478,52 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, keeper: Boolean(keeper), pumpCreator: Boolean(pumpCreator), database: Boolean(supabase), programId: programId.toBase58() });
+  res.json({
+    ok: true,
+    cluster: clusterName,
+    tokenMint: tokenMint?.toBase58() ?? null,
+    database: Boolean(supabase),
+    keeper: Boolean(keeper),
+    pumpCreator: Boolean(pumpCreator),
+    payoutWallet: payoutWallet?.publicKey.toBase58() ?? null,
+    feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
+    roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
+    warnings: keypairWarnings,
+  });
 });
 
 app.get("/api/status", async (_req, res, next) => {
   try {
-    const config = await fetchConfig();
-    if (!config) {
-      return res.json({ configured: false, cluster: clusterName, programId: programId.toBase58(), tokenMint: null });
+    await keeperTick();
+    if (!supabase || !tokenMint) {
+      return res.json({ configured: false, cluster: clusterName, programId: "supabase-mainnet-game", tokenMint: tokenMint?.toBase58() ?? null });
     }
-    const round = await fetchRound(config.currentRound);
-    const tokenSupply = await connection.getTokenSupply(config.tokenMint, "confirmed");
-    let activeHolders = 0;
-    let longestStreakDays = 0;
-    if (supabase) {
-      const [{ count }, { data: oldest }] = await Promise.all([
-        supabase.from("holders").select("wallet", { count: "exact", head: true }).gt("position_amount", 0),
-        supabase.from("holders").select("streak_started_at").gt("position_amount", 0).order("streak_started_at", { ascending: true }).limit(1).maybeSingle(),
-      ]);
-      activeHolders = count ?? 0;
-      if (oldest?.streak_started_at) longestStreakDays = Math.max(0, Math.floor((Date.now() - new Date(oldest.streak_started_at).getTime()) / 86_400_000));
-    }
-    return res.json({
+    const config = await ensureGameConfig();
+    const round = await fetchCurrentRound(config);
+    const [{ count }, { data: oldest }, decimals] = await Promise.all([
+      supabase.from("holders").select("wallet", { count: "exact", head: true }).gt("position_amount", 0),
+      supabase.from("holders").select("streak_started_at").gt("position_amount", 0).order("streak_started_at", { ascending: true }).limit(1).maybeSingle<{ streak_started_at: string | null }>(),
+      tokenSupplyDecimals(),
+    ]);
+    const longestStreakDays = oldest?.streak_started_at
+      ? Math.max(0, Math.floor((Date.now() - new Date(oldest.streak_started_at).getTime()) / 86_400_000))
+      : 0;
+    res.json({
       configured: true,
       cluster: clusterName,
-      programId: programId.toBase58(),
-      tokenMint: config.tokenMint.toBase58(),
-      tokenDecimals: tokenSupply.value.decimals,
-      currentRound: config.currentRound.toString(),
-      availablePoolLamports: config.availablePool.toString(),
-      roundLengthSeconds: config.roundLengthSeconds.toString(),
-      claimWindowSeconds: config.claimWindowSeconds.toString(),
-      defectThresholdBps: config.defectThresholdBps,
-      defectorBonusBps: config.defectorBonusBps,
-      nextRoundAt: iso(config.nextRoundAt),
-      roundActive: config.roundActive,
+      programId: "supabase-mainnet-game",
+      tokenMint: tokenMint.toBase58(),
+      tokenDecimals: decimals,
+      currentRound: String(config.current_round),
+      availablePoolLamports: String(config.available_pool_lamports),
+      roundLengthSeconds: String(config.round_length_seconds),
+      claimWindowSeconds: String(config.claim_window_seconds),
+      defectThresholdBps: config.defect_threshold_bps,
+      defectorBonusBps: config.defector_bonus_bps,
+      nextRoundAt: iso(config.next_round_at),
+      roundActive: config.round_active,
       paused: config.paused,
-      activeHolders,
+      activeHolders: count ?? 0,
       longestStreakDays,
       round: publicRound(round),
     });
@@ -444,279 +577,209 @@ app.post("/api/auth/verify", async (req, res, next) => {
 
 app.get("/api/holder/:wallet", async (req, res, next) => {
   try {
+    await ensureGameConfig();
     const wallet = new PublicKey(req.params.wallet);
-    const config = await fetchConfig();
-    let walletTokenBalance = "0";
-    if (config) {
-      const ownerToken = getAssociatedTokenAddressSync(config.tokenMint, wallet, false, config.tokenProgram);
-      walletTokenBalance = await connection.getTokenAccountBalance(ownerToken, "confirmed")
-        .then(({ value }) => value.amount)
-        .catch(() => "0");
-    }
-    const info = await connection.getAccountInfo(positionPda(wallet), "confirmed");
-    if (!info) return res.json({ wallet: wallet.toBase58(), walletTokenBalance, position: null });
-    const p = decodePosition(info);
-    const now = BigInt(Math.floor(Date.now() / 1000));
-    res.json({
-      wallet: wallet.toBase58(),
-      walletTokenBalance,
-      position: {
-        amount: p.amount.toString(),
-        streakStartedAt: iso(p.streakStartedAt),
-        streakSeconds: (now - p.streakStartedAt > 0n ? now - p.streakStartedAt : 0n).toString(),
-        lockedUntil: iso(p.lockedUntil),
-        bonusBps: p.bonusBps,
-        tier: p.tier,
-        tierName: tierName(p.tier),
-      },
-    });
+    res.json(await syncHolder(wallet));
   } catch (error) { next(error); }
 });
 
 const walletBody = z.object({ wallet: z.string() });
-const amountBody = walletBody.extend({ amount: z.string().regex(/^\d+$/) });
-
-async function requireSameWallet(req: Request, expected: string) {
-  const authenticated = await authenticate(req);
-  if (new PublicKey(authenticated).toBase58() !== new PublicKey(expected).toBase58()) throw new Error("Wallet session does not match the transaction payer.");
-}
-
-app.post("/api/tx/open-position", async (req, res, next) => {
-  try {
-    const { wallet: raw } = walletBody.parse(req.body); await requireSameWallet(req, raw);
-    const wallet = new PublicKey(raw); const config = await fetchConfig(); if (!config) throw new Error("Protocol is not initialized.");
-    res.json(await unsignedTransaction(wallet, [ix("open_position", [
-      { pubkey: wallet, isSigner: true, isWritable: true }, { pubkey: configPda, isSigner: false, isWritable: false },
-      { pubkey: positionPda(wallet), isSigner: false, isWritable: true }, { pubkey: escrowPda(wallet), isSigner: false, isWritable: true },
-      { pubkey: config.tokenMint, isSigner: false, isWritable: false }, { pubkey: config.tokenProgram, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ])]));
-  } catch (error) { next(error); }
-});
 
 app.post("/api/tx/initialize", async (req, res, next) => {
   try {
     const { wallet: raw } = walletBody.parse(req.body);
     await requireSameWallet(req, raw);
-    if (!env.TOKEN_MINT || !env.INITIAL_ADMIN) throw new Error("Protocol initialization is not configured.");
-    const wallet = new PublicKey(raw);
-    if (!wallet.equals(new PublicKey(env.INITIAL_ADMIN))) throw new Error("Only the configured program authority can initialize the protocol.");
-    if (await fetchConfig()) throw new Error("Protocol is already initialized.");
-    const mint = new PublicKey(env.TOKEN_MINT);
-    res.json(await unsignedTransaction(wallet, [ix("initialize", [
-      { pubkey: wallet, isSigner: true, isWritable: true },
-      { pubkey: configPda, isSigner: false, isWritable: true },
-      { pubkey: vaultPda, isSigner: false, isWritable: false },
-      { pubkey: mint, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: programId, isSigner: false, isWritable: false },
-      { pubkey: programDataPda, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ], [u64(3_600n), u64(604_800n), u16(5_000), u16(15_000)])]));
+    if (env.INITIAL_ADMIN && new PublicKey(raw).toBase58() !== new PublicKey(env.INITIAL_ADMIN).toBase58()) {
+      throw new Error("Only the configured admin can initialize the game.");
+    }
+    await ensureGameConfig();
+    res.json({ ok: true, message: "Mainnet game is initialized." });
+  } catch (error) { next(error); }
+});
+
+app.post("/api/tx/open-position", async (req, res, next) => {
+  try {
+    const { wallet: raw } = walletBody.parse(req.body);
+    await requireSameWallet(req, raw);
+    const holder = await syncHolder(new PublicKey(raw));
+    if (!holder.position) throw new Error("This wallet does not currently hold the token.");
+    res.json({ ok: true, message: "Holding verified. Streak tracking is active.", holder });
   } catch (error) { next(error); }
 });
 
 app.post("/api/tx/deposit", async (req, res, next) => {
   try {
-    const { wallet: raw, amount } = amountBody.parse(req.body); await requireSameWallet(req, raw);
-    const wallet = new PublicKey(raw); const config = await fetchConfig(); if (!config) throw new Error("Protocol is not initialized.");
-    const ownerToken = getAssociatedTokenAddressSync(config.tokenMint, wallet, false, config.tokenProgram);
-    res.json(await unsignedTransaction(wallet, [ix("deposit", [
-      { pubkey: wallet, isSigner: true, isWritable: true }, { pubkey: configPda, isSigner: false, isWritable: false },
-      { pubkey: positionPda(wallet), isSigner: false, isWritable: true }, { pubkey: ownerToken, isSigner: false, isWritable: true },
-      { pubkey: escrowPda(wallet), isSigner: false, isWritable: true }, { pubkey: config.tokenMint, isSigner: false, isWritable: false },
-      { pubkey: config.tokenProgram, isSigner: false, isWritable: false },
-    ], [u64(BigInt(amount))])]));
+    const { wallet: raw } = walletBody.parse(req.body);
+    await requireSameWallet(req, raw);
+    const holder = await syncHolder(new PublicKey(raw));
+    if (!holder.position) throw new Error("This wallet does not currently hold the token.");
+    res.json({ ok: true, message: "Holding synced from mainnet balance.", holder });
   } catch (error) { next(error); }
 });
 
 app.post("/api/tx/withdraw", async (req, res, next) => {
   try {
-    const { wallet: raw, amount } = amountBody.parse(req.body); await requireSameWallet(req, raw);
-    const wallet = new PublicKey(raw); const config = await fetchConfig(); if (!config) throw new Error("Protocol is not initialized.");
-    const ownerToken = getAssociatedTokenAddressSync(config.tokenMint, wallet, false, config.tokenProgram);
-    res.json(await unsignedTransaction(wallet, [ix("withdraw", [
-      { pubkey: wallet, isSigner: true, isWritable: true }, { pubkey: configPda, isSigner: false, isWritable: false },
-      { pubkey: positionPda(wallet), isSigner: false, isWritable: true }, { pubkey: ownerToken, isSigner: false, isWritable: true },
-      { pubkey: escrowPda(wallet), isSigner: false, isWritable: true }, { pubkey: config.tokenMint, isSigner: false, isWritable: false },
-      { pubkey: config.tokenProgram, isSigner: false, isWritable: false },
-    ], [u64(BigInt(amount))])]));
+    const { wallet: raw } = walletBody.parse(req.body);
+    await requireSameWallet(req, raw);
+    const holder = await syncHolder(new PublicKey(raw));
+    res.json({ ok: true, message: "Holding state refreshed from mainnet balance.", holder });
   } catch (error) { next(error); }
 });
 
 app.post("/api/tx/vote", async (req, res, next) => {
   try {
-    const body = walletBody.extend({ choice: z.enum(["cooperate", "defect"]) }).parse(req.body); await requireSameWallet(req, body.wallet);
-    const wallet = new PublicKey(body.wallet); const config = await fetchConfig(); if (!config || !config.roundActive) throw new Error("No round is currently open.");
-    const round = config.currentRound;
-    res.json(await unsignedTransaction(wallet, [ix("vote", [
-      { pubkey: wallet, isSigner: true, isWritable: true }, { pubkey: configPda, isSigner: false, isWritable: false },
-      { pubkey: roundPda(round), isSigner: false, isWritable: true }, { pubkey: positionPda(wallet), isSigner: false, isWritable: true },
-      { pubkey: escrowPda(wallet), isSigner: false, isWritable: false }, { pubkey: config.tokenMint, isSigner: false, isWritable: false },
-      { pubkey: config.tokenProgram, isSigner: false, isWritable: false }, { pubkey: votePda(round, wallet), isSigner: false, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ], [u64(round), Buffer.from([body.choice === "cooperate" ? 0 : 1])])]));
+    const db = requireDb();
+    const body = walletBody.extend({ choice: z.enum(["cooperate", "defect"]) }).parse(req.body);
+    await requireSameWallet(req, body.wallet);
+    const config = await ensureGameConfig();
+    if (!config.round_active) throw new Error("No round is currently open.");
+    const round = await fetchCurrentRound(config);
+    if (!round || round.status !== "open") throw new Error("No round is currently open.");
+
+    const holder = await syncHolder(new PublicKey(body.wallet));
+    if (!holder.position) throw new Error("This wallet must hold the token to vote.");
+
+    const baseBalance = bigintValue(holder.position.amount);
+    const holderMultiplier = multiplierBps(holder.position.streakStartedAt);
+    const voteMultiplier = body.choice === "defect"
+      ? Math.floor((holderMultiplier * config.defector_bonus_bps) / 10_000)
+      : holderMultiplier;
+    const weight = (baseBalance * BigInt(voteMultiplier)) / 10_000n;
+    if (weight <= 0n) throw new Error("This wallet has no vote weight.");
+
+    const vote = {
+      round_number: String(round.round_number),
+      wallet: new PublicKey(body.wallet).toBase58(),
+      choice: body.choice,
+      weight: weight.toString(),
+      multiplier_bps: voteMultiplier,
+      voted_at: nowIso(),
+    };
+    const { error: voteError } = await db.from("round_votes").insert(vote);
+    if (voteError) throw voteError;
+
+    const nextCooperate = bigintValue(round.cooperate_weight) + (body.choice === "cooperate" ? weight : 0n);
+    const nextDefect = bigintValue(round.defect_weight) + (body.choice === "defect" ? weight : 0n);
+    const { error: roundError } = await db.from("rounds").update({
+      cooperate_weight: nextCooperate.toString(),
+      defect_weight: nextDefect.toString(),
+      distribution_weight: (nextCooperate + nextDefect).toString(),
+      voter_count: (round.voter_count ?? 0) + 1,
+      updated_at: nowIso(),
+    }).eq("round_number", String(round.round_number));
+    if (roundError) throw roundError;
+
+    const voteColumn = body.choice === "cooperate" ? "cooperate_votes" : "defect_votes";
+    const { data: holderStats } = await db
+      .from("holders")
+      .select("cooperate_votes,defect_votes")
+      .eq("wallet", vote.wallet)
+      .maybeSingle<{ cooperate_votes: number; defect_votes: number }>();
+    const nextVoteCount = ((body.choice === "cooperate" ? holderStats?.cooperate_votes : holderStats?.defect_votes) ?? 0) + 1;
+    const { error: holderError } = await db
+      .from("holders")
+      .update({ [voteColumn]: nextVoteCount, updated_at: nowIso() })
+      .eq("wallet", vote.wallet);
+    if (holderError) console.error("holder vote stat update failed", holderError);
+
+    await db.from("protocol_events").insert({
+      event_type: body.choice === "cooperate" ? "VOTE_COOPERATE" : "VOTE_DEFECT",
+      round_number: String(round.round_number),
+      wallet: vote.wallet,
+      detail: `${vote.wallet.slice(0, 4)}...${vote.wallet.slice(-4)} chose ${body.choice}.`,
+    });
+    res.json({ ok: true, message: `${body.choice.toUpperCase()} vote recorded.`, weight: weight.toString() });
   } catch (error) { next(error); }
 });
 
 app.post("/api/tx/claim", async (req, res, next) => {
   try {
-    const body = walletBody.extend({ roundNumber: z.string().regex(/^\d+$/) }).parse(req.body); await requireSameWallet(req, body.wallet);
-    const wallet = new PublicKey(body.wallet); const round = BigInt(body.roundNumber);
-    res.json(await unsignedTransaction(wallet, [ix("claim", [
-      { pubkey: wallet, isSigner: true, isWritable: true }, { pubkey: configPda, isSigner: false, isWritable: false },
-      { pubkey: vaultPda, isSigner: false, isWritable: true }, { pubkey: roundPda(round), isSigner: false, isWritable: true },
-      { pubkey: votePda(round, wallet), isSigner: false, isWritable: false }, { pubkey: claimPda(round, wallet), isSigner: false, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ], [u64(round)])]));
-  } catch (error) { next(error); }
-});
+    const db = requireDb();
+    if (!payoutWallet) throw new Error("Payout wallet is not configured.");
+    const body = walletBody.extend({ roundNumber: z.string().regex(/^\d+$/) }).parse(req.body);
+    await requireSameWallet(req, body.wallet);
+    const wallet = new PublicKey(body.wallet);
+    const { data: round, error: roundError } = await db.from("rounds").select("*").eq("round_number", body.roundNumber).single<DbRound>();
+    if (roundError) throw roundError;
+    if (round.status !== "settled") throw new Error("This round is not claimable.");
+    const { data: vote, error: voteError } = await db
+      .from("round_votes")
+      .select("weight")
+      .eq("round_number", body.roundNumber)
+      .eq("wallet", wallet.toBase58())
+      .maybeSingle<{ weight: number | string }>();
+    if (voteError) throw voteError;
+    if (!vote) throw new Error("This wallet did not vote in the round.");
 
-app.post("/api/tx/fund", async (req, res, next) => {
-  try {
-    const { wallet: raw, amount } = amountBody.parse(req.body); await requireSameWallet(req, raw);
-    const wallet = new PublicKey(raw);
-    res.json(await unsignedTransaction(wallet, [ix("fund_vault", [
-      { pubkey: wallet, isSigner: true, isWritable: true }, { pubkey: configPda, isSigner: false, isWritable: true },
-      { pubkey: vaultPda, isSigner: false, isWritable: true }, { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ], [u64(BigInt(amount))])]));
-  } catch (error) { next(error); }
-});
+    const amount = (bigintValue(round.pot_lamports) * bigintValue(vote.weight)) / bigintValue(round.distribution_weight);
+    if (amount <= 0n) throw new Error("No reward is claimable for this wallet.");
 
-app.post("/api/devnet/faucet", async (req, res, next) => {
-  try {
-    if (!env.SOLANA_RPC_URL.includes("devnet") || !keeper) throw new Error("The devnet faucet is not enabled.");
-    const { wallet: raw } = walletBody.parse(req.body); await requireSameWallet(req, raw);
-    const wallet = new PublicKey(raw);
-    if (faucetClaims.has(wallet.toBase58())) throw new Error("This wallet already received its devnet test allocation.");
-    const config = await fetchConfig(); if (!config) throw new Error("Protocol is not initialized.");
-    const supply = await connection.getTokenSupply(config.tokenMint, "confirmed");
-    const account = await getOrCreateAssociatedTokenAccount(connection, keeper, config.tokenMint, wallet, false, "confirmed", undefined, config.tokenProgram);
-    const amount = 1_000n * 10n ** BigInt(supply.value.decimals);
-    const signature = await mintTo(connection, keeper, config.tokenMint, account.address, keeper, amount, [], undefined, config.tokenProgram);
-    faucetClaims.add(wallet.toBase58());
-    res.json({ signature, amount: amount.toString() });
-  } catch (error) { next(error); }
-});
+    const claimRow = {
+      round_number: body.roundNumber,
+      wallet: wallet.toBase58(),
+      amount_lamports: amount.toString(),
+      claimed_at: nowIso(),
+      transaction_signature: null as string | null,
+    };
+    const { error: claimInsertError } = await db.from("reward_claims").insert(claimRow);
+    if (claimInsertError) throw new Error("Reward was already claimed or could not be reserved.");
 
-let keeperBusy = false;
-let feeCollectorBusy = false;
-
-async function collectPumpCreatorFees() {
-  if (!pumpCreator || feeCollectorBusy) return;
-  feeCollectorBusy = true;
-  try {
-    const available = await pumpSdk.getCreatorVaultBalanceBothPrograms(pumpCreator.publicKey);
-    const amount = BigInt(available.toString());
-    if (amount <= 0n) return;
-
-    const collectInstructions = await pumpSdk.collectCoinCreatorFeeInstructions(
-      pumpCreator.publicKey,
-      pumpCreator.publicKey,
-    );
-    const latest = await connection.getLatestBlockhash("confirmed");
-    const collectTransaction = new Transaction({
-      feePayer: pumpCreator.publicKey,
-      blockhash: latest.blockhash,
-      lastValidBlockHeight: latest.lastValidBlockHeight,
-    }).add(...collectInstructions);
-    const collectSignature = await connection.sendTransaction(collectTransaction, [pumpCreator], {
-      preflightCommitment: "confirmed",
-      maxRetries: 3,
-    });
-    await connection.confirmTransaction(collectSignature, "confirmed");
-
-    const fundInstruction = ix("fund_vault", [
-      { pubkey: pumpCreator.publicKey, isSigner: true, isWritable: true },
-      { pubkey: configPda, isSigner: false, isWritable: true },
-      { pubkey: vaultPda, isSigner: false, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ], [u64(amount)]);
-    const fundBlockhash = await connection.getLatestBlockhash("confirmed");
-    const fundTransaction = new Transaction({
-      feePayer: pumpCreator.publicKey,
-      blockhash: fundBlockhash.blockhash,
-      lastValidBlockHeight: fundBlockhash.lastValidBlockHeight,
-    }).add(fundInstruction);
-    const fundSignature = await connection.sendTransaction(fundTransaction, [pumpCreator], {
-      preflightCommitment: "confirmed",
-      maxRetries: 3,
-    });
-    await connection.confirmTransaction(fundSignature, "confirmed");
-
-    if (supabase) {
-      await supabase.from("protocol_events").insert({
-        event_type: "PUMP_FEES_FUNDED",
-        detail: `${amount.toString()} lamports collected from the Pump creator vault and funded into the protocol vault.`,
-        transaction_signature: fundSignature,
+    try {
+      const latest = await connection.getLatestBlockhash("confirmed");
+      const transaction = new Transaction({
+        feePayer: payoutWallet.publicKey,
+        blockhash: latest.blockhash,
+        lastValidBlockHeight: latest.lastValidBlockHeight,
+      }).add(SystemProgram.transfer({
+        fromPubkey: payoutWallet.publicKey,
+        toPubkey: wallet,
+        lamports: Number(amount),
+      }));
+      const signature = await connection.sendTransaction(transaction, [payoutWallet], {
+        preflightCommitment: "confirmed",
+        maxRetries: 3,
       });
-    }
-  } catch (error) {
-    console.error("pump creator fee collection failed", error);
-  } finally {
-    feeCollectorBusy = false;
-  }
-}
-
-async function keeperTick() {
-  if (!keeper || keeperBusy) return;
-  keeperBusy = true;
-  try {
-    const config = await fetchConfig();
-    if (!config || config.paused) return;
-    const now = BigInt(Math.floor(Date.now() / 1000));
-    let instruction: TransactionInstruction | undefined;
-    let eventType = "";
-    let detail = "";
-    const currentRound = await fetchRound(config.currentRound);
-    if (config.roundActive && now >= config.nextRoundAt) {
-      instruction = ix("settle", [
-        { pubkey: keeper.publicKey, isSigner: true, isWritable: false },
-        { pubkey: configPda, isSigner: false, isWritable: true },
-        { pubkey: roundPda(config.currentRound), isSigner: false, isWritable: true },
-      ], [u64(config.currentRound)]);
-      eventType = "ROUND_SETTLED"; detail = `Round ${config.currentRound} settlement submitted.`;
-    } else if (!config.roundActive && currentRound?.status === 1 && now > currentRound.claimDeadline) {
-      instruction = ix("sweep_unclaimed", [
-        { pubkey: keeper.publicKey, isSigner: true, isWritable: false },
-        { pubkey: configPda, isSigner: false, isWritable: true },
-        { pubkey: roundPda(config.currentRound), isSigner: false, isWritable: true },
-      ], [u64(config.currentRound)]);
-      eventType = "UNCLAIMED_SWEPT";
-      detail = `Unclaimed rewards from round ${config.currentRound} returned to the fee pool.`;
-    } else if (!config.roundActive && config.availablePool > 0n && now >= config.nextRoundAt) {
-      const nextRound = config.currentRound + 1n;
-      instruction = ix("open_round", [
-        { pubkey: keeper.publicKey, isSigner: true, isWritable: true },
-        { pubkey: configPda, isSigner: false, isWritable: true },
-        { pubkey: roundPda(nextRound), isSigner: false, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      ], [u64(nextRound)]);
-      eventType = "ROUND_OPENED"; detail = `Round ${nextRound} opened for one hour.`;
-    }
-    if (instruction) {
-      const tx = new Transaction().add(instruction);
-      const signature = await connection.sendTransaction(tx, [keeper], { preflightCommitment: "confirmed", maxRetries: 3 });
       await connection.confirmTransaction(signature, "confirmed");
-      if (supabase) await supabase.from("protocol_events").insert({ event_type: eventType, round_number: config.currentRound.toString(), detail, transaction_signature: signature });
+      const remaining = bigintValue(round.remaining_lamports) > amount ? bigintValue(round.remaining_lamports) - amount : 0n;
+      await db.from("reward_claims").update({ transaction_signature: signature }).eq("round_number", body.roundNumber).eq("wallet", wallet.toBase58());
+      await db.from("rounds").update({ remaining_lamports: remaining.toString(), updated_at: nowIso() }).eq("round_number", body.roundNumber);
+      await db.from("protocol_events").insert({
+        event_type: "REWARD_CLAIMED",
+        round_number: body.roundNumber,
+        wallet: wallet.toBase58(),
+        detail: `${amount.toString()} lamports claimed from round ${body.roundNumber}.`,
+        transaction_signature: signature,
+      });
+      res.json({ ok: true, message: "Reward sent.", signature, amountLamports: amount.toString() });
+    } catch (sendError) {
+      await db.from("reward_claims").delete().eq("round_number", body.roundNumber).eq("wallet", wallet.toBase58());
+      throw sendError;
     }
-    const fresh = await fetchConfig();
-    if (fresh) await syncProjection(fresh);
-    await syncHolders();
-  } catch (error) {
-    console.error("keeper tick failed", error);
-  } finally { keeperBusy = false; }
-}
+  } catch (error) { next(error); }
+});
+
+app.post("/api/tx/fund", async (_req, res, next) => {
+  try {
+    throw new Error("Manual wallet funding is disabled in Supabase game mode. Pump creator fees fund the game pot every 15 minutes.");
+  } catch (error) { next(error); }
+});
+
+app.post("/api/devnet/faucet", async (_req, res, next) => {
+  try {
+    throw new Error("Devnet faucet is disabled. This deployment is mainnet only.");
+  } catch (error) { next(error); }
+});
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   void _next;
   const message = error instanceof Error ? error.message : "Unexpected server error.";
-  const status = /required|invalid|expired|match|initialized|open/i.test(message) ? 400 : 500;
+  const status = /required|invalid|expired|match|initialized|open|configured|claimed|hold|vote/i.test(message) ? 400 : 500;
   res.status(status).json({ error: message });
 });
 
 app.listen(env.PORT, () => {
   console.log(`Hodlers Dilemma keeper/API listening on ${env.PORT}`);
+  console.log(`Mainnet game mode: rounds=${env.ROUND_LENGTH_SECONDS}s feeCollection=${env.FEE_COLLECTION_INTERVAL_MS}ms`);
   void keeperTick();
   void collectPumpCreatorFees();
   setInterval(() => void keeperTick(), 15_000).unref();

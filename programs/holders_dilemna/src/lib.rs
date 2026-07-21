@@ -4,7 +4,7 @@ use anchor_spl::token_interface::{
     self, Mint, TokenAccount, TokenInterface, TransferChecked,
 };
 
-declare_id!("GT42vQcCtut8XU4z7rm9MAoGrV462xB7qK16CDgMgWha");
+declare_id!("Cw49HSzFECh5HTJN4ZJCirHWTgkbbP7hAGZvmwLFvBjT");
 
 const CONFIG_SEED: &[u8] = b"config";
 const SOL_VAULT_SEED: &[u8] = b"sol-vault";

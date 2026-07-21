@@ -1,6 +1,5 @@
 "use client";
 
-import { getTransactionDecoder } from "@solana/transactions";
 import { useWalletConnection } from "@solana/react-hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -8,13 +7,11 @@ import {
   lamportsToSol,
   protocolApiUrl,
   protocolRequest,
-  tokenAmountToBaseUnits,
   type HolderState,
   type ProtocolStatus,
 } from "@/lib/protocol-api";
 
 const tierNames = ["Paper Hands", "Iron Hands", "Diamond Hands", "Obsidian Hands"];
-const bytesFromBase64 = (value: string) => Uint8Array.from(window.atob(value), (character) => character.charCodeAt(0));
 const base64FromBytes = (value: Uint8Array) => {
   let binary = "";
   value.forEach((byte) => { binary += String.fromCharCode(byte); });
@@ -28,7 +25,7 @@ const formatCountdown = (seconds: number) => {
   return `${hours}:${minutes}:${secs}`;
 };
 
-type TransactionResponse = { transaction: string };
+type GameResponse = { ok?: boolean; message?: string; signature?: string; amountLamports?: string };
 
 export function ProtocolConsole() {
   const { connected, wallet } = useWalletConnection();
@@ -36,8 +33,6 @@ export function ProtocolConsole() {
   const [status, setStatus] = useState<ProtocolStatus | null>(null);
   const [holder, setHolder] = useState<HolderState | null>(null);
   const [sessionToken, setSessionToken] = useState("");
-  const [amount, setAmount] = useState("1000");
-  const [fundSol, setFundSol] = useState("0.1");
   const [countdown, setCountdown] = useState(0);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -91,32 +86,30 @@ export function ProtocolConsole() {
         body: JSON.stringify({ wallet: address, message: challenge.message, signature: base64FromBytes(signature) }),
       });
       setSessionToken(verified.token);
-      setMessage("Wallet ownership verified. You can now submit game transactions.");
+      setMessage("Wallet ownership verified. You can now play the live round.");
       return verified.token;
     } finally {
       setBusy("");
     }
   }, [address, wallet]);
 
-  const sendGameTransaction = useCallback(async (path: string, body: Record<string, string>, label: string) => {
+  const sendGameAction = useCallback(async (path: string, body: Record<string, string>, label: string) => {
     if (!wallet || !address) throw new Error("Connect a Solana wallet first.");
-    if (!wallet.sendTransaction) throw new Error("This wallet cannot send Solana transactions.");
     setBusy(label);
     setError("");
     setMessage("");
     try {
       const token = sessionToken || await signIn();
-      const prepared = await protocolRequest<TransactionResponse>(path, {
+      const response = await protocolRequest<GameResponse>(path, {
         method: "POST",
         body: JSON.stringify({ wallet: address, ...body }),
       }, token);
-      const transaction = getTransactionDecoder().decode(bytesFromBase64(prepared.transaction));
-      const signature = await wallet.sendTransaction(transaction as Parameters<NonNullable<typeof wallet.sendTransaction>>[0], { commitment: "confirmed" });
-      setMessage(`${label} submitted: ${String(signature)}`);
+      const suffix = response.signature ? ` ${response.signature}` : "";
+      setMessage(response.message ? `${response.message}${suffix}` : `${label} submitted.${suffix}`);
       await new Promise((resolve) => window.setTimeout(resolve, 1200));
       await refresh();
-    } catch (transactionError) {
-      setError(transactionError instanceof Error ? transactionError.message : `${label} failed.`);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : `${label} failed.`);
     } finally {
       setBusy("");
     }
@@ -132,11 +125,9 @@ export function ProtocolConsole() {
   const headline = useMemo(() => {
     if (!protocolApiUrl) return "DEPLOYMENT CONFIGURATION REQUIRED";
     if (!status) return "CONTACTING THE PROTOCOL";
-    if (!status.configured) return "ON-CHAIN PROGRAM NOT INITIALIZED";
+    if (!status.configured) return "LIVE GAME NOT CONFIGURED";
     return status.roundActive ? `ROUND ${status.currentRound} / DECISION WINDOW OPEN` : "ROUND SETTLEMENT / NEXT WINDOW PENDING";
   }, [status]);
-
-  const amountInBaseUnits = () => tokenAmountToBaseUnits(amount, decimals);
 
   return (
     <section className="protocol-console section-shell" id="play" aria-labelledby="protocol-console-title">
@@ -154,40 +145,36 @@ export function ProtocolConsole() {
         <div><span>WALLET / POSITION</span><strong>{holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : "—"}</strong></div>
       </div>
 
-      {!protocolReady ? <div className="protocol-console-message"><strong>{protocolApiUrl ? "PROGRAM DEPLOYMENT PENDING" : "API URL MISSING"}</strong><p>{protocolApiUrl ? "The API is reachable, but the Solana program has not been initialized for the token yet." : "Set NEXT_PUBLIC_API_URL in Vercel to the Railway public URL to activate this panel."}</p></div> : null}
+      {!protocolReady ? <div className="protocol-console-message"><strong>{protocolApiUrl ? "GAME CONFIGURATION PENDING" : "API URL MISSING"}</strong><p>{protocolApiUrl ? "The API is reachable, but Supabase or TOKEN_MINT is not configured yet." : "Set NEXT_PUBLIC_API_URL in Vercel to the Railway public URL to activate this panel."}</p></div> : null}
 
       <div className="protocol-wallet-row">
-        <div><span>WALLET ACCESS</span><strong>{address ? `${address.slice(0, 5)}…${address.slice(-5)}` : "NOT CONNECTED"}</strong><small>{sessionToken ? "SIGNED IN / TRANSACTIONS ENABLED" : connected ? "SIGN IN TO PLAY" : "CONNECT ABOVE TO CONTINUE"}</small></div>
+        <div><span>WALLET ACCESS</span><strong>{address ? `${address.slice(0, 5)}…${address.slice(-5)}` : "NOT CONNECTED"}</strong><small>{sessionToken ? "SIGNED IN / GAME ENABLED" : connected ? "SIGN IN TO PLAY" : "CONNECT ABOVE TO CONTINUE"}</small></div>
         {connected && !sessionToken ? <button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signInError) => setError(signInError instanceof Error ? signInError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button> : null}
       </div>
 
       {protocolApiUrl && status && !status.configured && connected && sessionToken ? (
         <div className="protocol-actions">
-          <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameTransaction("/api/tx/initialize", {}, "PROTOCOL INITIALIZATION")}>INITIALIZE HOURLY GAME</button>
+          <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/initialize", {}, "GAME INITIALIZATION")}>INITIALIZE HOURLY GAME</button>
         </div>
       ) : null}
 
       {protocolReady && connected && sessionToken ? (
         <div className="protocol-actions">
-          <label><span>FUND POT / SOL</span><input inputMode="decimal" value={fundSol} onChange={(event) => setFundSol(event.target.value)} aria-label="SOL to add to the fee pot" /></label>
-          <button type="button" disabled={Boolean(busy) || !/^\d+(\.\d+)?$/.test(fundSol)} onClick={() => void sendGameTransaction("/api/tx/fund", { amount: Math.floor(Number(fundSol) * 1_000_000_000).toString() }, "FEE POT FUNDING")}>ADD SOL TO NEXT POT</button>
-          {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameTransaction("/api/tx/open-position", {}, "POSITION OPEN")}>OPEN TOKEN POSITION</button> : (
+          {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/open-position", {}, "HOLDING VERIFICATION")}>VERIFY HOLDING</button> : (
             <>
-              <label><span>TOKEN AMOUNT</span><input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} aria-label="Token amount" /></label>
-              <button type="button" disabled={Boolean(busy)} onClick={() => { try { void sendGameTransaction("/api/tx/deposit", { amount: amountInBaseUnits() }, "DEPOSIT"); } catch (amountError) { setError(amountError instanceof Error ? amountError.message : "Invalid amount."); } }}>DEPOSIT / BUILD STREAK</button>
-              <button type="button" disabled={Boolean(busy) || !hasPosition} onClick={() => { try { void sendGameTransaction("/api/tx/withdraw", { amount: amountInBaseUnits() }, "WITHDRAW"); } catch (amountError) { setError(amountError instanceof Error ? amountError.message : "Invalid amount."); } }}>WITHDRAW / RESET STREAK</button>
-              <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameTransaction("/api/tx/vote", { choice: "cooperate" }, "COOPERATE VOTE")}>COOPERATE</button>
-              <button className="defect-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameTransaction("/api/tx/vote", { choice: "defect" }, "DEFECT VOTE")}>DEFECT</button>
-              <button type="button" disabled={Boolean(busy) || !canClaim} onClick={() => void sendGameTransaction("/api/tx/claim", { roundNumber: status?.currentRound ?? "0" }, "REWARD CLAIM")}>CLAIM ROUND REWARD</button>
+              <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/deposit", {}, "HOLDING SYNC")}>SYNC HOLDING</button>
+              <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "cooperate" }, "COOPERATE VOTE")}>COOPERATE</button>
+              <button className="defect-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "defect" }, "DEFECT VOTE")}>DEFECT</button>
+              <button type="button" disabled={Boolean(busy) || !canClaim} onClick={() => void sendGameAction("/api/tx/claim", { roundNumber: status?.currentRound ?? "0" }, "REWARD CLAIM")}>CLAIM ROUND REWARD</button>
             </>
           )}
         </div>
       ) : null}
 
-      {holder?.position ? <div className="protocol-position-line"><span>TIER <b>{tierNames[holder.position.tier] ?? holder.position.tierName}</b></span><span>STREAK <b>{Math.floor(Number(holder.position.streakSeconds) / 86_400)} DAYS</b></span><span>ESCROWED <b>{positionAmount}</b></span></div> : null}
+      {holder?.position ? <div className="protocol-position-line"><span>TIER <b>{tierNames[holder.position.tier] ?? holder.position.tierName}</b></span><span>STREAK <b>{Math.floor(Number(holder.position.streakSeconds) / 86_400)} DAYS</b></span><span>HELD <b>{positionAmount}</b></span></div> : null}
       {message ? <p className="protocol-success" role="status">{message}</p> : null}
       {error ? <p className="protocol-error" role="alert">{error}</p> : null}
-      <p className="protocol-console-foot">Transactions require wallet approval and network fees. Depositing moves tokens into program escrow; withdrawing any amount resets the streak.</p>
+      <p className="protocol-console-foot">Wallet signatures verify ownership. Mainnet token balance controls eligibility, and Pump creator fees are collected into the game pot every 15 minutes.</p>
     </section>
   );
 }

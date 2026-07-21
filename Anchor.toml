@@ -5,15 +5,17 @@ anchor_version = "1.1.2"
 resolution = true
 skip-lint = false
 
+[programs.mainnet]
+holders_dilemna = "Cw49HSzFECh5HTJN4ZJCirHWTgkbbP7hAGZvmwLFvBjT"
+
 [programs.localnet]
 holders_dilemna = "GT42vQcCtut8XU4z7rm9MAoGrV462xB7qK16CDgMgWha"
 
-[programs.devnet]
-holders_dilemna = "GT42vQcCtut8XU4z7rm9MAoGrV462xB7qK16CDgMgWha"
-
 [provider]
-cluster = "devnet"
-wallet = "target/deploy/devnet-admin.json"
+cluster = "mainnet"
+wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "cargo test -p holders-dilemna"
+
+[hooks]
