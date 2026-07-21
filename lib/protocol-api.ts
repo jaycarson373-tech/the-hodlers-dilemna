@@ -47,7 +47,9 @@ type ApiError = { error?: string };
 
 const normalizeProtocolApiUrl = (value?: string) => {
   const trimmed = (value ?? "").trim().replace(/\/+$/, "");
-  return trimmed.replace(/\/api$/i, "");
+  if (!trimmed) return "";
+  const absolute = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return absolute.replace(/\/api$/i, "");
 };
 
 export const protocolApiUrl = normalizeProtocolApiUrl(process.env.NEXT_PUBLIC_API_URL);
