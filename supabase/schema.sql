@@ -1,5 +1,5 @@
--- Hodlers Dilemma.fun read model.
--- Financial truth lives in the Solana program. Railway's indexer is the only writer here.
+-- Hodlers Dilemma.fun mainnet game model.
+-- Railway is the only writer; the public site reads this state.
 
 create extension if not exists pgcrypto;
 
@@ -7,7 +7,7 @@ create table if not exists public.protocol_config (
   id boolean primary key default true check (id),
   program_id text not null,
   token_mint text not null,
-  cluster text not null default 'devnet',
+  cluster text not null default 'mainnet-beta',
   current_round bigint not null default 0,
   available_pool_lamports bigint not null default 0,
   round_length_seconds bigint not null default 3600,

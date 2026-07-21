@@ -35,7 +35,7 @@ const envSchema = z.object({
 
 const env = envSchema.parse(process.env);
 const connection = new Connection(env.SOLANA_RPC_URL, "confirmed");
-const clusterName = env.SOLANA_RPC_URL.includes("devnet") ? "devnet" : "mainnet-beta";
+const clusterName = "mainnet-beta";
 const sessionKey = env.SESSION_SECRET ? new TextEncoder().encode(env.SESSION_SECRET) : undefined;
 const tokenMint = env.TOKEN_MINT ? new PublicKey(env.TOKEN_MINT) : undefined;
 const supabase: SupabaseClient | undefined = env.SUPABASE_URL && env.SUPABASE_SECRET_KEY
@@ -761,12 +761,6 @@ app.post("/api/tx/claim", async (req, res, next) => {
 app.post("/api/tx/fund", async (_req, res, next) => {
   try {
     throw new Error("Manual wallet funding is disabled in Supabase game mode. Pump creator fees fund the game pot every 15 minutes.");
-  } catch (error) { next(error); }
-});
-
-app.post("/api/devnet/faucet", async (_req, res, next) => {
-  try {
-    throw new Error("Devnet faucet is disabled. This deployment is mainnet only.");
   } catch (error) { next(error); }
 });
 
