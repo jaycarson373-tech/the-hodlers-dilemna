@@ -5985,3 +5985,116 @@ th,
     min-height: auto;
   }
 }
+
+/* Reference-match gold typography pass */
+:root {
+  --show-gold: #e09a1d;
+  --show-gold-hot: #ffdc75;
+  --show-gold-peak: #fff2b6;
+  --show-gold-deep: #c8750b;
+  --show-gold-shadow: rgba(255, 178, 39, 0.46);
+  --gold-metal-type: linear-gradient(
+    180deg,
+    #fff5c6 0%,
+    #ffe28a 18%,
+    #ffc84f 42%,
+    #f2a22a 70%,
+    #d78312 100%
+  );
+}
+
+.hero h1,
+.hero h1 em,
+.section-heading h2,
+.live-preview-heading h2,
+.temptation-layout h2,
+.temptation-layout h2 em,
+.final-cta h2,
+.final-cta h2 em {
+  background-image: var(--gold-metal-type) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: var(--show-gold) !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow:
+    0 2px 0 #5b2a02,
+    0 0 11px var(--show-gold-shadow),
+    0 0 28px rgba(225, 18, 24, 0.24) !important;
+}
+
+.section-heading h2,
+.live-preview-heading h2,
+.temptation-layout h2,
+.final-cta h2 {
+  filter: saturate(1.18) contrast(1.08);
+}
+
+.hero h1 {
+  filter: saturate(1.24) contrast(1.1) drop-shadow(0 0 12px rgba(255, 188, 50, 0.18));
+}
+
+.section-index,
+.hero-eyebrow,
+.live-preview-heading p,
+.matrix-column,
+.matrix-row,
+.matrix-corner-label,
+.outcome-code,
+.tier-top,
+.tier-signal,
+.wallet-card-header,
+.countdown-top,
+.leaderboard-meta,
+.leaderboard-footer,
+.feed-status,
+.feed-code,
+.mechanic-number,
+.panel-footnote,
+.live-preview-card > span,
+.live-preview-card > small,
+.live-preview-card > p {
+  color: var(--show-gold-hot) !important;
+  text-shadow: 0 0 10px rgba(255, 195, 72, 0.22) !important;
+}
+
+.hero-dossier strong,
+.combined-signal-labels strong,
+.pot-preview-card > strong,
+.pot-preview-card > small,
+.gold-value,
+.streak-step small,
+.configuration-note span,
+.planned-label,
+.final-cta p {
+  color: var(--show-gold-hot) !important;
+  text-shadow: 0 0 12px rgba(255, 195, 72, 0.34) !important;
+}
+
+.outcome-card h3,
+.tier-card h3,
+.flow-step strong,
+.mechanic-row h3 {
+  color: var(--show-gold-hot) !important;
+  text-shadow: 0 1px 0 #5b2a02, 0 0 12px rgba(255, 195, 72, 0.28) !important;
+}
+
+.hero h1,
+.hero h1 em,
+.section-heading h2,
+.live-preview-heading h2,
+.temptation-layout h2,
+.temptation-layout h2 em,
+.final-cta h2,
+.final-cta h2 em {
+  background-image: none !important;
+  color: #f4b43c !important;
+  -webkit-text-fill-color: #f4b43c !important;
+  text-shadow:
+    0 2px 0 #7a4708,
+    0 0 12px rgba(255, 199, 90, 0.58),
+    0 0 34px rgba(225, 18, 24, 0.28) !important;
+}
+
+.hero h1 {
+  filter: saturate(1.12) contrast(1.04) drop-shadow(0 0 10px rgba(255, 188, 50, 0.16));
+}
