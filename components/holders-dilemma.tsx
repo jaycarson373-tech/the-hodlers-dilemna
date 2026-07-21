@@ -4,7 +4,6 @@ import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } fr
 import { useEffect, useRef, useState } from "react";
 import { SectionHeading } from "@/components/section-heading";
 import { WalletConnect } from "@/components/wallet-connect";
-import { ProtocolConsole } from "@/components/protocol-console";
 import {
   feed,
   leaderboard,
@@ -61,11 +60,10 @@ function AmbientBackground() {
 }
 
 function AnimatedValue({ children }: { children: React.ReactNode }) {
-  const reduceMotion = useReducedMotion();
   return (
     <motion.span
       key={String(children)}
-      initial={reduceMotion ? false : { opacity: 0, y: 7, filter: "blur(3px)" }}
+      initial={false}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
@@ -88,39 +86,13 @@ function Reveal({
   return (
     <motion.div
       className={className}
-      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+      initial={false}
       whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>
-  );
-}
-
-function SignalBar({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "cooperate" | "defect";
-}) {
-  return (
-    <div className="signal-row">
-      <div className="signal-label">
-        <span>{label}</span>
-        <span>{value}%</span>
-      </div>
-      <div className="signal-track" aria-hidden="true">
-        <motion.div
-          className={`signal-fill ${tone}`}
-          animate={{ width: `${value}%` }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </div>
-    </div>
   );
 }
 
@@ -140,64 +112,53 @@ function ExperimentPanel({
   const defectSignal = 100 - cooperateSignal;
 
   return (
-    <div className="experiment-panel live-protocol-panel terminal-frame">
-      <div className="corner corner-tl" aria-hidden="true" />
-      <div className="corner corner-br" aria-hidden="true" />
-      <div className="panel-topline">
-        <span className="live-panel-brand"><OfficialMark className="official-mark-dashboard" /> LIVE ROUND / PROTOCOL PREVIEW</span>
-        <span className="live-status"><i /> DECISION WINDOW OPEN</span>
+    <div className="experiment-panel live-protocol-panel">
+      <div className="live-preview-heading">
+        <p>LIVE ROUND / PROTOCOL PREVIEW</p>
+        <h2>DECISION WINDOW OPEN.</h2>
+        <span>One private decision. One collective outcome. Every round rewards coordination, tempts betrayal, and records who chose conviction over extraction.</span>
       </div>
 
-      <div className="live-metrics" aria-label="Round model data">
-        <div className="live-metric live-metric-primary">
+      <div className="live-preview-grid" aria-label="Round model data">
+        <article className="live-preview-card round-preview-card">
           <span>CURRENT ROUND</span>
           <strong><AnimatedValue>024</AnimatedValue></strong>
-          <small>ROUND STRUCTURE</small>
-        </div>
-        <div className="live-metric live-metric-primary">
+          <small>PROPOSED ROUND STRUCTURE</small>
+
           <span>TIME UNTIL NEXT DECISION</span>
           <strong><AnimatedValue>{formatTime(seconds)}</AnimatedValue></strong>
-          <small>ROUND RHYTHM</small>
-        </div>
-        <div className="live-metric cooperate-metric">
-          <span>HODL</span>
-          <strong><AnimatedValue>{cooperateSignal}%</AnimatedValue></strong>
-          <small>NON-BINDING SIGNAL</small>
-        </div>
-        <div className="live-metric defect-metric">
-          <span>NO HODL</span>
-          <strong><AnimatedValue>{defectSignal}%</AnimatedValue></strong>
-          <small>NON-BINDING SIGNAL</small>
-        </div>
-        <div className="live-metric">
+          <small>SIMULATED COUNTDOWN</small>
+        </article>
+
+        <article className="live-preview-card signal-preview-card">
+          <span>AUDIENCE SIGNAL / NON-BINDING</span>
+          <div className="combined-signal" aria-hidden="true">
+            <motion.i
+              style={{ width: `${cooperateSignal}%` }}
+              animate={{ width: `${cooperateSignal}%` }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            />
+            <b />
+          </div>
+          <div className="combined-signal-labels">
+            <strong>HODL — <AnimatedValue>{cooperateSignal}%</AnimatedValue></strong>
+            <strong>NO HODL — <AnimatedValue>{defectSignal}%</AnimatedValue></strong>
+          </div>
+
           <span>ACTIVE HOLDERS</span>
           <strong><AnimatedValue>10,842</AnimatedValue></strong>
-          <small>ELIGIBLE WALLETS</small>
-        </div>
-        <div className="live-metric gold-metric">
+
           <span>LONGEST HOLD STREAK</span>
-          <strong><AnimatedValue>94 DAYS</AnimatedValue></strong>
-          <small>SEASON 00</small>
-        </div>
-      </div>
+          <strong><AnimatedValue>94 Days</AnimatedValue></strong>
+        </article>
 
-      <div className="live-panel-lower">
-        <div className="live-pot-and-signals">
-          <div className="pot-readout">
-            <p>FEE POT / ROUND MODEL</p>
-            <strong><AnimatedValue>{pot.toFixed(2)}</AnimatedValue> <small>SOL</small></strong>
-          </div>
-          <div className="signal-box">
-            <div className="signal-heading">
-              <span>NON-BINDING PUBLIC SIGNALS</span>
-              <span>ROUND READ</span>
-            </div>
-            <SignalBar label="HODL" value={cooperateSignal} tone="cooperate" />
-            <SignalBar label="NO HODL" value={defectSignal} tone="defect" />
-          </div>
-        </div>
+        <article className="live-preview-card pot-preview-card">
+          <span>WHAT&apos;S IN THE BOX / ILLUSTRATIVE</span>
+          <strong><AnimatedValue>{pot.toFixed(2)}</AnimatedValue></strong>
+          <small>SOL</small>
+          <p>DISTRIBUTED TO HODLERS, WEIGHTED BY STREAK</p>
 
-        <div className="decision-grid" aria-label="Decision demonstration">
+          <div className="decision-grid" aria-label="Decision demonstration">
           <motion.button
             type="button"
             className={`decision-button cooperate ${decision === "cooperate" ? "selected" : ""}`}
@@ -205,9 +166,7 @@ function ExperimentPanel({
             onClick={() => onDecision("cooperate")}
             whileTap={{ scale: 0.985 }}
           >
-            <span className="decision-number">01</span>
             <strong>HODL</strong>
-            <small>Protect the collective distribution.</small>
           </motion.button>
           <motion.button
             type="button"
@@ -216,18 +175,15 @@ function ExperimentPanel({
             onClick={() => onDecision("defect")}
             whileTap={{ scale: 0.985 }}
           >
-            <span className="decision-number">02</span>
             <strong>NO HODL</strong>
-            <small>Take the offer and risk the round.</small>
           </motion.button>
-        </div>
-      </div>
+          </div>
 
-      <p className="panel-footnote" role="status" aria-live="polite">
-        {decision
-          ? `${decision === "cooperate" ? "HODL" : "NO HODL"} selected in the round model. Use the live game console below for the real vote.`
-          : "Use the live game console below to submit the real on-chain-verified vote."}
-      </p>
+          <p className="panel-footnote" role="status" aria-live="polite">
+            DEMONSTRATION CONTROLS ONLY — NO TRANSACTION IS CREATED.
+          </p>
+        </article>
+      </div>
     </div>
   );
 }
@@ -240,7 +196,7 @@ export function HoldersDilemma() {
   const [decision, setDecision] = useState<Decision>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [uiNotice, setUiNotice] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const streakRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: streakRef,
@@ -337,22 +293,22 @@ export function HoldersDilemma() {
           <div className="hero-copy">
             <motion.p
               className="eyebrow hero-eyebrow"
-              initial={reduceMotion ? false : { opacity: 0 }}
+              initial={false}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
             >
               <span>ON-CHAIN SOCIAL EXPERIMENT / ROUND 024</span>
             </motion.p>
             <motion.h1
-              initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
             >
-              HODL OR <em>NO HODL?</em>
+              HODL OR <em>NO HODL</em>
             </motion.h1>
             <motion.p
               className="hero-description"
-              initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.12 }}
             >
@@ -360,7 +316,7 @@ export function HoldersDilemma() {
             </motion.p>
             <motion.p
               className="brand-tagline"
-              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.17 }}
             >
@@ -368,7 +324,7 @@ export function HoldersDilemma() {
             </motion.p>
             <motion.div
               className="hero-actions"
-              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.2 }}
             >
@@ -376,16 +332,11 @@ export function HoldersDilemma() {
               <a className="button button-secondary" href="#mechanics">Read the Rules</a>
             </motion.div>
 
-            <div className="hero-dossier" aria-label="Experiment classification">
-              <span>CONTESTANTS<br /><strong>HOLDERS</strong></span>
-              <span>VARIABLE<br /><strong>CONVICTION</strong></span>
-              <span>IN THE BOX<br /><strong>FEE WEIGHT</strong></span>
-            </div>
           </div>
 
           <motion.div
             className="hero-logo-stage"
-            initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+            initial={false}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
           >
@@ -406,6 +357,12 @@ export function HoldersDilemma() {
             <div className="hero-logo-caption"><span>THE BANKER IS CALLING</span><i /> <span>ROUND 024 LIVE</span></div>
           </motion.div>
 
+          <div className="hero-dossier" aria-label="Experiment classification">
+            <span>CONTESTANTS<br /><strong>HOLDERS</strong></span>
+            <span>VARIABLE<br /><strong>CONVICTION</strong></span>
+            <span>IN THE BOX<br /><strong>FEE WEIGHT</strong></span>
+          </div>
+
           <div className="scroll-cue" aria-hidden="true"><span>SCROLL TO EXAMINE</span><i /></div>
         </section>
 
@@ -420,8 +377,6 @@ export function HoldersDilemma() {
             />
           </Reveal>
         </section>
-
-        <ProtocolConsole />
 
         <section className="content-section section-shell" id="dilemma">
           <SectionHeading
@@ -550,17 +505,23 @@ export function HoldersDilemma() {
           <SectionHeading
             number="04"
             eyebrow="BONUS MECHANIC / BETRAYAL BOUNTY"
-            title="WHEN SOMEONE TAKES THE OFFER, THE HOLDERS WHO REMAIN BENEFIT."
+            title="WHEN SOMEONE TAKES THE DEAL, THE HODLERS WHO REMAIN BENEFIT."
             description="When a wallet with a developed streak sells, part of its forfeited reward weight can be redirected into a Betrayal Bounty for remaining eligible holders."
           />
           <Reveal className="betrayal-statement">
-            <span>THEIR</span> NO HODL <span>BECOMES</span> YOUR REWARD.
+            THEIR DEAL BECOMES YOUR REWARD. 💰
           </Reveal>
           <div className="betrayal-flow" aria-label="Betrayal bounty flow">
-            {["WALLET EXITS", "MULTIPLIER FORFEITED", "BOUNTY FUNDED", "HOLDERS REWARDED"].map((item, index) => (
+            {[
+              ["DEAL TAKEN", "A streaked wallet accepts the offer and exits."],
+              ["MULTIPLIER FORFEITED", "Its accumulated reward weight is released."],
+              ["BOUNTY FUNDED", "The forfeited weight funds a Betrayal Bounty."],
+              ["HODLERS REWARDED", "Remaining eligible holders share the bounty."],
+            ].map(([item, copy], index) => (
               <Reveal className="flow-step" delay={index * 0.1} key={item}>
                 <span>0{index + 1}</span>
                 <strong>{item}</strong>
+                <p>{copy}</p>
                 {index < 3 ? <i aria-hidden="true">→</i> : null}
               </Reveal>
             ))}
@@ -573,7 +534,7 @@ export function HoldersDilemma() {
           <div className="temptation-layout">
             <div>
               <p className="eyebrow warning-eyebrow">UNPREDICTABLE PROTOCOL EVENT</p>
-              <h2>TEMPTATION WINDOW <em>DETECTED</em></h2>
+              <h2>THE BANKER IS <em>CALLING.</em></h2>
               <p className="section-description">At unpredictable moments, the protocol may open brief reduced-fee or tax-free selling windows designed to test holder conviction.</p>
               <div className="temptation-outcomes">
                 <article>
@@ -602,7 +563,7 @@ export function HoldersDilemma() {
           <SectionHeading
             number="05"
             eyebrow="SEASONAL RANKING"
-            title="LAST HODLER STANDING"
+            title="LAST CONTESTANT STANDING."
             description="Monthly seasons are planned to rank wallets by uninterrupted holding streak, position strength, participation, and total conviction."
           />
 
@@ -659,7 +620,7 @@ export function HoldersDilemma() {
           <SectionHeading
             number="07"
             eyebrow="MECHANICS"
-            title="HOW HODL OR NO HODL WORKS."
+            title="HOW THE GAME WORKS."
           />
           <div className="mechanics-list">
             {mechanics.map((mechanic, index) => (
@@ -676,8 +637,8 @@ export function HoldersDilemma() {
         <section className="final-cta section-shell">
           <div className="final-code" aria-hidden="true">FINAL OFFER / SUBJECT DECIDES</div>
           <Reveal>
-            <p>THE MARKET IS ALREADY THE BANKER.</p>
-            <h2>WE PUT THE OFFER<br /><em>ON THE BOARD.</em></h2>
+            <p>THE MARKET ALREADY TESTS YOUR CONVICTION.</p>
+            <h2>WE TURNED THE TEST<br /><em>INTO THE PROTOCOL.</em></h2>
             <div className="hero-actions final-actions">
               <a className="button button-primary" href="#play">No Hodl? Never. <span>↑</span></a>
               <a className="button button-secondary" href="#mechanics">Read the Rules</a>

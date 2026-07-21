@@ -14,7 +14,7 @@ export function SectionHeading({
   return (
     <header className="section-heading">
       <div className="section-index" aria-hidden="true">
-        {number}
+        {number} / {eyebrow}
       </div>
       <div>
         <p className="eyebrow">{eyebrow}</p>
