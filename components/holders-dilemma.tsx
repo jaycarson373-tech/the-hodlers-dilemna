@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { ProtocolConsole } from "@/components/protocol-console";
 import { SectionHeading } from "@/components/section-heading";
 import { WalletConnect } from "@/components/wallet-connect";
 import {
@@ -377,6 +378,8 @@ export function HoldersDilemma() {
             />
           </Reveal>
         </section>
+
+        <ProtocolConsole />
 
         <section className="content-section section-shell" id="dilemma">
           <SectionHeading

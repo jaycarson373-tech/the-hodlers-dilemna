@@ -43,6 +43,7 @@ next-env.d.ts
 /target/
 /test-ledger/
 /railway/node_modules/
+/railway/dist/
 /railway/.env
 /railway/.env.*
 !/railway/.env.example

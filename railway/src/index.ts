@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -7,13 +8,23 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  type TransactionInstruction,
 } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import bs58 from "bs58";
-import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
 import { jwtVerify, SignJWT } from "jose";
 import nacl from "tweetnacl";
 import { z } from "zod";
+
+type PumpSdkClient = {
+  getCreatorVaultBalanceBothPrograms(creator: PublicKey): Promise<{ toString(): string }>;
+  collectCoinCreatorFeeInstructions(creator: PublicKey, payer: PublicKey): Promise<TransactionInstruction[]>;
+};
+
+const nodeRequire = createRequire(import.meta.url);
+const { OnlinePumpSdk } = nodeRequire("@pump-fun/pump-sdk") as {
+  OnlinePumpSdk: new (connection: Connection) => PumpSdkClient;
+};
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3001),
