@@ -529,7 +529,12 @@ const app = express();
 app.use(express.json({ limit: "64kb" }));
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (!origin || origin === env.SITE_ORIGIN || origin.startsWith("http://localhost:")) {
+  const allowedOrigins = new Set([
+    env.SITE_ORIGIN,
+    "https://hodlornohodl.fun",
+    "https://www.hodlornohodl.fun",
+  ]);
+  if (!origin || allowedOrigins.has(origin) || origin.startsWith("http://localhost:")) {
     if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
