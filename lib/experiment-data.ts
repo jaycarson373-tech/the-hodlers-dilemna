@@ -32,26 +32,26 @@ export type RoundHistoryEntry = {
 
 export const tiers: Tier[] = [
   {
-    name: "Paper Hands",
-    code: "TIER / 01",
+    name: "PAPER HANDS",
+    code: "BOX / 01",
     description: "Base-level streak and multiplier.",
     signal: "ENTRY STATE",
   },
   {
-    name: "Iron Hands",
-    code: "TIER / 02",
+    name: "IRON HANDS",
+    code: "BOX / 02",
     description: "Established holder with growing protocol weight.",
     signal: "CONVICTION FORMING",
   },
   {
-    name: "Diamond Hands",
-    code: "TIER / 03",
+    name: "DIAMOND HANDS",
+    code: "BOX / 03",
     description: "Long-term holder with an elevated fee share.",
     signal: "POSITION HELD",
   },
   {
-    name: "Obsidian Hands",
-    code: "TIER / 04",
+    name: "OBSIDIAN HANDS",
+    code: "BOX / 04",
     description: "Highest-conviction tier for the longest uninterrupted streaks.",
     signal: "RARE COHORT",
   },
@@ -68,9 +68,9 @@ export const leaderboard: LeaderboardEntry[] = [
 
 export const feed: FeedEntry[] = [
   { time: "T−19:42", event: "ROUND 023 SETTLED", detail: "Majority chose HODL. Pot distributed.", tone: "cooperate" },
-  { time: "T−18:07", event: "WALLET 8D4...2FA CHOSE NO HODL", detail: "Banker bonus activated.", tone: "defect" },
+  { time: "T−18:07", event: "WALLET 8D4...2FA TOOK THE DEAL", detail: "Dealer bonus activated.", tone: "defect" },
   { time: "T−14:31", event: "BETRAYAL BOUNTY FUNDED", detail: "A 19-day streak was forfeited.", tone: "gold" },
-  { time: "T−08:12", event: "BANKER OFFER REFUSED", detail: "412 wallets maintained their streak.", tone: "gold" },
+  { time: "T−08:12", event: "BANKER’S OFFER REFUSED", detail: "412 wallets said no hodl? No. HODL.", tone: "gold" },
   { time: "T−00:00", event: "ROUND 024 OPENED", detail: "Decision window is now active.", tone: "neutral" },
 ];
 
@@ -82,11 +82,11 @@ export const roundHistory: RoundHistoryEntry[] = [
 ];
 
 export const mechanics = [
-  { number: "01", title: "Hodl", copy: "Acquire the token and begin building an uninterrupted streak." },
+  { number: "01", title: "Pick Up Your Box", copy: "Acquire the token and begin building an uninterrupted streak." },
   { number: "02", title: "Build Conviction", copy: "Holding time and position strength increase your protocol weight." },
-  { number: "03", title: "Face the Offer", copy: "Choose HODL or NO HODL during recurring rounds." },
-  { number: "04", title: "Receive Outcomes", copy: "Outcomes depend on your decision, the collective result, and your multiplier." },
-  { number: "05", title: "Remain Standing", copy: "Avoid selling, climb the tiers, and compete in seasonal rankings." },
+  { number: "03", title: "Answer the Phone", copy: "Hodl or no hodl — decide during recurring rounds and submit a choice." },
+  { number: "04", title: "Open the Box", copy: "Outcomes depend on your decision, the collective result, and your multiplier." },
+  { number: "05", title: "Remain Standing", copy: "Refuse the banker, climb the tiers, and compete in seasonal rankings." },
 ];
 
 export const streakSteps = [
@@ -99,29 +99,29 @@ export const streakSteps = [
 
 export const outcomes = [
   {
-    you: "YOU COOPERATE",
-    majority: "MAJORITY COOPERATES",
-    title: "HODLER SHARE",
-    copy: "You receive the standard weighted fee share.",
+    you: "YOU HODL",
+    majority: "MAJORITY HODL",
+    title: "WEIGHTED SHARE",
+    copy: "The box opens for everyone. You receive the standard weighted fee share.",
     tone: "cooperate",
   },
   {
-    you: "YOU COOPERATE",
-    majority: "TOO MANY DEFECT",
-    title: "POT ROLLS OVER",
-    copy: "No payout. The pot rolls into the next round.",
+    you: "YOU HODL",
+    majority: "TOO MANY TAKE THE DEAL",
+    title: "BOX STAYS SEALED",
+    copy: "No payout. The pot rolls into the next round’s box.",
     tone: "neutral",
   },
   {
-    you: "YOU DEFECT",
-    majority: "MAJORITY COOPERATES",
-    title: "BANKER BONUS",
+    you: "YOU TAKE THE DEAL",
+    majority: "MAJORITY HODL",
+    title: "INCREASED SHARE",
     copy: "You receive an increased share of the round.",
     tone: "defect",
   },
   {
-    you: "YOU DEFECT",
-    majority: "TOO MANY DEFECT",
+    you: "YOU TAKE THE DEAL",
+    majority: "TOO MANY TAKE THE DEAL",
     title: "MUTUAL LOSS",
     copy: "No payout. The pot rolls into the next round.",
     tone: "defect",

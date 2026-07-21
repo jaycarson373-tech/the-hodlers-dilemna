@@ -16,7 +16,6 @@ import {
 } from "@/lib/experiment-data";
 
 type Decision = "cooperate" | "defect" | null;
-const CONTRACT_ADDRESS = "HfQqQ1SbpUD7NvPrP5wv2MqFooFcxsuJVcuc5utfpump";
 
 const formatTime = (seconds: number) => {
   const safeSeconds = Math.max(0, seconds);
@@ -145,7 +144,7 @@ function ExperimentPanel({
       <div className="corner corner-tl" aria-hidden="true" />
       <div className="corner corner-br" aria-hidden="true" />
       <div className="panel-topline">
-        <span className="live-panel-brand"><OfficialMark className="official-mark-dashboard" /> HODL OR NO HODL / ROUND MODEL</span>
+        <span className="live-panel-brand"><OfficialMark className="official-mark-dashboard" /> LIVE ROUND / PROTOCOL PREVIEW</span>
         <span className="live-status"><i /> DECISION WINDOW OPEN</span>
       </div>
 
@@ -193,8 +192,8 @@ function ExperimentPanel({
               <span>NON-BINDING PUBLIC SIGNALS</span>
               <span>ROUND READ</span>
             </div>
-            <SignalBar label="COOPERATE" value={cooperateSignal} tone="cooperate" />
-            <SignalBar label="DEFECT" value={defectSignal} tone="defect" />
+            <SignalBar label="HODL" value={cooperateSignal} tone="cooperate" />
+            <SignalBar label="NO HODL" value={defectSignal} tone="defect" />
           </div>
         </div>
 
@@ -241,7 +240,7 @@ export function HoldersDilemma() {
   const [decision, setDecision] = useState<Decision>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [uiNotice, setUiNotice] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const streakRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: streakRef,
@@ -250,7 +249,6 @@ export function HoldersDilemma() {
   const streakProgress = useTransform(scrollYProgress, [0.12, 0.7], [0, 1]);
 
   useEffect(() => {
-    const loadingTimer = window.setTimeout(() => setIsLoading(false), reduceMotion ? 180 : 900);
     const timer = window.setInterval(() => {
       setSeconds((current) => (current > 0 ? current - 1 : 6138));
     }, 1000);
@@ -261,7 +259,6 @@ export function HoldersDilemma() {
     }, 5600);
 
     return () => {
-      window.clearTimeout(loadingTimer);
       window.clearInterval(timer);
       window.clearInterval(dataPulse);
     };
@@ -325,9 +322,9 @@ export function HoldersDilemma() {
           </button>
 
           <div className={`nav-links ${menuOpen ? "open" : ""}`}>
-            <a href="#experiment" onClick={closeMenu}>Experiment</a>
-            <a href="#mechanics" onClick={closeMenu}>Mechanics</a>
+            <a href="#dilemma" onClick={closeMenu}>The Choice</a>
             <a href="#streaks" onClick={closeMenu}>Streaks</a>
+            <a href="#boxes" onClick={closeMenu}>Boxes</a>
             <a href="#leaderboard" onClick={closeMenu}>Leaderboard</a>
             <WalletConnect />
           </div>
@@ -344,8 +341,7 @@ export function HoldersDilemma() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
             >
-              <span>LIVE HOLDER GAME SHOW</span>
-              <span>CASE / 024</span>
+              <span>ON-CHAIN SOCIAL EXPERIMENT / ROUND 024</span>
             </motion.p>
             <motion.h1
               initial={reduceMotion ? false : { opacity: 0, y: 24 }}
@@ -360,7 +356,7 @@ export function HoldersDilemma() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.12 }}
             >
-              The pot is on the stage. Hold with the crowd, or take the offer and try to walk away with more.
+              Every holder gets the call. Hold the box with the holders beside you — or take the offer and walk away with yours. Conviction, cooperation, betrayal. Live on Solana.
             </motion.p>
             <motion.p
               className="brand-tagline"
@@ -368,7 +364,7 @@ export function HoldersDilemma() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.17 }}
             >
-              HOLD TOGETHER. OR DON&apos;T.
+              WHAT&apos;S IN YOUR BOX?
             </motion.p>
             <motion.div
               className="hero-actions"
@@ -376,14 +372,14 @@ export function HoldersDilemma() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.2 }}
             >
-              <a className="button button-primary" href="#play">Open the Case <span>↘</span></a>
-              <a className="button button-secondary" href="#mechanics">See the Rules</a>
+              <a className="button button-primary" href="#play">No Hodl? Never. <span>↘</span></a>
+              <a className="button button-secondary" href="#mechanics">Read the Rules</a>
             </motion.div>
 
             <div className="hero-dossier" aria-label="Experiment classification">
-              <span>CASE<br /><strong>ROUND 024</strong></span>
-              <span>BANKER<br /><strong>THE POT</strong></span>
-              <span>DECISION<br /><strong>HODL / NO HODL</strong></span>
+              <span>CONTESTANTS<br /><strong>HOLDERS</strong></span>
+              <span>VARIABLE<br /><strong>CONVICTION</strong></span>
+              <span>IN THE BOX<br /><strong>FEE WEIGHT</strong></span>
             </div>
           </div>
 
@@ -407,7 +403,7 @@ export function HoldersDilemma() {
             >
               <OfficialMark className="official-mark-hero" />
             </motion.div>
-            <div className="hero-logo-caption"><span>HODL</span><i /> <span>NO HODL</span></div>
+            <div className="hero-logo-caption"><span>THE BANKER IS CALLING</span><i /> <span>ROUND 024 LIVE</span></div>
           </motion.div>
 
           <div className="scroll-cue" aria-hidden="true"><span>SCROLL TO EXAMINE</span><i /></div>
@@ -430,17 +426,17 @@ export function HoldersDilemma() {
         <section className="content-section section-shell" id="dilemma">
           <SectionHeading
             number="01"
-            eyebrow="THE DILEMMA"
-            title="ONE CASE. TWO BUTTONS. ONE CROWD."
+            eyebrow="THE CHOICE"
+            title="COORDINATION HAS A PRICE. SO DOES BETRAYAL."
             description="Each round is built around one holder decision and one collective outcome."
           />
 
           <Reveal>
             <div className="matrix" role="group" aria-label="Game theory outcome matrix">
-              <div className="matrix-corner-label">YOUR CHOICE ↓<br />COLLECTIVE RESULT →</div>
-              <div className="matrix-column">MAJORITY COOPERATES</div>
-              <div className="matrix-column">TOO MANY DEFECT</div>
-              <div className="matrix-row">YOU COOPERATE</div>
+              <div className="matrix-corner-label">YOUR CHOICE ↓<br />BOARD RESULT →</div>
+              <div className="matrix-column">MAJORITY HODL</div>
+              <div className="matrix-column">TOO MANY TAKE THE DEAL</div>
+              <div className="matrix-row">YOU HODL</div>
               {outcomes.slice(0, 2).map((outcome, index) => (
                 <article className={`outcome-card ${outcome.tone}`} key={`${outcome.you}-${outcome.majority}`}>
                   <div className="mobile-matrix-label"><span>{outcome.you}</span><span>{outcome.majority}</span></div>
@@ -449,7 +445,7 @@ export function HoldersDilemma() {
                   <p>{outcome.copy}</p>
                 </article>
               ))}
-              <div className="matrix-row">YOU DEFECT</div>
+              <div className="matrix-row">YOU TAKE THE DEAL</div>
               {outcomes.slice(2).map((outcome, index) => (
                 <article className={`outcome-card ${outcome.tone}`} key={`${outcome.you}-${outcome.majority}`}>
                   <div className="mobile-matrix-label"><span>{outcome.you}</span><span>{outcome.majority}</span></div>
@@ -491,9 +487,9 @@ export function HoldersDilemma() {
         <section className="content-section streak-section section-shell" id="streaks" ref={streakRef}>
           <SectionHeading
             number="02"
-            eyebrow="DIAMOND CASE STREAK"
-            title="KEEP YOUR CASE CLOSED."
-            description="Your fee-share multiplier grows for as long as your wallet holds without selling. Sell any amount and the streak returns to the base level."
+            eyebrow="DIAMOND HANDS STREAK"
+            title="CONVICTION COMPOUNDS."
+            description="Your fee-share multiplier climbs the board for as long as your wallet holds without selling. Sell any amount and you drop back to the bottom row."
           />
 
           <div className="streak-layout">
@@ -529,11 +525,11 @@ export function HoldersDilemma() {
           <p className="configuration-note"><span>ELIGIBILITY NOTE</span> Wallets need at least 1,000,000 tokens to enter the live game.</p>
         </section>
 
-        <section className="content-section section-shell tier-section">
+        <section className="content-section section-shell tier-section" id="boxes">
           <SectionHeading
             number="03"
-            eyebrow="CASE TIERS"
-            title="FOUR STATES OF CONVICTION."
+            eyebrow="HOLDING TIERS"
+            title="FOUR BOXES. FOUR STATES OF CONVICTION."
             description="Placement considers uninterrupted holding time, position strength, and consistency."
           />
           <div className="tier-grid">
@@ -678,40 +674,25 @@ export function HoldersDilemma() {
         </section>
 
         <section className="final-cta section-shell">
-          <div className="final-code" aria-hidden="true">END / SUBJECT DECIDES</div>
+          <div className="final-code" aria-hidden="true">FINAL OFFER / SUBJECT DECIDES</div>
           <Reveal>
             <p>THE MARKET IS ALREADY THE BANKER.</p>
             <h2>WE PUT THE OFFER<br /><em>ON THE BOARD.</em></h2>
             <div className="hero-actions final-actions">
-              <a className="button button-primary" href="#play">Open the Case <span>↑</span></a>
+              <a className="button button-primary" href="#play">No Hodl? Never. <span>↑</span></a>
               <a className="button button-secondary" href="#mechanics">Read the Rules</a>
             </div>
           </Reveal>
         </section>
       </main>
 
-      <section className="contract-strip section-shell" aria-label="Official contract address">
-        <span>OFFICIAL CA</span>
-        <code>{CONTRACT_ADDRESS}</code>
-        <button
-          type="button"
-          onClick={() => {
-            void navigator.clipboard.writeText(CONTRACT_ADDRESS);
-            showPreviewNotice("Contract address copied.");
-          }}
-        >
-          COPY CA
-        </button>
-      </section>
-
       <footer className="site-footer section-shell">
         <div className="footer-top">
           <a className="brand footer-brand" href="#experiment"><OfficialMark className="official-mark-footer" /><span>HODL OR NO HODL<span className="brand-domain">.FUN</span></span></a>
           <div className="footer-links">
-            <a href="https://x.com/i/communities/2028470502415835347" target="_blank" rel="noreferrer">X Community</a>
             <button type="button" onClick={() => showPreviewNotice("Telegram link will be added when the channel is live.")}>Telegram</button>
           </div>
-          <div className="footer-coming-soon"><span>CONTRACT <b>{CONTRACT_ADDRESS}</b></span><span>DOCUMENTATION <b>IN PROGRESS</b></span></div>
+          <div className="footer-coming-soon"><span>DOCUMENTATION <b>IN PROGRESS</b></span></div>
         </div>
         <div className="footer-bottom">
           <p>Participation involves financial, wallet, and smart-contract risk. Verify the contract address before trading.</p>
