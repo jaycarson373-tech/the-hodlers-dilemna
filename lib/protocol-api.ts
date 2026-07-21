@@ -65,7 +65,11 @@ export async function protocolRequest<T>(path: string, init?: RequestInit, token
   });
   const body = (await response.json().catch(() => ({}))) as T & ApiError;
   if (!response.ok) {
-    throw new Error(body.error || `Game API request failed (${response.status}) at ${requestUrl}. Set NEXT_PUBLIC_API_URL to the Railway service root, not the website URL.`);
+    const healthUrl = `${protocolApiUrl}/health`;
+    throw new Error(
+      body.error ||
+        `Game API request failed (${response.status}) at ${requestUrl}. The configured Railway backend URL is not serving the game API. Open ${healthUrl}; it must show {"ok":true}. If it shows 404, replace NEXT_PUBLIC_API_URL in Vercel with the real Railway service root and redeploy.`,
+    );
   }
   return body;
 }
