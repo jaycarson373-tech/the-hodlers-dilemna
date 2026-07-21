@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -158,6 +158,7 @@ let keeperBusy = false;
 let feeCollectorBusy = false;
 
 const nowIso = () => new Date().toISOString();
+const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 const addSeconds = (date: Date, seconds: number) => new Date(date.getTime() + seconds * 1000).toISOString();
 const bigintValue = (value: unknown) => BigInt(String(value ?? "0"));
 const iso = (value?: string | null) => value ?? null;
@@ -180,6 +181,18 @@ async function authenticate(req: Request) {
   if (!token) throw new Error("Wallet sign-in is required.");
   const { payload } = await jwtVerify(token, sessionKey, { issuer: "hodlornohodl.fun", audience: "game" });
   if (typeof payload.sub !== "string") throw new Error("Invalid wallet session.");
+  const db = requireDb();
+  const { data: session, error } = await db
+    .from("wallet_sessions")
+    .select("wallet,expires_at,revoked_at")
+    .eq("token_hash", sha256(token))
+    .maybeSingle<{ wallet: string; expires_at: string; revoked_at: string | null }>();
+  if (error || !session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
+    throw new Error("Wallet session expired. Sign in again.");
+  }
+  if (new PublicKey(session.wallet).toBase58() !== new PublicKey(payload.sub).toBase58()) {
+    throw new Error("Invalid wallet session.");
+  }
   return payload.sub;
 }
 
@@ -212,20 +225,61 @@ function minimumHoldingBaseUnits(decimals: number) {
 
 function multiplierBps(streakStartedAt: string | null) {
   if (!streakStartedAt) return 10_000;
-  const days = Math.max(0, Math.floor((Date.now() - new Date(streakStartedAt).getTime()) / 86_400_000));
-  if (days >= 14) return 30_000;
-  if (days >= 7) return 20_000;
-  if (days >= 3) return 15_000;
+  const heldMs = Math.max(0, Date.now() - new Date(streakStartedAt).getTime());
+  if (heldMs >= 7 * 86_400_000) return 40_000;
+  if (heldMs >= 3 * 86_400_000) return 30_000;
+  if (heldMs >= 86_400_000) return 25_000;
+  if (heldMs >= 6 * 3_600_000) return 20_000;
+  if (heldMs >= 2 * 3_600_000) return 15_000;
+  if (heldMs >= 3_600_000) return 12_000;
   return 10_000;
 }
 
 function tierFor(streakStartedAt: string | null) {
   if (!streakStartedAt) return 0;
-  const days = Math.max(0, Math.floor((Date.now() - new Date(streakStartedAt).getTime()) / 86_400_000));
-  if (days >= 30) return 3;
-  if (days >= 14) return 2;
-  if (days >= 3) return 1;
+  const heldMs = Math.max(0, Date.now() - new Date(streakStartedAt).getTime());
+  if (heldMs >= 7 * 86_400_000) return 3;
+  if (heldMs >= 86_400_000) return 2;
+  if (heldMs >= 2 * 3_600_000) return 1;
   return 0;
+}
+
+async function playerRoundSummary(wallet: string, liveBalance: bigint, streakStartedAt: string | null) {
+  const db = requireDb();
+  const config = await ensureGameConfig();
+  const round = await fetchCurrentRound(config);
+  if (!round) {
+    return {
+      snapshotBalance: liveBalance.toString(),
+      multiplierBps: multiplierBps(streakStartedAt),
+      projectedShareLamports: "0",
+      participationStatus: "between-rounds",
+      soldThisRound: false,
+    };
+  }
+  const roundNumber = String(round.round_number);
+
+  const [{ data: snapshot, error: snapshotError }, { data: snapshots, error: snapshotsError }, { data: vote, error: voteError }] = await Promise.all([
+    db.from("round_snapshots").select("snapshot_balance,multiplier_bps,payout_weight").eq("round_number", roundNumber).eq("wallet", wallet).maybeSingle<{ snapshot_balance: string; multiplier_bps: number; payout_weight: string }>(),
+    db.from("round_snapshots").select("payout_weight").eq("round_number", roundNumber),
+    db.from("round_votes").select("choice").eq("round_number", roundNumber).eq("wallet", wallet).maybeSingle<{ choice: "cooperate" | "defect" }>(),
+  ]);
+  if (snapshotError || snapshotsError || voteError) throw snapshotError ?? snapshotsError ?? voteError;
+
+  const currentMultiplier = snapshot?.multiplier_bps ?? multiplierBps(streakStartedAt);
+  const snapshotBalance = bigintValue(snapshot?.snapshot_balance ?? liveBalance);
+  const payoutWeight = bigintValue(snapshot?.payout_weight ?? ((snapshotBalance * BigInt(currentMultiplier)) / 10_000n));
+  const totalWeight = (snapshots ?? []).reduce((sum, item) => sum + bigintValue(item.payout_weight), 0n) || payoutWeight;
+  const pot = bigintValue(round.pot_lamports) + bigintValue(config.available_pool_lamports);
+  const projectedShare = totalWeight > 0n ? (((pot * 8n) / 10n) * payoutWeight) / totalWeight : 0n;
+
+  return {
+    snapshotBalance: snapshotBalance.toString(),
+    multiplierBps: currentMultiplier,
+    projectedShareLamports: projectedShare.toString(),
+    participationStatus: vote?.choice === "cooperate" ? "HODL" : vote?.choice === "defect" ? "NO HODL" : "SILENT / HODL",
+    soldThisRound: Boolean(snapshot && liveBalance < snapshotBalance),
+  };
 }
 
 async function ensureGameConfig() {
@@ -347,6 +401,7 @@ async function syncHolder(wallet: PublicKey) {
       wallet: walletAddress,
       walletTokenBalance: balance.amount.toString(),
       position: null,
+      ...await playerRoundSummary(walletAddress, balance.amount, null),
     };
   }
 
@@ -399,6 +454,7 @@ async function syncHolder(wallet: PublicKey) {
       tier,
       tierName: tierName(tier),
     } : null,
+    ...await playerRoundSummary(walletAddress, balance.amount, streakStartedAt),
   };
 }
 
@@ -659,13 +715,23 @@ app.get("/api/events", async (_req, res, next) => {
   } catch (error) { next(error); }
 });
 
-app.get("/api/auth/challenge", (req, res, next) => {
+app.get("/api/auth/challenge", async (req, res, next) => {
   try {
+    const db = requireDb();
     const wallet = new PublicKey(z.string().parse(req.query.wallet)).toBase58();
     const nonce = randomUUID();
     const expiresAt = Date.now() + 5 * 60_000;
     nonces.set(wallet, { nonce, expiresAt });
-  const message = `Hodl or No Hodl.fun\nSign in to play.\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
+    const message = `Hodl or No Hodl.fun\nSign in to play.\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
+    const { error } = await db.from("wallet_auth_nonces").upsert({
+      wallet,
+      message,
+      nonce_hash: sha256(nonce),
+      expires_at: new Date(expiresAt).toISOString(),
+      consumed_at: null,
+      created_at: nowIso(),
+    });
+    if (error) throw error;
     res.json({ message, expiresAt: new Date(expiresAt).toISOString() });
   } catch (error) { next(error); }
 });
@@ -673,16 +739,36 @@ app.get("/api/auth/challenge", (req, res, next) => {
 app.post("/api/auth/verify", async (req, res, next) => {
   try {
     if (!sessionKey) throw new Error("Wallet authentication is not configured.");
+    const db = requireDb();
     const body = z.object({ wallet: z.string(), message: z.string(), signature: z.string() }).parse(req.body);
     const wallet = new PublicKey(body.wallet).toBase58();
     const pending = nonces.get(wallet);
-    if (!pending || pending.expiresAt < Date.now() || !body.message.includes(`Nonce: ${pending.nonce}`)) throw new Error("The sign-in challenge expired.");
+    const { data: stored, error: nonceError } = await db
+      .from("wallet_auth_nonces")
+      .select("message,expires_at,consumed_at")
+      .eq("wallet", wallet)
+      .maybeSingle<{ message: string; expires_at: string; consumed_at: string | null }>();
+    if (nonceError) throw nonceError;
+    const memoryValid = pending && pending.expiresAt >= Date.now() && body.message.includes(`Nonce: ${pending.nonce}`);
+    const storedValid = stored && !stored.consumed_at && new Date(stored.expires_at).getTime() >= Date.now() && stored.message === body.message;
+    if (!memoryValid && !storedValid) throw new Error("The sign-in challenge expired.");
     const signature = body.signature.includes("=") ? Buffer.from(body.signature, "base64") : bs58.decode(body.signature);
     const valid = nacl.sign.detached.verify(new TextEncoder().encode(body.message), signature, new PublicKey(wallet).toBytes());
     if (!valid) throw new Error("The wallet signature is invalid.");
     nonces.delete(wallet);
+    await db.from("wallet_auth_nonces").update({ consumed_at: nowIso() }).eq("wallet", wallet);
+    const expiresAt = addSeconds(new Date(), 43_200);
     const token = await new SignJWT({ wallet }).setProtectedHeader({ alg: "HS256" }).setSubject(wallet).setIssuer("hodlornohodl.fun").setAudience("game").setIssuedAt().setExpirationTime("12h").sign(sessionKey);
+    const { error: sessionError } = await db.from("wallet_sessions").insert({ wallet, token_hash: sha256(token), expires_at: expiresAt });
+    if (sessionError) throw sessionError;
     res.json({ token, wallet, expiresIn: 43_200 });
+  } catch (error) { next(error); }
+});
+
+app.get("/api/auth/session", async (req, res, next) => {
+  try {
+    const wallet = await authenticate(req);
+    res.json({ ok: true, wallet });
   } catch (error) { next(error); }
 });
 

@@ -94,11 +94,26 @@ export function ProtocolConsole() {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setSessionToken("");
+    queueMicrotask(async () => {
       setHolder(null);
       setMessage("");
       setError("");
+      if (!address || !protocolApiUrl) {
+        setSessionToken("");
+        return;
+      }
+      const stored = window.sessionStorage.getItem(`hodl-session:${address}`) ?? "";
+      if (!stored) {
+        setSessionToken("");
+        return;
+      }
+      try {
+        await protocolRequest<{ ok: true; wallet: string }>("/api/auth/session", undefined, stored);
+        setSessionToken(stored);
+      } catch {
+        window.sessionStorage.removeItem(`hodl-session:${address}`);
+        setSessionToken("");
+      }
     });
   }, [address]);
 
@@ -115,6 +130,7 @@ export function ProtocolConsole() {
         body: JSON.stringify({ wallet: address, message: challenge.message, signature: base64FromBytes(signature) }),
       });
       setSessionToken(verified.token);
+      window.sessionStorage.setItem(`hodl-session:${address}`, verified.token);
       setMessage("Wallet verified. Claim your seat, then wait for the Banker's call.");
       return verified.token;
     } finally {
@@ -163,9 +179,12 @@ export function ProtocolConsole() {
     if (hasFundedPot) return "OFFER INCOMING.";
     return "WAITING FOR THE BANKER'S CALL.";
   }, [displayStatus?.roundActive, hasFundedPot, simulationMode]);
+  const projectedShare = holder?.projectedShareLamports && hasPositiveLamports(holder.projectedShareLamports)
+    ? `${lamportsToSol(holder.projectedShareLamports)} SOL`
+    : "WAITING FOR LIVE POT";
 
   return (
-    <section className={`protocol-console section-shell ${inFinalMinute ? "final-minute" : ""}`} id="play" aria-labelledby="protocol-console-title">
+    <section className={`protocol-console section-shell ${inFinalMinute ? "final-minute" : ""} ${holder?.soldThisRound ? "player-out" : ""}`} id="play" aria-labelledby="protocol-console-title">
       <div className="protocol-console-head">
         <div>
           <div className="broadcast-status-row" aria-label="Broadcast status">
@@ -191,7 +210,7 @@ export function ProtocolConsole() {
           <div><span>ROUND</span><strong>{hasLiveRound ? displayStatus?.currentRound : "Offer incoming"}</strong></div>
           <div><span>CURRENT POT</span><strong>{hasFundedPot ? `${lamportsToSol(currentPot)} SOL` : "Awaiting funded pot"}</strong></div>
           <div><span>AUDIENCE SIGNAL</span><strong>{simulationMode ? "62% HODL / 38% NO HODL" : "ESTIMATED SENTIMENT PENDING"}</strong><small>NON-BINDING / NOT FINAL VOTES</small></div>
-          <div><span>LAST EPISODE</span><strong>{simulationMode ? "BOX OPENED / 74.2% HODL" : "AWAITING RESULT"}</strong></div>
+          <div className="projected-share-stat"><span>PROJECTED SHARE</span><strong>{simulationMode ? "DEMO" : projectedShare}</strong></div>
           <div><span>CONTESTANTS</span><strong>{displayStatus?.activeHolders ? displayStatus.activeHolders.toLocaleString() : "Waiting for holders"}</strong></div>
           <div><span>YOUR SEAT</span><strong>{simulationMode ? "DEMO BOX" : holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : connected ? "Claim seat" : "Connect wallet"}</strong></div>
         </div>
@@ -208,6 +227,18 @@ export function ProtocolConsole() {
         <div><span>WALLET ACCESS</span><strong>{address ? `${address.slice(0, 5)}…${address.slice(-5)}` : "NOT CONNECTED"}</strong><small>{simulationMode ? "SIMULATION / NO TRANSACTIONS" : sessionToken ? "SIGNED IN / GAME ENABLED" : connected ? "SIGN IN TO PLAY" : "CONNECT ABOVE TO CONTINUE"}</small></div>
         {connected && !sessionToken && !simulationMode ? <button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signInError) => setError(signInError instanceof Error ? signInError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button> : null}
       </div>
+
+      {holder?.soldThisRound ? (
+        <div className="player-out-state" role="alert"><span>YOU&apos;RE OUT</span><strong>SELLING IS NO HODL.</strong><p>You can still watch the reveal, but this round&apos;s payout and streak are gone.</p></div>
+      ) : holder?.position ? (
+        <div className="your-box-panel" aria-live="polite">
+          <div><span>SNAPSHOT BALANCE</span><strong>{baseUnitsToTokenAmount(holder.snapshotBalance, decimals)}</strong></div>
+          <div><span>CURRENT STREAK</span><strong>{Math.floor(Number(holder.position.streakSeconds) / 3_600)} HOURS</strong></div>
+          <div><span>MULTIPLIER</span><strong>{(holder.multiplierBps / 10_000).toFixed(1)}×</strong></div>
+          <div className="your-box-projection"><span>PROJECTED SHARE IF YOU HODL</span><strong>{projectedShare}</strong></div>
+          <div><span>PARTICIPATION</span><strong>{holder.participationStatus}</strong></div>
+        </div>
+      ) : null}
 
       {protocolApiUrl && status && !status.configured && connected && sessionToken ? (
         <div className="protocol-actions">
