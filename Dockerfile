@@ -20,6 +20,6 @@ RUN npm install --omit=dev
 
 COPY --from=build /app/railway/dist ./dist
 
-EXPOSE 3001
+EXPOSE 3001 8080
 
 CMD ["node", "dist/index.js"]

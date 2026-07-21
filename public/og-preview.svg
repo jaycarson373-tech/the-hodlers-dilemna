@@ -20,7 +20,7 @@
   <rect x="0" y="0" width="1200" height="38" fill="url(#bulbs)" opacity="0.9"/>
   <rect x="0" y="592" width="1200" height="38" fill="url(#bulbs)" opacity="0.72"/>
   <rect x="32" y="74" width="1136" height="482" rx="26" fill="#080102" stroke="url(#frame)" stroke-width="2"/>
-  <image href="social-banner.jpg" x="50" y="114" width="1100" height="366" preserveAspectRatio="xMidYMid meet"/>
+  <image href="hodl-no-hodl-banner-v2.jpg" x="50" y="114" width="1100" height="366" preserveAspectRatio="xMidYMid meet"/>
   <text x="600" y="532" text-anchor="middle" fill="#ffe49a" font-size="29" font-family="Impact, Haettenschweiler, Arial Narrow, sans-serif" letter-spacing="8">
     BANKER ONLINE • THE OFFER IS COMING
   </text>

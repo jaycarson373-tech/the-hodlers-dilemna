@@ -22,6 +22,8 @@ const pumpUrl = process.env.NEXT_PUBLIC_PUMP_URL?.trim();
 const jupiterUrl = process.env.NEXT_PUBLIC_JUPITER_URL?.trim();
 const xUrl = process.env.NEXT_PUBLIC_X_URL?.trim();
 const telegramUrl = process.env.NEXT_PUBLIC_TELEGRAM_URL?.trim();
+const officialLogoSrc = "/hodl-no-hodl-logo-v2.jpg";
+const officialBannerSrc = "/hodl-no-hodl-banner-v2.jpg";
 const buyLinks = [
   { label: "Pump.fun", href: pumpUrl },
   { label: "Jupiter", href: jupiterUrl },
@@ -43,7 +45,7 @@ function OfficialMark({ className = "" }: { className?: string }) {
     <span className={`official-mark ${className}`} aria-hidden="true">
       {/* Kept unprocessed so the supplied official artwork remains byte-for-byte unchanged. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/official-mark.jpg" alt="" width="1254" height="1254" />
+      <img src={officialLogoSrc} alt="" width="1254" height="1254" />
     </span>
   );
 }
@@ -701,7 +703,7 @@ export function HoldersDilemma() {
           <a className="brand footer-brand" href="#experiment"><OfficialMark className="official-mark-footer" /><span>HODL OR NO HODL<span className="brand-domain">.FUN</span></span></a>
           <div className="footer-banner" aria-hidden="true">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/official-wordmark.jpg" alt="" width="1280" height="426" />
+            <img src={officialBannerSrc} alt="" width="1280" height="426" />
           </div>
           <div className="footer-links">
             {xUrl ? <a href={xUrl} target="_blank" rel="noreferrer">X</a> : null}

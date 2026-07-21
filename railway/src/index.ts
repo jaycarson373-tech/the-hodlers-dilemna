@@ -653,8 +653,15 @@ app.post("/api/auth/verify", async (req, res, next) => {
 
 app.get("/api/holder/:wallet", async (req, res, next) => {
   try {
-    await ensureGameConfig();
     const wallet = new PublicKey(req.params.wallet);
+    if (!supabase || !tokenMint) {
+      return res.json({
+        wallet: wallet.toBase58(),
+        walletTokenBalance: "0",
+        position: null,
+      });
+    }
+    await ensureGameConfig();
     res.json(await syncHolder(wallet));
   } catch (error) { next(error); }
 });
@@ -848,11 +855,19 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ error: publicErrorMessage(message) });
 });
 
-app.listen(env.PORT, () => {
-  console.log(`Hodl or No Hodl keeper/API listening on ${env.PORT}`);
+const listenPorts = Array.from(new Set([env.PORT, 3001, 8080])).filter((port) => Number.isInteger(port) && port > 0);
+
+listenPorts.forEach((port) => {
+  app.listen(port, () => {
+    console.log(`Hodl or No Hodl keeper/API listening on ${port}`);
+  });
+});
+
+console.log(`Hodl or No Hodl primary API port ${env.PORT}`);
+{
   console.log(`Mainnet game mode: rounds=${env.ROUND_LENGTH_SECONDS}s feeCollection=${env.FEE_COLLECTION_INTERVAL_MS}ms`);
   void keeperTick();
   void collectPumpCreatorFees();
   setInterval(() => void keeperTick(), 15_000).unref();
   setInterval(() => void collectPumpCreatorFees(), env.FEE_COLLECTION_INTERVAL_MS).unref();
-});
+}

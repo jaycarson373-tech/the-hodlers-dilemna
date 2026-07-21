@@ -6,7 +6,8 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://hodlornohodl.fun";
 const title = "Hodl or No Hodl.fun";
 const description =
   "A live holder game where every round ends with one question: HODL, or NO HODL?";
-const socialImage = `${siteUrl}/og.png`;
+const brandIcon = `${siteUrl}/hodl-no-hodl-icon-v2.jpg`;
+const socialImage = `${siteUrl}/hodl-no-hodl-og-v2.jpg`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -16,9 +17,9 @@ export const metadata: Metadata = {
     canonical: siteUrl,
   },
   icons: {
-    icon: `${siteUrl}/official-mark.jpg`,
-    shortcut: `${siteUrl}/official-mark.jpg`,
-    apple: `${siteUrl}/official-mark.jpg`,
+    icon: brandIcon,
+    shortcut: brandIcon,
+    apple: brandIcon,
   },
   openGraph: {
     type: "website",

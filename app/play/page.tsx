@@ -19,7 +19,7 @@ function GameMark() {
   return (
     <span className="game-mark" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/official-mark.jpg" alt="" width="1254" height="1254" />
+      <img src="/hodl-no-hodl-logo-v2.jpg" alt="" width="1254" height="1254" />
     </span>
   );
 }
