@@ -9,7 +9,7 @@ Live website: [hodlersdilemma.fun](https://www.hodlersdilemma.fun/)
 - Solana Wallet Standard connect and disconnect
 - Signed-wallet sessions (no passwords or private-key custody)
 - Mainnet SPL token holding verification
-- One-hour Cooperate/Defect rounds
+- 30-minute Cooperate/Defect rounds
 - Weighted votes, defector bonus, pot rollover, and claim-based SOL payouts from the configured payout wallet
 - Automatic round opening and settlement from Railway
 - Mainnet Pump creator-fee collection on a 15-minute schedule, credited into the next game pot

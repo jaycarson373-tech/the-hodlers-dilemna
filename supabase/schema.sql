@@ -10,7 +10,7 @@ create table if not exists public.protocol_config (
   cluster text not null default 'mainnet-beta',
   current_round bigint not null default 0,
   available_pool_lamports bigint not null default 0,
-  round_length_seconds bigint not null default 3600,
+  round_length_seconds bigint not null default 1800,
   claim_window_seconds bigint not null default 604800,
   defect_threshold_bps integer not null default 5000,
   defector_bonus_bps integer not null default 15000,

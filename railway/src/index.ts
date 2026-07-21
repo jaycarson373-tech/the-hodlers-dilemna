@@ -38,7 +38,7 @@ const envSchema = z.object({
   PUMP_CREATOR_PRIVATE_KEY: z.string().optional(),
   PUMP_CREATOR_KEYPAIR_BASE64: z.string().optional(),
   FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
-  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(3_600),
+  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(1_800),
   CLAIM_WINDOW_SECONDS: z.coerce.number().int().positive().default(604_800),
   DEFECT_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
   DEFECTOR_BONUS_BPS: z.coerce.number().int().min(10_000).max(100_000).default(15_000),
@@ -405,7 +405,7 @@ async function openRound(config: DbConfig) {
   await db.from("protocol_events").insert({
     event_type: "ROUND_OPENED",
     round_number: next.toString(),
-    detail: `Round ${next.toString()} opened for one hour.`,
+    detail: `Round ${next.toString()} opened for ${Math.floor(Number(config.round_length_seconds) / 60)} minutes.`,
   });
 }
 
