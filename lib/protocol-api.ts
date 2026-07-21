@@ -33,6 +33,11 @@ export type ProtocolStatus = {
 export type HolderState = {
   wallet: string;
   walletTokenBalance: string;
+  snapshotBalance: string;
+  multiplierBps: number;
+  projectedShareLamports: string;
+  participationStatus: string;
+  soldThisRound: boolean;
   position: null | {
     amount: string;
     streakStartedAt: string | null;

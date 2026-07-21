@@ -97,6 +97,34 @@ create table if not exists public.feed_events (
   occurred_at timestamptz not null default now()
 );
 
+create table if not exists public.wallet_auth_nonces (
+  wallet text primary key,
+  message text not null,
+  nonce_hash text not null,
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.wallet_sessions (
+  id uuid primary key default gen_random_uuid(),
+  wallet text not null,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.round_snapshots (
+  round_number bigint not null references public.rounds(round_number) on delete cascade,
+  wallet text not null,
+  snapshot_balance numeric(40,0) not null,
+  multiplier_bps integer not null default 10000,
+  payout_weight numeric(40,0) not null,
+  created_at timestamptz not null default now(),
+  primary key (round_number, wallet)
+);
+
 alter table public.protocol_config
   add column if not exists pot_rollover_count integer not null default 0;
 alter table public.protocol_config
@@ -173,6 +201,8 @@ create index if not exists holders_streak_idx on public.holders (streak_started_
 create index if not exists protocol_events_time_idx on public.protocol_events (occurred_at desc);
 create index if not exists feed_events_time_idx on public.feed_events (occurred_at desc);
 create index if not exists round_votes_round_idx on public.round_votes (round_number, choice);
+create index if not exists wallet_sessions_wallet_idx on public.wallet_sessions (wallet, expires_at desc);
+create index if not exists round_snapshots_round_idx on public.round_snapshots (round_number, wallet);
 
 alter table public.protocol_config enable row level security;
 alter table public.rounds enable row level security;
@@ -181,6 +211,9 @@ alter table public.round_votes enable row level security;
 alter table public.reward_claims enable row level security;
 alter table public.protocol_events enable row level security;
 alter table public.feed_events enable row level security;
+alter table public.wallet_auth_nonces enable row level security;
+alter table public.wallet_sessions enable row level security;
+alter table public.round_snapshots enable row level security;
 
 drop policy if exists "public config read" on public.protocol_config;
 create policy "public config read" on public.protocol_config for select using (true);
@@ -198,6 +231,12 @@ drop policy if exists "public feed read" on public.feed_events;
 create policy "public feed read" on public.feed_events for select using (true);
 grant select on public.feed_events to anon, authenticated;
 grant select on public.public_leaderboard to anon, authenticated;
+
+-- Nonces and sessions are service-role only. Snapshot balances are public game
+-- state, but auth material is never exposed to browser clients.
+drop policy if exists "public snapshots read" on public.round_snapshots;
+create policy "public snapshots read" on public.round_snapshots for select using (true);
+grant select on public.round_snapshots to anon, authenticated;
 
 do $$ begin
   alter publication supabase_realtime add table public.protocol_config;
