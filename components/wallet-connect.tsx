@@ -2,6 +2,7 @@
 
 import { useWalletConnection } from "@solana/react-hooks";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const truncateAddress = (address: string) =>
   `${address.slice(0, 4)}...${address.slice(-4)}`;
@@ -19,9 +20,12 @@ export function WalletConnect() {
     wallet,
   } = useWalletConnection();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [localError, setLocalError] = useState("");
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const address = wallet?.account.address.toString();
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -89,7 +93,7 @@ export function WalletConnect() {
         {buttonLabel}
       </button>
 
-      {isOpen ? (
+      {mounted && isOpen ? createPortal((
         <div
           className="wallet-modal-backdrop"
           role="presentation"
@@ -172,7 +176,7 @@ export function WalletConnect() {
             ) : null}
           </section>
         </div>
-      ) : null}
+      ), document.body) : null}
     </>
   );
 }
