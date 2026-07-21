@@ -17,6 +17,7 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import bs58 from "bs58";
+import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
 import { jwtVerify, SignJWT } from "jose";
 import nacl from "tweetnacl";
 import { z } from "zod";
@@ -30,6 +31,8 @@ const envSchema = z.object({
   SUPABASE_SECRET_KEY: z.string().optional(),
   SESSION_SECRET: z.string().min(32).optional(),
   KEEPER_KEYPAIR_BASE64: z.string().optional(),
+  PUMP_CREATOR_KEYPAIR_BASE64: z.string().optional(),
+  FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
   TOKEN_MINT: z.string().optional(),
   INITIAL_ADMIN: z.string().optional(),
 });
@@ -54,6 +57,16 @@ const keeper = (() => {
     : Uint8Array.from(decoded);
   return Keypair.fromSecretKey(secret);
 })();
+
+const pumpCreator = (() => {
+  if (!env.PUMP_CREATOR_KEYPAIR_BASE64) return undefined;
+  const decoded = Buffer.from(env.PUMP_CREATOR_KEYPAIR_BASE64, "base64");
+  const secret = decoded[0] === 91
+    ? Uint8Array.from(JSON.parse(decoded.toString("utf8")) as number[])
+    : Uint8Array.from(decoded);
+  return Keypair.fromSecretKey(secret);
+})();
+const pumpSdk = new OnlinePumpSdk(connection);
 
 const CONFIG_SEED = Buffer.from("config");
 const SOL_VAULT_SEED = Buffer.from("sol-vault");
@@ -341,7 +354,7 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, keeper: Boolean(keeper), database: Boolean(supabase), programId: programId.toBase58() });
+  res.json({ ok: true, keeper: Boolean(keeper), pumpCreator: Boolean(pumpCreator), database: Boolean(supabase), programId: programId.toBase58() });
 });
 
 app.get("/api/status", async (_req, res, next) => {
@@ -587,6 +600,64 @@ app.post("/api/devnet/faucet", async (req, res, next) => {
 });
 
 let keeperBusy = false;
+let feeCollectorBusy = false;
+
+async function collectPumpCreatorFees() {
+  if (!pumpCreator || feeCollectorBusy) return;
+  feeCollectorBusy = true;
+  try {
+    const available = await pumpSdk.getCreatorVaultBalanceBothPrograms(pumpCreator.publicKey);
+    const amount = BigInt(available.toString());
+    if (amount <= 0n) return;
+
+    const collectInstructions = await pumpSdk.collectCoinCreatorFeeInstructions(
+      pumpCreator.publicKey,
+      pumpCreator.publicKey,
+    );
+    const latest = await connection.getLatestBlockhash("confirmed");
+    const collectTransaction = new Transaction({
+      feePayer: pumpCreator.publicKey,
+      blockhash: latest.blockhash,
+      lastValidBlockHeight: latest.lastValidBlockHeight,
+    }).add(...collectInstructions);
+    const collectSignature = await connection.sendTransaction(collectTransaction, [pumpCreator], {
+      preflightCommitment: "confirmed",
+      maxRetries: 3,
+    });
+    await connection.confirmTransaction(collectSignature, "confirmed");
+
+    const fundInstruction = ix("fund_vault", [
+      { pubkey: pumpCreator.publicKey, isSigner: true, isWritable: true },
+      { pubkey: configPda, isSigner: false, isWritable: true },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ], [u64(amount)]);
+    const fundBlockhash = await connection.getLatestBlockhash("confirmed");
+    const fundTransaction = new Transaction({
+      feePayer: pumpCreator.publicKey,
+      blockhash: fundBlockhash.blockhash,
+      lastValidBlockHeight: fundBlockhash.lastValidBlockHeight,
+    }).add(fundInstruction);
+    const fundSignature = await connection.sendTransaction(fundTransaction, [pumpCreator], {
+      preflightCommitment: "confirmed",
+      maxRetries: 3,
+    });
+    await connection.confirmTransaction(fundSignature, "confirmed");
+
+    if (supabase) {
+      await supabase.from("protocol_events").insert({
+        event_type: "PUMP_FEES_FUNDED",
+        detail: `${amount.toString()} lamports collected from the Pump creator vault and funded into the protocol vault.`,
+        transaction_signature: fundSignature,
+      });
+    }
+  } catch (error) {
+    console.error("pump creator fee collection failed", error);
+  } finally {
+    feeCollectorBusy = false;
+  }
+}
+
 async function keeperTick() {
   if (!keeper || keeperBusy) return;
   keeperBusy = true;
@@ -647,5 +718,7 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 app.listen(env.PORT, () => {
   console.log(`Hodlers Dilemma keeper/API listening on ${env.PORT}`);
   void keeperTick();
+  void collectPumpCreatorFees();
   setInterval(() => void keeperTick(), 15_000).unref();
+  setInterval(() => void collectPumpCreatorFees(), env.FEE_COLLECTION_INTERVAL_MS).unref();
 });

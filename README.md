@@ -11,7 +11,8 @@ Live website: [hodlersdilemma.fun](https://www.hodlersdilemma.fun/)
 - Escrowed token positions with uninterrupted holding streaks
 - One-hour on-chain Cooperate/Defect rounds
 - Weighted votes, defector bonus, pot rollover, and claim-based SOL payouts
-- Permissionless round opening/settlement; Railway only pays keeper transaction fees
+- Permissionless round opening/settlement; Railway pays keeper transaction fees
+- Mainnet Pump creator-fee collection on a 15-minute schedule, followed by funding the protocol vault
 - Supabase read model for rounds, holders, events, and leaderboard data
 - Devnet token faucet for end-to-end testing
 
@@ -51,7 +52,7 @@ pnpm build
 pnpm start
 ```
 
-The keeper can only call permissionless round maintenance instructions. Player funds are transferred by the program, and player actions require their wallet signature.
+The keeper calls permissionless round maintenance instructions. If `PUMP_CREATOR_KEYPAIR_BASE64` is configured with the token's actual creator wallet, the service collects eligible Pump creator fees every 15 minutes and funds those lamports into the protocol vault. This key must be entered directly into Railway as a secret and must never be committed. Player actions require their wallet signature.
 
 ## Solana program
 
