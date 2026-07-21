@@ -307,10 +307,6 @@ export function HoldersDilemma() {
       <a className="skip-link" href="#main-content">Skip to main content</a>
 
       <header className="site-header">
-        <div className="system-strip" aria-hidden="true">
-          <span>PROTOCOL DESIGN / FRONTEND PREVIEW</span>
-          <span>STATUS: PRE-DEPLOYMENT</span>
-        </div>
         <nav className="site-nav" aria-label="Primary navigation">
           <a className="brand" href="#experiment" onClick={closeMenu}>
             <OfficialMark className="official-mark-nav" />
