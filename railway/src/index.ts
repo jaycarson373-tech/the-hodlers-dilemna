@@ -323,6 +323,28 @@ async function syncHolder(wallet: PublicKey) {
   const minimumHolding = minimumHoldingBaseUnits(balance.decimals);
   const eligibleAmount = balance.amount >= minimumHolding ? balance.amount : 0n;
   const walletAddress = wallet.toBase58();
+
+  // A wallet below the entry threshold does not need a database row. Returning
+  // its verified on-chain balance directly also keeps sign-in usable while the
+  // holder has not yet bought enough tokens to claim a seat.
+  if (eligibleAmount === 0n) {
+    const { error: resetError } = await db
+      .from("holders")
+      .update({
+        position_amount: "0",
+        streak_started_at: null,
+        updated_at: nowIso(),
+      })
+      .eq("wallet", walletAddress);
+    if (resetError) console.error("ineligible holder reset failed", resetError);
+
+    return {
+      wallet: walletAddress,
+      walletTokenBalance: balance.amount.toString(),
+      position: null,
+    };
+  }
+
   const { data: existing, error } = await db
     .from("holders")
     .select("*")
