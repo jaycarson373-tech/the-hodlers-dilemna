@@ -84,6 +84,9 @@ const payoutWallet = pumpCreator ?? keeper;
 const pumpSdk = new OnlinePumpSdk(connection);
 
 type DbConfig = {
+  program_id?: string;
+  token_mint?: string;
+  cluster?: string;
   current_round: number | string;
   available_pool_lamports: number | string;
   round_length_seconds: number | string;
@@ -191,7 +194,29 @@ async function ensureGameConfig() {
 
   const { data, error } = await db.from("protocol_config").select("*").eq("id", true).maybeSingle<DbConfig>();
   if (error) throw error;
-  if (data) return data;
+  if (data) {
+    const updates: Partial<DbConfig> & { updated_at?: string } = {};
+    if (data.program_id !== "supabase-mainnet-game") updates.program_id = "supabase-mainnet-game";
+    if (data.token_mint !== tokenMint.toBase58()) updates.token_mint = tokenMint.toBase58();
+    if (data.cluster !== clusterName) updates.cluster = clusterName;
+    if (!data.round_length_seconds) updates.round_length_seconds = env.ROUND_LENGTH_SECONDS.toString();
+    if (!data.claim_window_seconds) updates.claim_window_seconds = env.CLAIM_WINDOW_SECONDS.toString();
+    if (!data.defect_threshold_bps) updates.defect_threshold_bps = env.DEFECT_THRESHOLD_BPS;
+    if (!data.defector_bonus_bps) updates.defector_bonus_bps = env.DEFECTOR_BONUS_BPS;
+    if (!data.next_round_at) updates.next_round_at = nowIso();
+    if (Object.keys(updates).length) {
+      updates.updated_at = nowIso();
+      const { data: updated, error: updateError } = await db
+        .from("protocol_config")
+        .update(updates)
+        .eq("id", true)
+        .select("*")
+        .single<DbConfig>();
+      if (updateError) throw updateError;
+      return updated;
+    }
+    return data;
+  }
 
   const created = {
     id: true,
