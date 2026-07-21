@@ -8,10 +8,11 @@ export type Tier = {
 export type LeaderboardEntry = {
   rank: number;
   wallet: string;
+  score: string;
   tier: string;
-  streak: string;
-  record: string;
-  multiplier: string;
+  totalSolAirdropped: string;
+  wins: number;
+  losses: number;
 };
 
 export type FeedEntry = {
@@ -58,12 +59,12 @@ export const tiers: Tier[] = [
 ];
 
 export const leaderboard: LeaderboardEntry[] = [
-  { rank: 1, wallet: "9QK...D18", tier: "Obsidian", streak: "94d", record: "11C / 2D", multiplier: "6.8x" },
-  { rank: 2, wallet: "4TR...8BC", tier: "Obsidian", streak: "87d", record: "10C / 3D", multiplier: "6.4x" },
-  { rank: 3, wallet: "B71...F02", tier: "Diamond", streak: "62d", record: "12C / 1D", multiplier: "5.1x" },
-  { rank: 4, wallet: "2MA...77E", tier: "Diamond", streak: "41d", record: "8C / 5D", multiplier: "4.2x" },
-  { rank: 5, wallet: "A6F...19D", tier: "Iron", streak: "26d", record: "9C / 4D", multiplier: "3.4x" },
-  { rank: 6, wallet: "8D4...2FA", tier: "Iron", streak: "19d", record: "6C / 7D", multiplier: "2.9x" },
+  { rank: 1, wallet: "9QK...D18", score: "18,420", tier: "Obsidian Hands", totalSolAirdropped: "12.84", wins: 11, losses: 2 },
+  { rank: 2, wallet: "4TR...8BC", score: "16,980", tier: "Obsidian Hands", totalSolAirdropped: "10.62", wins: 10, losses: 3 },
+  { rank: 3, wallet: "B71...F02", score: "12,740", tier: "Diamond Hands", totalSolAirdropped: "8.41", wins: 12, losses: 1 },
+  { rank: 4, wallet: "2MA...77E", score: "9,880", tier: "Diamond Hands", totalSolAirdropped: "6.16", wins: 8, losses: 5 },
+  { rank: 5, wallet: "A6F...19D", score: "7,540", tier: "Iron Hands", totalSolAirdropped: "4.38", wins: 9, losses: 4 },
+  { rank: 6, wallet: "8D4...2FA", score: "5,910", tier: "Iron Hands", totalSolAirdropped: "3.07", wins: 6, losses: 7 },
 ];
 
 export const feed: FeedEntry[] = [
@@ -90,11 +91,13 @@ export const mechanics = [
 ];
 
 export const streakSteps = [
-  { label: "0", value: "1.0x" },
-  { label: "1–2", value: "1.1x" },
-  { label: "3–5", value: "1.25x" },
-  { label: "6–9", value: "1.5x" },
-  { label: "10+", value: "2.0x" },
+  { label: "Under 1 hour", value: "1.0x", tier: "Paper Hands" },
+  { label: "1 hour", value: "1.2x", tier: "Paper Hands" },
+  { label: "2 hours", value: "1.5x", tier: "Iron Hands" },
+  { label: "6 hours", value: "2.0x", tier: "Iron Hands" },
+  { label: "1 day", value: "2.5x", tier: "Diamond Hands" },
+  { label: "3 days", value: "3.0x", tier: "Diamond Hands" },
+  { label: "7 days", value: "4.0x — cap", tier: "Obsidian Hands" },
 ];
 
 export const outcomes = [

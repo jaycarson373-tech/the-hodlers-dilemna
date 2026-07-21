@@ -47,6 +47,10 @@ create table if not exists public.holders (
   tier integer not null default 0,
   cooperate_votes integer not null default 0,
   defect_votes integer not null default 0,
+  leaderboard_score numeric(40,0) not null default 0,
+  wins integer not null default 0,
+  losses integer not null default 0,
+  total_airdropped_lamports bigint not null default 0,
   updated_at timestamptz not null default now()
 );
 
@@ -97,6 +101,43 @@ alter table public.protocol_config
   add column if not exists pot_rollover_count integer not null default 0;
 alter table public.protocol_config
   alter column round_length_seconds set default 21600;
+alter table public.holders
+  add column if not exists leaderboard_score numeric(40,0) not null default 0,
+  add column if not exists wins integer not null default 0,
+  add column if not exists losses integer not null default 0,
+  add column if not exists total_airdropped_lamports bigint not null default 0;
+
+update public.holders h
+set total_airdropped_lamports = greatest(
+  h.total_airdropped_lamports,
+  coalesce((
+    select sum(rc.amount_lamports)::bigint
+    from public.reward_claims rc
+    where rc.wallet = h.wallet
+  ), 0)
+);
+
+create or replace view public.public_leaderboard
+with (security_invoker = true)
+as
+select
+  row_number() over (
+    order by h.leaderboard_score desc, h.total_airdropped_lamports desc, h.wallet asc
+  ) as rank,
+  h.wallet,
+  h.leaderboard_score as score,
+  case
+    when h.streak_started_at is null then 'Paper Hands'
+    when now() - h.streak_started_at >= interval '7 days' then 'Obsidian Hands'
+    when now() - h.streak_started_at >= interval '1 day' then 'Diamond Hands'
+    when now() - h.streak_started_at >= interval '2 hours' then 'Iron Hands'
+    else 'Paper Hands'
+  end as tier,
+  h.total_airdropped_lamports,
+  h.wins,
+  h.losses
+from public.holders h
+where h.position_amount > 0;
 
 create or replace function public.mirror_protocol_event_to_feed()
 returns trigger
@@ -156,6 +197,7 @@ create policy "public events read" on public.protocol_events for select using (t
 drop policy if exists "public feed read" on public.feed_events;
 create policy "public feed read" on public.feed_events for select using (true);
 grant select on public.feed_events to anon, authenticated;
+grant select on public.public_leaderboard to anon, authenticated;
 
 do $$ begin
   alter publication supabase_realtime add table public.protocol_config;

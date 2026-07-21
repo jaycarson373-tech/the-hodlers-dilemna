@@ -4,9 +4,9 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { SectionHeading } from "@/components/section-heading";
 import { useBankerFeed } from "@/components/use-banker-feed";
+import { usePublicLeaderboard } from "@/components/use-public-leaderboard";
 import { WalletConnect } from "@/components/wallet-connect";
 import {
-  leaderboard,
   outcomes,
   roundHistory,
   streakSteps,
@@ -39,6 +39,10 @@ const formatTime = (seconds: number) => {
     .map((value) => value.toString().padStart(2, "0"))
     .join(":");
 };
+
+const displayWallet = (wallet: string) => wallet.length > 12
+  ? `${wallet.slice(0, 4)}...${wallet.slice(-4)}`
+  : wallet;
 
 function OfficialMark({ className = "" }: { className?: string }) {
   return (
@@ -236,6 +240,7 @@ export function HoldersDilemma() {
   const [uiNotice, setUiNotice] = useState("");
   const [isLoading] = useState(false);
   const { events: bankerFeed, isSimulation: feedIsSimulation } = useBankerFeed();
+  const { entries: leaderboard, isSimulation: leaderboardIsSimulation } = usePublicLeaderboard();
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -553,17 +558,17 @@ export function HoldersDilemma() {
             number="02"
             eyebrow="STREAK LADDER"
             title="CONVICTION COMPOUNDS."
-            description="Successful HODL episodes advance the streak. A signed NO HODL drops one tier. Any sell or transfer out resets the streak to zero."
+            description="Every hour you hold, your slice gets bigger. Sell any amount and the multiplier resets to 1.0x."
           />
 
           <div className="streak-layout">
             <Reveal className="streak-ladder-wrap">
               <table className="streak-ladder">
-                <caption className="sr-only">Streak multiplier ladder</caption>
-                <thead><tr><th>STREAK</th><th>MULTIPLIER</th></tr></thead>
+                <caption className="sr-only">Time-held multiplier and tier ladder</caption>
+                <thead><tr><th>HELD FOR</th><th>MULTIPLIER</th><th>TIER</th></tr></thead>
                 <tbody>
                   {streakSteps.map((step) => (
-                    <tr key={step.label}><td>{step.label}</td><td>{step.value}</td></tr>
+                    <tr key={step.label}><td>{step.label}</td><td>{step.value}</td><td>{step.tier}</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -574,9 +579,9 @@ export function HoldersDilemma() {
                 <div className="wallet-card-header"><span>STREAK FORMAT</span><span className="status-dot">BANKER WATCH</span></div>
                 <div className="wallet-ident"><OfficialMark className="official-mark-wallet" /><strong>7F3...A91</strong></div>
                 <dl>
-                  <div><dt>Current Streak</dt><dd>7 Episodes</dd></div>
-                  <div><dt>Streak Tier</dt><dd>6–9</dd></div>
-                  <div className="multiplier-row"><dt>Current Multiplier</dt><dd>1.5x</dd></div>
+                  <div><dt>Held Without Selling</dt><dd>2 Days 4 Hours</dd></div>
+                  <div><dt>Current Tier</dt><dd>Diamond Hands</dd></div>
+                  <div className="multiplier-row"><dt>Current Multiplier</dt><dd>2.5x</dd></div>
                 </dl>
                 <div className="wallet-bar"><motion.span animate={reduceMotion ? undefined : { width: ["68%", "72%", "68%"] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} /></div>
                 <p>WALLET PROFILE FORMAT</p>
@@ -584,7 +589,7 @@ export function HoldersDilemma() {
             </Reveal>
           </div>
 
-          <p className="configuration-note"><span>WEIGHTING NOTE</span> Payout weight uses snapshot balance × streak multiplier. Signed HODL receives a 5% participation bonus for that episode only.</p>
+          <p className="configuration-note"><span>WEIGHTING NOTE</span> Payout weight uses snapshot balance × hold multiplier. Signed HODL receives a 5% participation bonus for that episode only.</p>
         </section>
 
         <section className="content-section section-shell tier-section" id="boxes">
@@ -669,37 +674,42 @@ export function HoldersDilemma() {
         <section className="content-section section-shell" id="leaderboard">
           <SectionHeading
             number="05"
-            eyebrow="SEASONAL RANKING"
+            eyebrow="PUBLIC LEADERBOARD"
             title="LAST CONTESTANT STANDING."
-            description="Monthly seasons are planned to rank wallets by uninterrupted holding streak, position strength, participation, and total conviction."
+            description="Public wallet standings track score, tier, wins and losses, and the total SOL delivered to each contestant."
           />
 
           <Reveal className="leaderboard-shell terminal-frame">
-            <div className="leaderboard-meta"><span>SEASON 00</span><span>BOARD FORMAT LOCKED</span></div>
-            <div className="leaderboard-table-wrap">
-              <table>
-                <caption className="sr-only">Last Holder Standing leaderboard format</caption>
-                <thead><tr><th>Rank</th><th>Wallet</th><th>Tier</th><th>Streak</th><th>Dilemma Record</th><th>Multiplier</th></tr></thead>
-                <tbody>
+            <div className="leaderboard-meta"><span>PUBLIC BOARD</span><span>{leaderboardIsSimulation ? "SIMULATION" : "REALTIME"}</span></div>
+            {leaderboard.length ? (
+              <>
+                <div className="leaderboard-table-wrap">
+                  <table>
+                    <caption className="sr-only">Public HODL or NO HODL leaderboard</caption>
+                    <thead><tr><th>Rank</th><th>Wallet</th><th>Score</th><th>Tier</th><th>SOL Airdropped</th><th>W / L</th></tr></thead>
+                    <tbody>
+                      {leaderboard.map((entry) => (
+                        <tr key={`${entry.rank}-${entry.wallet}`}>
+                          <td><span className={`rank rank-${entry.rank}`}>{entry.rank.toString().padStart(2, "0")}</span></td>
+                          <td title={entry.wallet}>{displayWallet(entry.wallet)}</td>
+                          <td>{entry.score}</td><td>{entry.tier}</td><td className="gold-value">{entry.totalSolAirdropped} SOL</td><td>{entry.wins}W / {entry.losses}L</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mobile-leaderboard">
                   {leaderboard.map((entry) => (
-                    <tr key={entry.rank}>
-                      <td><span className={`rank rank-${entry.rank}`}>{entry.rank.toString().padStart(2, "0")}</span></td>
-                      <td>{entry.wallet}</td><td>{entry.tier}</td><td>{entry.streak}</td><td>{entry.record}</td><td className="gold-value">{entry.multiplier}</td>
-                    </tr>
+                    <article key={`${entry.rank}-${entry.wallet}`}>
+                      <span className={`rank rank-${entry.rank}`}>{entry.rank.toString().padStart(2, "0")}</span>
+                      <div><strong title={entry.wallet}>{displayWallet(entry.wallet)}</strong><small>{entry.tier} / SCORE {entry.score}</small></div>
+                      <div><strong className="gold-value">{entry.totalSolAirdropped} SOL</strong><small>{entry.wins}W / {entry.losses}L</small></div>
+                    </article>
                   ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mobile-leaderboard">
-              {leaderboard.map((entry) => (
-                <article key={entry.rank}>
-                  <span className={`rank rank-${entry.rank}`}>{entry.rank.toString().padStart(2, "0")}</span>
-                  <div><strong>{entry.wallet}</strong><small>{entry.tier} / {entry.streak}</small></div>
-                  <div><strong className="gold-value">{entry.multiplier}</strong><small>{entry.record}</small></div>
-                </article>
-              ))}
-            </div>
-            <div className="leaderboard-footer"><span>TOP STREAKS SHARE A SEASONAL BONUS POOL</span><span>LIVE RANKING FORMAT</span></div>
+                </div>
+              </>
+            ) : <p className="leaderboard-empty">The public board opens after the first settled episode.</p>}
+            <div className="leaderboard-footer"><span>SELL ANYTHING AND YOUR MULTIPLIER RETURNS TO 1.0X</span><span>PUBLIC WALLET DATA</span></div>
           </Reveal>
         </section>
 
@@ -736,7 +746,7 @@ export function HoldersDilemma() {
             </Reveal>
             <Reveal className="how-it-works-step" delay={0.06}>
               <span>02</span>
-              <div><h3>02 — THE POT FILLS.</h3><p>Creator fees sweep into the box every 15 minutes. All round long you can watch your number grow. That&apos;s all holding costs you: nothing.</p></div>
+              <div><h3>02 — THE POT FILLS.</h3><p>Creator fees sweep into the box every 15 minutes. All round long you can watch your number grow. Every hour you hold without selling moves you up the multiplier ladder, from 1.0x to a hard 4.0x cap at seven days.</p></div>
             </Reveal>
             <Reveal className="how-it-works-step" delay={0.12}>
               <span>03</span>
@@ -751,6 +761,11 @@ export function HoldersDilemma() {
               <div><h3>05 — YOU DON&apos;T EVEN HAVE TO SHOW UP.</h3><p>Silence counts as HODL at full weight. Voting HODL yourself earns a small bonus. But sell during a round and it doesn&apos;t matter what you clicked — <strong>selling is NO HODL. Streak gone. No deal. Sell and you&apos;re out. Defect and you&apos;re paid.</strong></p><p>Payouts hit wallets automatically. No claiming. Then the next episode begins.</p></div>
             </Reveal>
           </div>
+          <Reveal className="multiplier-rules">
+            <article><span>RULE 01</span><strong>SELL ANYTHING → 1.0X</strong><p>One sell or transfer out wipes the active multiplier. No exceptions.</p></article>
+            <article><span>RULE 02</span><strong>BUYING MORE NEVER RESETS</strong><p>Added tokens inherit your multiplier when they become eligible at the next round snapshot.</p></article>
+            <article><span>RULE 03</span><strong>7 DAYS / 4.0X CAP</strong><p>The ladder stops at Obsidian Hands, protecting future holders from runaway multipliers.</p></article>
+          </Reveal>
         </section>
 
         <section className="content-section faq-section section-shell" id="faq">
@@ -800,6 +815,10 @@ export function HoldersDilemma() {
             <details>
               <summary><span>10</span>HOW DO PAYOUTS AND FEE SWEEPS WORK?</summary>
               <p>Holding at least 1,000,000 tokens qualifies a wallet for a box. Creator fees sweep every 15 minutes: 80% enters the episode pot and 20% funds the Banker reserve. Eligible payouts are pushed directly to wallets after settlement. There is no claim step.</p>
+            </details>
+            <details>
+              <summary><span>11</span>HOW DOES THE MULTIPLIER LADDER WORK?</summary>
+              <p>Your multiplier rises with uninterrupted holding time: 1.0x under one hour, 1.2x at one hour, 1.5x at two hours, 2.0x at six hours, 2.5x at one day, 3.0x at three days, and a 4.0x cap at seven days. Sell anything and it returns to 1.0x.</p>
             </details>
           </div>
         </section>
