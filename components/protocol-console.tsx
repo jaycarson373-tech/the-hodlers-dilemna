@@ -86,7 +86,7 @@ export function ProtocolConsole() {
         body: JSON.stringify({ wallet: address, message: challenge.message, signature: base64FromBytes(signature) }),
       });
       setSessionToken(verified.token);
-      setMessage("Wallet ownership verified. You can now choose HODL or NO HODL.");
+      setMessage("Wallet verified. The game room is open — verify your holding, then choose HODL or NO HODL.");
       return verified.token;
     } finally {
       setBusy("");
@@ -123,16 +123,16 @@ export function ProtocolConsole() {
   const canClaim = Boolean(connected && sessionToken && round?.status === "settled");
   const protocolReady = Boolean(protocolApiUrl && status?.configured);
   const headline = useMemo(() => {
-    if (!protocolApiUrl) return "DEPLOYMENT CONFIGURATION REQUIRED";
-    if (!status) return "CONTACTING THE PROTOCOL";
-    if (!status.configured) return "LIVE GAME NOT CONFIGURED";
-    return status.roundActive ? `ROUND ${status.currentRound} / DECISION WINDOW OPEN` : "ROUND SETTLEMENT / NEXT WINDOW PENDING";
+    if (!protocolApiUrl) return "GAME ROOM NOT CONNECTED";
+    if (!status) return "CALLING THE BANKER";
+    if (!status.configured) return "OPEN THE FIRST BOX";
+    return status.roundActive ? `ROUND ${status.currentRound} / HODL OR NO HODL` : "NEXT BOX IS BEING PREPARED";
   }, [status]);
 
   return (
     <section className="protocol-console section-shell" id="play" aria-labelledby="protocol-console-title">
       <div className="protocol-console-head">
-        <div><span>LIVE GAME / SOLANA</span><h2 id="protocol-console-title">{headline}</h2></div>
+        <div><span>THE BANKER&apos;S ROOM / LIVE SOLANA GAME</span><h2 id="protocol-console-title">{headline}</h2></div>
         <div className="protocol-countdown"><span>{status?.roundActive ? "ROUND CLOSES IN" : "NEXT ROUND IN"}</span><strong>{formatCountdown(countdown)}</strong></div>
       </div>
 
@@ -154,13 +154,13 @@ export function ProtocolConsole() {
 
       {protocolApiUrl && status && !status.configured && connected && sessionToken ? (
         <div className="protocol-actions">
-          <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/initialize", {}, "GAME INITIALIZATION")}>INITIALIZE HOURLY GAME</button>
+          <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/initialize", {}, "GAME INITIALIZATION")}>OPEN FIRST 30-MINUTE ROUND</button>
         </div>
       ) : null}
 
       {protocolReady && connected && sessionToken ? (
         <div className="protocol-actions">
-          {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/open-position", {}, "HOLDING VERIFICATION")}>VERIFY HOLDING</button> : (
+          {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/open-position", {}, "HOLDING VERIFICATION")}>VERIFY 500K HOLDING</button> : (
             <>
               <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/deposit", {}, "HOLDING SYNC")}>SYNC HOLDING</button>
               <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "cooperate" }, "HODL VOTE")}>HODL</button>
@@ -174,7 +174,7 @@ export function ProtocolConsole() {
       {holder?.position ? <div className="protocol-position-line"><span>TIER <b>{tierNames[holder.position.tier] ?? holder.position.tierName}</b></span><span>STREAK <b>{Math.floor(Number(holder.position.streakSeconds) / 86_400)} DAYS</b></span><span>HELD <b>{positionAmount}</b></span></div> : null}
       {message ? <p className="protocol-success" role="status">{message}</p> : null}
       {error ? <p className="protocol-error" role="alert">{error}</p> : null}
-      <p className="protocol-console-foot">Wallet signatures verify ownership. Mainnet token balance controls eligibility, and Pump creator fees are collected into the game pot every 15 minutes.</p>
+      <p className="protocol-console-foot">Connect wallet → sign in → verify 500K tokens → choose HODL or NO HODL. Mainnet balance controls eligibility; rewards depend on round outcome and available pot.</p>
     </section>
   );
 }

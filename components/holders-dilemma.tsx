@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { ProtocolConsole } from "@/components/protocol-console";
 import { SectionHeading } from "@/components/section-heading";
 import { WalletConnect } from "@/components/wallet-connect";
 import {
@@ -283,6 +282,7 @@ export function HoldersDilemma() {
             <a href="#streaks" onClick={closeMenu}>Streaks</a>
             <a href="#boxes" onClick={closeMenu}>Boxes</a>
             <a href="#leaderboard" onClick={closeMenu}>Leaderboard</a>
+            <a className="nav-game-link" href="/play" onClick={closeMenu}>Enter Game</a>
             <WalletConnect />
           </div>
         </nav>
@@ -329,7 +329,7 @@ export function HoldersDilemma() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.2 }}
             >
-              <a className="button button-primary" href="#play">HODL OR NO HODL <span>↘</span></a>
+              <a className="button button-primary" href="/play">Enter Game <span>↘</span></a>
               <a className="button button-secondary" href="#mechanics">Read the Rules</a>
             </motion.div>
 
@@ -379,7 +379,24 @@ export function HoldersDilemma() {
           </Reveal>
         </section>
 
-        <ProtocolConsole />
+        <section className="game-entry-section section-shell" id="play" aria-label="Enter the live Hodl or No Hodl game">
+          <Reveal>
+            <div className="game-entry-card">
+              <div className="game-entry-copy">
+                <span>LIVE GAME ROOM / 30-MINUTE ROUNDS</span>
+                <h2>READY TO OPEN YOUR BOX?</h2>
+                <p>Connect a Solana wallet, sign in, verify a 500K-token hold, then choose HODL or NO HODL before the decision window closes.</p>
+              </div>
+              <div className="game-entry-steps" aria-label="Game entry steps">
+                <span>01 CONNECT</span>
+                <span>02 SIGN</span>
+                <span>03 VERIFY 500K</span>
+                <span>04 CHOOSE</span>
+              </div>
+              <a className="button button-primary game-entry-button" href="/play">Enter the Game <span>→</span></a>
+            </div>
+          </Reveal>
+        </section>
 
         <section className="content-section section-shell" id="dilemma">
           <SectionHeading
@@ -480,7 +497,7 @@ export function HoldersDilemma() {
             </Reveal>
           </div>
 
-          <p className="configuration-note"><span>ELIGIBILITY NOTE</span> Wallets need at least 1,000,000 tokens to enter the live game.</p>
+          <p className="configuration-note"><span>ELIGIBILITY NOTE</span> Wallets need at least 500,000 tokens to enter the live game.</p>
         </section>
 
         <section className="content-section section-shell tier-section" id="boxes">
@@ -643,7 +660,7 @@ export function HoldersDilemma() {
             <p>THE MARKET ALREADY TESTS YOUR CONVICTION.</p>
             <h2>WE TURNED THE TEST<br /><em>INTO THE PROTOCOL.</em></h2>
             <div className="hero-actions final-actions">
-              <a className="button button-primary" href="#play">HODL OR NO HODL <span>↑</span></a>
+              <a className="button button-primary" href="/play">Enter Game <span>↑</span></a>
               <a className="button button-secondary" href="#mechanics">Read the Rules</a>
             </div>
           </Reveal>
