@@ -42,7 +42,7 @@ const envSchema = z.object({
   CLAIM_WINDOW_SECONDS: z.coerce.number().int().positive().default(604_800),
   DEFECT_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
   DEFECTOR_BONUS_BPS: z.coerce.number().int().min(10_000).max(100_000).default(15_000),
-  MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("1000000"),
+  MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("500000"),
   TOKEN_MINT: z.string().optional(),
   INITIAL_ADMIN: z.string().optional(),
 });
