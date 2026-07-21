@@ -25,6 +25,7 @@ export type ProtocolStatus = {
   paused?: boolean;
   activeHolders?: number;
   longestStreakDays?: number;
+  minHoldingTokens?: string;
   round?: ProtocolRound | null;
 };
 

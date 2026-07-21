@@ -22,13 +22,16 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SECRET_KEY: z.string().optional(),
   SESSION_SECRET: z.string().min(32).optional(),
+  KEEPER_PRIVATE_KEY: z.string().optional(),
   KEEPER_KEYPAIR_BASE64: z.string().optional(),
+  PUMP_CREATOR_PRIVATE_KEY: z.string().optional(),
   PUMP_CREATOR_KEYPAIR_BASE64: z.string().optional(),
   FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
   ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(3_600),
   CLAIM_WINDOW_SECONDS: z.coerce.number().int().positive().default(604_800),
   DEFECT_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
   DEFECTOR_BONUS_BPS: z.coerce.number().int().min(10_000).max(100_000).default(15_000),
+  MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("1000000"),
   TOKEN_MINT: z.string().optional(),
   INITIAL_ADMIN: z.string().optional(),
 });
@@ -45,6 +48,15 @@ const supabase: SupabaseClient | undefined = env.SUPABASE_URL && env.SUPABASE_SE
   : undefined;
 
 const keypairWarnings: string[] = [];
+
+function tokenAmountStringToBaseUnits(value: string, decimals: number) {
+  const [whole, fraction = ""] = value.split(".");
+  if (fraction.length > decimals) {
+    throw new Error(`MIN_HOLDING_TOKENS supports at most ${decimals} decimal places for this mint.`);
+  }
+  const units = `${whole}${fraction.padEnd(decimals, "0")}`.replace(/^0+(?=\d)/, "");
+  return BigInt(units || "0");
+}
 
 function secretFromBytes(bytes: Uint8Array) {
   if (bytes.length !== 64) throw new Error(`Expected 64 secret-key bytes, received ${bytes.length}.`);
@@ -78,8 +90,10 @@ function optionalKeypair(name: string, value?: string) {
   }
 }
 
-const keeper = optionalKeypair("KEEPER_KEYPAIR_BASE64", env.KEEPER_KEYPAIR_BASE64);
-const pumpCreator = optionalKeypair("PUMP_CREATOR_KEYPAIR_BASE64", env.PUMP_CREATOR_KEYPAIR_BASE64);
+const keeperPrivateKey = env.KEEPER_PRIVATE_KEY ?? env.KEEPER_KEYPAIR_BASE64;
+const pumpCreatorPrivateKey = env.PUMP_CREATOR_PRIVATE_KEY ?? env.PUMP_CREATOR_KEYPAIR_BASE64;
+const keeper = optionalKeypair("KEEPER_PRIVATE_KEY", keeperPrivateKey);
+const pumpCreator = optionalKeypair("PUMP_CREATOR_PRIVATE_KEY", pumpCreatorPrivateKey);
 const payoutWallet = pumpCreator ?? keeper;
 const pumpSdk = new OnlinePumpSdk(connection);
 
@@ -168,6 +182,10 @@ async function walletTokenBalance(wallet: PublicKey) {
     amount: BigInt(balance?.value.amount ?? "0"),
     decimals: balance?.value.decimals ?? await tokenSupplyDecimals(),
   };
+}
+
+function minimumHoldingBaseUnits(decimals: number) {
+  return tokenAmountStringToBaseUnits(env.MIN_HOLDING_TOKENS, decimals);
 }
 
 function multiplierBps(streakStartedAt: string | null) {
@@ -285,6 +303,8 @@ function publicRound(round: DbRound | null) {
 async function syncHolder(wallet: PublicKey) {
   const db = requireDb();
   const balance = await walletTokenBalance(wallet);
+  const minimumHolding = minimumHoldingBaseUnits(balance.decimals);
+  const eligibleAmount = balance.amount >= minimumHolding ? balance.amount : 0n;
   const walletAddress = wallet.toBase58();
   const { data: existing, error } = await db
     .from("holders")
@@ -294,9 +314,9 @@ async function syncHolder(wallet: PublicKey) {
   if (error) throw error;
 
   const previousAmount = bigintValue(existing?.position_amount);
-  const soldOrDropped = balance.amount > 0n && existing && previousAmount > balance.amount;
-  const entered = balance.amount > 0n && (!existing || previousAmount === 0n || !existing.streak_started_at);
-  const streakStartedAt = balance.amount === 0n
+  const soldOrDropped = eligibleAmount > 0n && existing && previousAmount > eligibleAmount;
+  const entered = eligibleAmount > 0n && (!existing || previousAmount === 0n || !existing.streak_started_at);
+  const streakStartedAt = eligibleAmount === 0n
     ? null
     : soldOrDropped || entered
       ? nowIso()
@@ -306,7 +326,7 @@ async function syncHolder(wallet: PublicKey) {
 
   const row = {
     wallet: walletAddress,
-    position_amount: balance.amount.toString(),
+    position_amount: eligibleAmount.toString(),
     streak_started_at: streakStartedAt,
     last_withdraw_at: soldOrDropped ? nowIso() : existing?.last_withdraw_at ?? null,
     bonus_bps: bonusBps,
@@ -326,8 +346,8 @@ async function syncHolder(wallet: PublicKey) {
   return {
     wallet: walletAddress,
     walletTokenBalance: balance.amount.toString(),
-    position: balance.amount > 0n ? {
-      amount: balance.amount.toString(),
+    position: eligibleAmount > 0n ? {
+      amount: eligibleAmount.toString(),
       streakStartedAt,
       streakSeconds: streakSeconds.toString(),
       lockedUntil: null,
@@ -513,6 +533,7 @@ app.get("/health", (_req, res) => {
     payoutWallet: payoutWallet?.publicKey.toBase58() ?? null,
     feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
     roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
+    minHoldingTokens: env.MIN_HOLDING_TOKENS,
     warnings: keypairWarnings,
   });
 });
@@ -627,7 +648,7 @@ app.post("/api/tx/open-position", async (req, res, next) => {
     const { wallet: raw } = walletBody.parse(req.body);
     await requireSameWallet(req, raw);
     const holder = await syncHolder(new PublicKey(raw));
-    if (!holder.position) throw new Error("This wallet does not currently hold the token.");
+    if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens.`);
     res.json({ ok: true, message: "Holding verified. Streak tracking is active.", holder });
   } catch (error) { next(error); }
 });
@@ -637,7 +658,7 @@ app.post("/api/tx/deposit", async (req, res, next) => {
     const { wallet: raw } = walletBody.parse(req.body);
     await requireSameWallet(req, raw);
     const holder = await syncHolder(new PublicKey(raw));
-    if (!holder.position) throw new Error("This wallet does not currently hold the token.");
+    if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens.`);
     res.json({ ok: true, message: "Holding synced from mainnet balance.", holder });
   } catch (error) { next(error); }
 });
@@ -662,7 +683,7 @@ app.post("/api/tx/vote", async (req, res, next) => {
     if (!round || round.status !== "open") throw new Error("No round is currently open.");
 
     const holder = await syncHolder(new PublicKey(body.wallet));
-    if (!holder.position) throw new Error("This wallet must hold the token to vote.");
+    if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens to vote.`);
 
     const baseBalance = bigintValue(holder.position.amount);
     const holderMultiplier = multiplierBps(holder.position.streakStartedAt);

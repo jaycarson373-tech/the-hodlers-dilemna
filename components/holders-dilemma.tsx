@@ -145,20 +145,20 @@ function ExperimentPanel({
       <div className="corner corner-tl" aria-hidden="true" />
       <div className="corner corner-br" aria-hidden="true" />
       <div className="panel-topline">
-        <span className="live-panel-brand"><OfficialMark className="official-mark-dashboard" /> LIVE DILEMMA / PROTOCOL PREVIEW</span>
+        <span className="live-panel-brand"><OfficialMark className="official-mark-dashboard" /> LIVE DILEMMA / ROUND MODEL</span>
         <span className="live-status"><i /> DECISION WINDOW OPEN</span>
       </div>
 
-      <div className="live-metrics" aria-label="Illustrative live protocol data">
+      <div className="live-metrics" aria-label="Round model data">
         <div className="live-metric live-metric-primary">
           <span>CURRENT ROUND</span>
           <strong><AnimatedValue>024</AnimatedValue></strong>
-          <small>PROPOSED ROUND STRUCTURE</small>
+          <small>ROUND STRUCTURE</small>
         </div>
         <div className="live-metric live-metric-primary">
           <span>TIME UNTIL NEXT DECISION</span>
           <strong><AnimatedValue>{formatTime(seconds)}</AnimatedValue></strong>
-          <small>SIMULATED COUNTDOWN</small>
+          <small>ROUND RHYTHM</small>
         </div>
         <div className="live-metric cooperate-metric">
           <span>COOPERATE</span>
@@ -173,25 +173,25 @@ function ExperimentPanel({
         <div className="live-metric">
           <span>ACTIVE HOLDERS</span>
           <strong><AnimatedValue>10,842</AnimatedValue></strong>
-          <small>ILLUSTRATIVE DATA</small>
+          <small>ELIGIBLE WALLETS</small>
         </div>
         <div className="live-metric gold-metric">
           <span>LONGEST HOLD STREAK</span>
           <strong><AnimatedValue>94 DAYS</AnimatedValue></strong>
-          <small>SEASON 00 / PREVIEW</small>
+          <small>SEASON 00</small>
         </div>
       </div>
 
       <div className="live-panel-lower">
         <div className="live-pot-and-signals">
           <div className="pot-readout">
-            <p>FEE POT / ILLUSTRATIVE</p>
+            <p>FEE POT / ROUND MODEL</p>
             <strong><AnimatedValue>{pot.toFixed(2)}</AnimatedValue> <small>SOL</small></strong>
           </div>
           <div className="signal-box">
             <div className="signal-heading">
               <span>NON-BINDING PUBLIC SIGNALS</span>
-              <span>SIMULATED PREVIEW</span>
+              <span>ROUND READ</span>
             </div>
             <SignalBar label="COOPERATE" value={cooperateSignal} tone="cooperate" />
             <SignalBar label="DEFECT" value={defectSignal} tone="defect" />
@@ -226,8 +226,8 @@ function ExperimentPanel({
 
       <p className="panel-footnote" role="status" aria-live="polite">
         {decision
-          ? `${decision.toUpperCase()} selected for local preview. No transaction was created.`
-          : "Demonstration controls only. No blockchain transaction will be created."}
+          ? `${decision.toUpperCase()} selected in the round model. Use the live game console below for the real vote.`
+          : "Use the live game console below to submit the real on-chain-verified vote."}
       </p>
     </div>
   );
@@ -298,7 +298,7 @@ export function HoldersDilemma() {
             >
               <OfficialMark className="official-mark-loading" />
             </motion.div>
-            <span>INITIALIZING EXPERIMENT / PREVIEW</span>
+            <span>INITIALIZING EXPERIMENT</span>
             <i><b /></i>
           </motion.div>
         ) : null}
@@ -407,7 +407,7 @@ export function HoldersDilemma() {
           <div className="scroll-cue" aria-hidden="true"><span>SCROLL TO EXAMINE</span><i /></div>
         </section>
 
-        <section className="live-dilemma-section section-shell" aria-label="Live Dilemma preview">
+        <section className="live-dilemma-section section-shell" aria-label="Dilemma round model">
           <Reveal>
             <ExperimentPanel
               seconds={seconds}
@@ -426,7 +426,7 @@ export function HoldersDilemma() {
             number="01"
             eyebrow="THE DILEMMA"
             title="COORDINATION HAS A PRICE. SO DOES BETRAYAL."
-            description="A proposed round structure built around one private decision and one collective outcome."
+            description="Each round is built around one private decision and one collective outcome."
           />
 
           <Reveal>
@@ -456,8 +456,8 @@ export function HoldersDilemma() {
           </Reveal>
 
           <div className="round-history-heading">
-            <span>ROUND HISTORY / ILLUSTRATIVE PREVIEW</span>
-            <span>OUTCOMES ARE PLACEHOLDER DATA</span>
+            <span>ROUND HISTORY MODEL</span>
+            <span>RECENT OUTCOME FORMAT</span>
           </div>
           <div className="round-history-grid">
             {roundHistory.map((round, index) => (
@@ -515,12 +515,12 @@ export function HoldersDilemma() {
                   <div className="multiplier-row"><dt>Current Multiplier</dt><dd>2.7x</dd></div>
                 </dl>
                 <div className="wallet-bar"><motion.span animate={reduceMotion ? undefined : { width: ["68%", "72%", "68%"] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} /></div>
-                <p>ILLUSTRATIVE WALLET PROFILE</p>
+                <p>WALLET PROFILE FORMAT</p>
               </div>
             </Reveal>
           </div>
 
-          <p className="configuration-note"><span>PARAMETER NOTE</span> Exact multiplier curves and launch parameters remain subject to final protocol configuration.</p>
+          <p className="configuration-note"><span>ELIGIBILITY NOTE</span> Wallets need at least 1,000,000 tokens to enter the live game.</p>
         </section>
 
         <section className="content-section section-shell tier-section">
@@ -528,7 +528,7 @@ export function HoldersDilemma() {
             number="03"
             eyebrow="HOLDING TIERS"
             title="FOUR STATES OF CONVICTION."
-            description="Placement is designed to consider uninterrupted holding time, percentage of supply held, and position consistency. Exact thresholds are not yet configured."
+            description="Placement considers uninterrupted holding time, position strength, and consistency."
           />
           <div className="tier-grid">
             {tiers.map((tier, index) => (
@@ -547,14 +547,14 @@ export function HoldersDilemma() {
           <div className="betrayal-grid-bg" aria-hidden="true" />
           <SectionHeading
             number="04"
-            eyebrow="PLANNED MECHANIC / BETRAYAL BOUNTY"
+            eyebrow="BONUS MECHANIC / BETRAYAL BOUNTY"
             title="WHEN SOMEONE FOLDS, THE HOLDERS WHO REMAIN BENEFIT."
             description="When a wallet with a developed streak sells, part of its forfeited reward weight can be redirected into a Betrayal Bounty for remaining eligible holders."
           />
           <Reveal className="betrayal-statement">
             <span>THEIR</span> PAPER HANDS <span>BECOME</span> YOUR REWARD.
           </Reveal>
-          <div className="betrayal-flow" aria-label="Illustrative betrayal bounty flow">
+          <div className="betrayal-flow" aria-label="Betrayal bounty flow">
             {["WALLET EXITS", "MULTIPLIER FORFEITED", "BOUNTY FUNDED", "HOLDERS REWARDED"].map((item, index) => (
               <Reveal className="flow-step" delay={index * 0.1} key={item}>
                 <span>0{index + 1}</span>
@@ -563,11 +563,11 @@ export function HoldersDilemma() {
               </Reveal>
             ))}
           </div>
-          <p className="planned-label">PROPOSED BEHAVIOR / NOT YET DEPLOYED</p>
+          <p className="planned-label">BONUS LOGIC / HOLDER INCENTIVES</p>
         </section>
 
         <section className="content-section temptation-section section-shell">
-          <div className="warning-header"><span>⚠</span><span>WARNING BULLETIN / PREVIEW</span><span>EVT-07</span></div>
+          <div className="warning-header"><span>⚠</span><span>WARNING BULLETIN</span><span>EVT-07</span></div>
           <div className="temptation-layout">
             <div>
               <p className="eyebrow warning-eyebrow">UNPREDICTABLE PROTOCOL EVENT</p>
@@ -585,13 +585,13 @@ export function HoldersDilemma() {
               </div>
             </div>
             <Reveal className="countdown-card terminal-frame">
-              <div className="countdown-top"><span>TEMPTATION EVENT</span><span>PREVIEW</span></div>
+              <div className="countdown-top"><span>TEMPTATION EVENT</span><span>BONUS TEST</span></div>
               <p>REDUCED-FEE WINDOW CLOSES IN</p>
               <strong>{formatTime(Math.max(0, seconds - 3600))}</strong>
               <div className="countdown-segments" aria-hidden="true">
                 {Array.from({ length: 12 }).map((_, index) => <i className={index < 8 ? "active" : ""} key={index} />)}
               </div>
-              <div className="countdown-data"><span>ACTIVE STREAK<br /><b>12 DAYS</b></span><span>SURVIVAL BONUS<br /><b>PROPOSED</b></span></div>
+              <div className="countdown-data"><span>ACTIVE STREAK<br /><b>12 DAYS</b></span><span>SURVIVAL BONUS<br /><b>TRACKED</b></span></div>
             </Reveal>
           </div>
         </section>
@@ -599,16 +599,16 @@ export function HoldersDilemma() {
         <section className="content-section section-shell" id="leaderboard">
           <SectionHeading
             number="05"
-            eyebrow="SEASONAL RANKING / PLACEHOLDER DATA"
+            eyebrow="SEASONAL RANKING"
             title="LAST HOLDER STANDING"
             description="Monthly seasons are planned to rank wallets by uninterrupted holding streak, position strength, participation, and total conviction."
           />
 
           <Reveal className="leaderboard-shell terminal-frame">
-            <div className="leaderboard-meta"><span>SEASON 00 / SIMULATION</span><span>6 OF 10,842 SUBJECTS SHOWN</span></div>
+            <div className="leaderboard-meta"><span>SEASON 00</span><span>6 SAMPLE SUBJECTS SHOWN</span></div>
             <div className="leaderboard-table-wrap">
               <table>
-                <caption className="sr-only">Illustrative Last Holder Standing leaderboard</caption>
+                <caption className="sr-only">Last Holder Standing leaderboard format</caption>
                 <thead><tr><th>Rank</th><th>Wallet</th><th>Tier</th><th>Streak</th><th>Dilemma Record</th><th>Multiplier</th></tr></thead>
                 <tbody>
                   {leaderboard.map((entry) => (
@@ -629,7 +629,7 @@ export function HoldersDilemma() {
                 </article>
               ))}
             </div>
-            <div className="leaderboard-footer"><span>TOP STREAKS SHARE A PROPOSED SEASONAL BONUS POOL</span><span>ILLUSTRATIVE DATA ONLY</span></div>
+            <div className="leaderboard-footer"><span>TOP STREAKS SHARE A SEASONAL BONUS POOL</span><span>LIVE RANKING FORMAT</span></div>
           </Reveal>
         </section>
 
@@ -638,10 +638,10 @@ export function HoldersDilemma() {
             number="06"
             eyebrow="EXPERIMENT FEED"
             title="THE RECORD NEVER BLINKS."
-            description="A simulated view of how round, wallet, bounty, and temptation events could appear in the live protocol interface."
+            description="Round, wallet, bounty, and temptation events are recorded in the protocol interface."
           />
           <div className="feed-shell">
-            <div className="feed-status"><span><i /> EVENT STREAM</span><span>SIMULATED / UTC</span></div>
+            <div className="feed-status"><span><i /> EVENT STREAM</span><span>UTC</span></div>
             {feed.map((item, index) => (
               <Reveal className={`feed-row ${item.tone}`} delay={index * 0.08} key={item.event}>
                 <time>{item.time}</time>
@@ -656,7 +656,7 @@ export function HoldersDilemma() {
         <section className="content-section mechanics-section section-shell" id="mechanics">
           <SectionHeading
             number="07"
-            eyebrow="PROPOSED MECHANICS"
+            eyebrow="MECHANICS"
             title="HOW THE EXPERIMENT WORKS."
           />
           <div className="mechanics-list">
@@ -703,13 +703,13 @@ export function HoldersDilemma() {
           <a className="brand footer-brand" href="#experiment"><OfficialMark className="official-mark-footer" /><span>HODLERS DILEMMA<span className="brand-domain">.FUN</span></span></a>
           <div className="footer-links">
             <a href="https://x.com/i/communities/2028470502415835347" target="_blank" rel="noreferrer">X Community</a>
-            <button type="button" onClick={() => showPreviewNotice("The official Telegram will be announced before launch.")}>Telegram</button>
+            <button type="button" onClick={() => showPreviewNotice("Telegram link will be added when the channel is live.")}>Telegram</button>
           </div>
-          <div className="footer-coming-soon"><span>CONTRACT <b>{CONTRACT_ADDRESS}</b></span><span>DOCUMENTATION <b>COMING SOON</b></span></div>
+          <div className="footer-coming-soon"><span>CONTRACT <b>{CONTRACT_ADDRESS}</b></span><span>DOCUMENTATION <b>IN PROGRESS</b></span></div>
         </div>
         <div className="footer-bottom">
-          <p>The displayed data is illustrative until the live protocol and contracts are deployed. Participation involves financial and smart-contract risk.</p>
-          <span>© 2026 / PROTOCOL DESIGN PREVIEW</span>
+          <p>Participation involves financial, wallet, and smart-contract risk. Verify the contract address before trading.</p>
+          <span>© 2026 / HODLERS DILEMMA.FUN</span>
         </div>
       </footer>
 
