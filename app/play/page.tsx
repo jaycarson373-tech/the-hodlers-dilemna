@@ -39,7 +39,7 @@ export default function PlayPage() {
           <span>HODL OR NO HODL<span>.FUN</span></span>
         </Link>
         <nav aria-label="Game room navigation">
-          <Link href="/">Rules</Link>
+          <Link href="/rules">Rules</Link>
           <a href="#game-console">Play</a>
           <WalletConnect />
         </nav>
@@ -52,37 +52,26 @@ export default function PlayPage() {
           <span>Creator fees enter the box every 15 minutes. The final hour is decision time.</span>
           <div className="game-room-actions">
             <a className="button button-primary" href="#game-console">Enter Game <b>↓</b></a>
-            <Link className="button button-secondary" href="/">Back to Rules</Link>
+            <Link className="button button-secondary" href="/rules">Read the Rules</Link>
           </div>
         </div>
 
         <div className="game-case-stage" aria-hidden="true">
           <div className="game-case-lights" />
-          <div className="game-case">
-            <span>?</span>
-          </div>
-          <div className="game-case-caption">
-            <span>IN THE BOX</span>
-            <strong>FEE POT</strong>
-          </div>
+          <div className="game-case"><span>?</span></div>
+          <div className="game-case-caption"><span>IN THE BOX</span><strong>FEE POT</strong></div>
         </div>
       </section>
 
       <section className="game-entry-strip section-shell" aria-label="How to enter">
         {entrySteps.map(([number, title, copy]) => (
-          <article key={number}>
-            <span>{number}</span>
-            <strong>{title}</strong>
-            <p>{copy}</p>
-          </article>
+          <article key={number}><span>{number}</span><strong>{title}</strong><p>{copy}</p></article>
         ))}
       </section>
 
       <section className="game-console-stage" id="game-console" aria-label="Playable Hodl or No Hodl console">
         <div className="game-console-stage-heading section-shell">
-          <span>OPEN THE BOX</span>
-          <h2>CHOOSE HODL OR NO HODL.</h2>
-          <p>The live controls appear here when the Banker opens the round.</p>
+          <span>OPEN THE BOX</span><h2>CHOOSE HODL OR NO HODL.</h2><p>The live controls appear here when the Banker opens the round.</p>
         </div>
         <ProtocolConsole />
       </section>

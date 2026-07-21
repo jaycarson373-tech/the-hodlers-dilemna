@@ -1,5 +1,5 @@
-import { HoldersDilemma } from "@/components/holders-dilemma";
+import { HomeShow } from "@/components/home-show";
 
 export default function Home() {
-  return <HoldersDilemma />;
+  return <HomeShow />;
 }
