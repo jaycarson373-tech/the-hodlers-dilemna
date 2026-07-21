@@ -1868,7 +1868,8 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   gap: 24px;
 }
 
-.footer-links button {
+.footer-links button,
+.footer-links a {
   padding: 8px 0;
   border: 0;
   background: transparent;
@@ -1876,9 +1877,11 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   cursor: pointer;
   font: 600 0.66rem/1 var(--font-mono);
   text-transform: uppercase;
+  text-decoration: none;
 }
 
-.footer-links button:hover { color: var(--bone); }
+.footer-links button:hover,
+.footer-links a:hover { color: var(--bone); }
 
 .footer-coming-soon {
   display: flex;
@@ -3333,6 +3336,8 @@ tbody tr:hover { background: #f5fff9; }
 
 .footer-links button,
 .footer-links button:hover,
+.footer-links a,
+.footer-links a:hover,
 .footer-coming-soon,
 .footer-coming-soon b,
 .footer-bottom { color: #164b3c; }

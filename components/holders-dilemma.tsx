@@ -479,7 +479,7 @@ export function HoldersDilemma() {
 
           <Reveal className="pull-quote">
             <span className="quote-index">{"//"}</span>
-            <p>Every round rewards coordination, tempts betrayal, and records who chose conviction over extraction.</p>
+            <p>Every round rewards coordination, tempts betrayal, and records who chose extraction over conviction.</p>
           </Reveal>
         </section>
 
@@ -703,7 +703,7 @@ export function HoldersDilemma() {
         <div className="footer-top">
           <a className="brand footer-brand" href="#experiment"><OfficialMark className="official-mark-footer" /><span>HODLERS DILEMMA<span className="brand-domain">.FUN</span></span></a>
           <div className="footer-links">
-            <button type="button" onClick={() => showPreviewNotice("The official X account will be announced before launch.")}>X</button>
+            <a href="https://x.com/i/communities/2028470502415835347" target="_blank" rel="noreferrer">X Community</a>
             <button type="button" onClick={() => showPreviewNotice("The official Telegram will be announced before launch.")}>Telegram</button>
           </div>
           <div className="footer-coming-soon"><span>CONTRACT <b>{CONTRACT_ADDRESS}</b></span><span>DOCUMENTATION <b>COMING SOON</b></span></div>
