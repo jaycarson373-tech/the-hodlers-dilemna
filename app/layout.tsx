@@ -17,9 +17,9 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : "https://jaycarson373-tech.github.io/the-hodlers-dilemna");
-const title = "Hodlers Dilemma.fun — Hold Together. Or Don’t.";
+const title = "Hodl or No Hodl.fun";
 const description =
-  "An on-chain social experiment about conviction, cooperation, betrayal, and the prisoner’s dilemma.";
+  "A mainnet holder game where every round asks the same question: hodl, or no hodl?";
 const socialImage = `${siteUrl}/official-wordmark.jpg`;
 
 export const metadata: Metadata = {
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: siteUrl,
-    siteName: "Hodlers Dilemma.fun",
+    siteName: "Hodl or No Hodl.fun",
     title,
     description,
     images: [{ url: socialImage, width: 1280, height: 427, alt: title }],

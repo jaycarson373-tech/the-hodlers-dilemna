@@ -67,24 +67,24 @@ export const leaderboard: LeaderboardEntry[] = [
 ];
 
 export const feed: FeedEntry[] = [
-  { time: "T−19:42", event: "ROUND 023 SETTLED", detail: "Majority cooperated. Pot distributed.", tone: "cooperate" },
-  { time: "T−18:07", event: "WALLET 8D4...2FA DEFECTED", detail: "Defector bonus activated.", tone: "defect" },
+  { time: "T−19:42", event: "ROUND 023 SETTLED", detail: "Majority chose HODL. Pot distributed.", tone: "cooperate" },
+  { time: "T−18:07", event: "WALLET 8D4...2FA CHOSE NO HODL", detail: "Banker bonus activated.", tone: "defect" },
   { time: "T−14:31", event: "BETRAYAL BOUNTY FUNDED", detail: "A 19-day streak was forfeited.", tone: "gold" },
-  { time: "T−08:12", event: "TEMPTATION EVENT SURVIVED", detail: "412 wallets maintained their streak.", tone: "gold" },
+  { time: "T−08:12", event: "BANKER OFFER REFUSED", detail: "412 wallets maintained their streak.", tone: "gold" },
   { time: "T−00:00", event: "ROUND 024 OPENED", detail: "Decision window is now active.", tone: "neutral" },
 ];
 
 export const roundHistory: RoundHistoryEntry[] = [
-  { round: "023", outcome: "MAJORITY COOPERATED", split: "67% / 33%", pot: "124.18 SOL", result: "DISTRIBUTED", tone: "cooperate" },
-  { round: "022", outcome: "TOO MANY DEFECTED", split: "46% / 54%", pot: "81.30 SOL", result: "ROLLED OVER", tone: "defect" },
-  { round: "021", outcome: "MAJORITY COOPERATED", split: "71% / 29%", pot: "76.44 SOL", result: "DISTRIBUTED", tone: "cooperate" },
-  { round: "020", outcome: "TOO MANY DEFECTED", split: "48% / 52%", pot: "42.06 SOL", result: "ROLLED OVER", tone: "defect" },
+  { round: "023", outcome: "MAJORITY HODLED", split: "67% / 33%", pot: "124.18 SOL", result: "DISTRIBUTED", tone: "cooperate" },
+  { round: "022", outcome: "TOO MANY TOOK THE OFFER", split: "46% / 54%", pot: "81.30 SOL", result: "ROLLED OVER", tone: "defect" },
+  { round: "021", outcome: "MAJORITY HODLED", split: "71% / 29%", pot: "76.44 SOL", result: "DISTRIBUTED", tone: "cooperate" },
+  { round: "020", outcome: "TOO MANY TOOK THE OFFER", split: "48% / 52%", pot: "42.06 SOL", result: "ROLLED OVER", tone: "defect" },
 ];
 
 export const mechanics = [
-  { number: "01", title: "Hold", copy: "Acquire the token and begin building an uninterrupted streak." },
+  { number: "01", title: "Hodl", copy: "Acquire the token and begin building an uninterrupted streak." },
   { number: "02", title: "Build Conviction", copy: "Holding time and position strength increase your protocol weight." },
-  { number: "03", title: "Face the Dilemma", copy: "Choose to cooperate or defect during recurring rounds." },
+  { number: "03", title: "Face the Offer", copy: "Choose HODL or NO HODL during recurring rounds." },
   { number: "04", title: "Receive Outcomes", copy: "Outcomes depend on your decision, the collective result, and your multiplier." },
   { number: "05", title: "Remain Standing", copy: "Avoid selling, climb the tiers, and compete in seasonal rankings." },
 ];
@@ -101,7 +101,7 @@ export const outcomes = [
   {
     you: "YOU COOPERATE",
     majority: "MAJORITY COOPERATES",
-    title: "WEIGHTED SHARE",
+    title: "HODLER SHARE",
     copy: "You receive the standard weighted fee share.",
     tone: "cooperate",
   },
@@ -115,7 +115,7 @@ export const outcomes = [
   {
     you: "YOU DEFECT",
     majority: "MAJORITY COOPERATES",
-    title: "INCREASED SHARE",
+    title: "BANKER BONUS",
     copy: "You receive an increased share of the round.",
     tone: "defect",
   },

@@ -86,7 +86,7 @@ export function ProtocolConsole() {
         body: JSON.stringify({ wallet: address, message: challenge.message, signature: base64FromBytes(signature) }),
       });
       setSessionToken(verified.token);
-      setMessage("Wallet ownership verified. You can now play the live round.");
+      setMessage("Wallet ownership verified. You can now choose HODL or NO HODL.");
       return verified.token;
     } finally {
       setBusy("");
@@ -139,8 +139,8 @@ export function ProtocolConsole() {
       <div className="protocol-stats">
         <div><span>ROUND</span><strong>{status?.currentRound ?? "—"}</strong></div>
         <div><span>POT</span><strong>{lamportsToSol(round?.potLamports ?? status?.availablePoolLamports)} SOL</strong></div>
-        <div><span>COOPERATE</span><strong>{round ? `${round.cooperatePercent.toFixed(1)}%` : "—"}</strong></div>
-        <div><span>DEFECT</span><strong>{round ? `${round.defectPercent.toFixed(1)}%` : "—"}</strong></div>
+        <div><span>HODL</span><strong>{round ? `${round.cooperatePercent.toFixed(1)}%` : "—"}</strong></div>
+        <div><span>NO HODL</span><strong>{round ? `${round.defectPercent.toFixed(1)}%` : "—"}</strong></div>
         <div><span>VOTERS</span><strong>{round?.voterCount ?? 0}</strong></div>
         <div><span>WALLET / POSITION</span><strong>{holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : "—"}</strong></div>
       </div>
@@ -163,8 +163,8 @@ export function ProtocolConsole() {
           {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/open-position", {}, "HOLDING VERIFICATION")}>VERIFY HOLDING</button> : (
             <>
               <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/deposit", {}, "HOLDING SYNC")}>SYNC HOLDING</button>
-              <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "cooperate" }, "COOPERATE VOTE")}>COOPERATE</button>
-              <button className="defect-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "defect" }, "DEFECT VOTE")}>DEFECT</button>
+              <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "cooperate" }, "HODL VOTE")}>HODL</button>
+              <button className="defect-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "defect" }, "NO HODL VOTE")}>NO HODL</button>
               <button type="button" disabled={Boolean(busy) || !canClaim} onClick={() => void sendGameAction("/api/tx/claim", { roundNumber: status?.currentRound ?? "0" }, "REWARD CLAIM")}>CLAIM ROUND REWARD</button>
             </>
           )}
