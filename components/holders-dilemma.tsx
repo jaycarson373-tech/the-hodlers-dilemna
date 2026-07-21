@@ -328,7 +328,7 @@ export function HoldersDilemma() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.2 }}
             >
-              <a className="button button-primary" href="#play">HODL. NEVER FOLD. <span>↘</span></a>
+              <a className="button button-primary" href="#play">HODL. NO DEAL. <span>↘</span></a>
               <a className="button button-secondary" href="#mechanics">Read the Rules</a>
             </motion.div>
 
@@ -640,7 +640,7 @@ export function HoldersDilemma() {
             <p>THE MARKET ALREADY TESTS YOUR CONVICTION.</p>
             <h2>WE TURNED THE TEST<br /><em>INTO THE PROTOCOL.</em></h2>
             <div className="hero-actions final-actions">
-              <a className="button button-primary" href="#play">HODL. NEVER FOLD. <span>↑</span></a>
+              <a className="button button-primary" href="#play">HODL. NO DEAL. <span>↑</span></a>
               <a className="button button-secondary" href="#mechanics">Read the Rules</a>
             </div>
           </Reveal>
