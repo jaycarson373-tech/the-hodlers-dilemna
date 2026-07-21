@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } fr
 import { useEffect, useRef, useState } from "react";
 import { SectionHeading } from "@/components/section-heading";
 import { WalletConnect } from "@/components/wallet-connect";
+import { ProtocolConsole } from "@/components/protocol-console";
 import {
   feed,
   leaderboard,
@@ -379,7 +380,7 @@ export function HoldersDilemma() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.2 }}
             >
-              <a className="button button-primary" href="#dilemma">Enter the Dilemma <span>↘</span></a>
+              <a className="button button-primary" href="#play">Enter the Dilemma <span>↘</span></a>
               <a className="button button-secondary" href="#mechanics">View the Rules</a>
             </motion.div>
 
@@ -421,6 +422,8 @@ export function HoldersDilemma() {
             />
           </Reveal>
         </section>
+
+        <ProtocolConsole />
 
         <section className="content-section section-shell" id="dilemma">
           <SectionHeading

@@ -3454,6 +3454,17 @@ tbody tr:hover { background: #f5fff9; }
   font-size: 0.72rem;
 }
 
+.protocol-console-head h2 {
+  max-width: 720px;
+  margin: 7px 0 0;
+  color: #101210;
+  font-size: clamp(1rem, 2.2vw, 1.65rem);
+  letter-spacing: -0.03em;
+}
+
+.protocol-countdown { flex: 0 0 auto; text-align: right; }
+.protocol-countdown strong { font-size: clamp(1.15rem, 2.3vw, 1.7rem); }
+
 .protocol-console-head > i {
   width: 13px;
   height: 13px;
@@ -3468,14 +3479,16 @@ tbody tr:hover { background: #f5fff9; }
   box-shadow: 0 0 0 5px rgba(85, 223, 154, 0.24);
 }
 
-.protocol-summary {
+.protocol-summary,
+.protocol-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-top: 20px;
 }
 
-.protocol-summary > div {
+.protocol-summary > div,
+.protocol-stats > div {
   min-width: 0;
   padding: 14px;
   border: 1px solid rgba(22, 75, 60, 0.3);
@@ -3484,6 +3497,7 @@ tbody tr:hover { background: #f5fff9; }
 }
 
 .protocol-summary strong,
+.protocol-stats strong,
 .protocol-wallet-row strong {
   display: block;
   overflow: hidden;
@@ -3493,6 +3507,37 @@ tbody tr:hover { background: #f5fff9; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.protocol-stats span,
+.protocol-position-line span {
+  display: block;
+  color: #164b3c;
+  font: 700 0.54rem/1.35 var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+.protocol-position-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin-top: 12px;
+  padding: 14px 17px;
+  border: 1px solid rgba(22, 75, 60, 0.3);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.protocol-position-line b { color: #101210; }
+.protocol-success,
+.protocol-error {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #164b3c;
+  border-radius: 10px;
+  font: 700 0.65rem/1.45 var(--font-mono);
+}
+.protocol-success { background: rgba(85, 223, 154, 0.3); color: #164b3c; }
+.protocol-error { background: #ffffff; color: #101210; }
 
 .protocol-console-message,
 .protocol-wallet-row {
@@ -3631,7 +3676,10 @@ tbody tr:hover { background: #f5fff9; }
 .footer-coming-soon b { overflow-wrap: anywhere; }
 
 @media (max-width: 720px) {
-  .protocol-summary { grid-template-columns: repeat(2, 1fr); }
+  .protocol-summary,
+  .protocol-stats { grid-template-columns: repeat(2, 1fr); }
+  .protocol-console-head { align-items: flex-start; flex-direction: column; }
+  .protocol-countdown { text-align: left; }
   .protocol-wallet-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .protocol-wallet-row button { grid-column: 1 / -1; }
   .protocol-actions { grid-template-columns: 1fr; }

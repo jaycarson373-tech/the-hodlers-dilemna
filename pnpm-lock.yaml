@@ -14,12 +14,18 @@ importers:
       '@solana/connector':
         specifier: 0.2.6
         version: 0.2.6(fastestsmallesttextencoderdecoder@1.0.22)(react-native@0.86.0(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.6))(react@19.2.6)(typescript@5.9.3)
+      '@solana/kit':
+        specifier: 5.5.1
+        version: 5.5.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
       '@solana/react-hooks':
         specifier: 1.4.1
         version: 1.4.1(@solana/connector@0.2.6(fastestsmallesttextencoderdecoder@1.0.22)(react-native@0.86.0(@babel/core@7.29.7)(@types/react@19.2.14)(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(@solana/sysvars@4.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@types/react@19.2.14)(fastestsmallesttextencoderdecoder@1.0.22)(react@19.2.6)(typescript@5.9.3)(use-sync-external-store@1.6.0(react@19.2.6))
       '@solana/sysvars':
         specifier: 4.0.0
         version: 4.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/transactions':
+        specifier: 5.5.1
+        version: 5.5.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
       framer-motion:
         specifier: 12.42.2
         version: 12.42.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)

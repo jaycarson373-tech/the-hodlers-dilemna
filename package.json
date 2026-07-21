@@ -16,8 +16,10 @@
   "dependencies": {
     "@solana/client": "1.7.0",
     "@solana/connector": "0.2.6",
+    "@solana/kit": "5.5.1",
     "@solana/react-hooks": "1.4.1",
     "@solana/sysvars": "4.0.0",
+    "@solana/transactions": "5.5.1",
     "framer-motion": "12.42.2",
     "next": "16.2.6",
     "react": "19.2.6",

@@ -163,7 +163,7 @@ export function WalletConnect() {
             )}
 
             <p className="wallet-permission-note">
-              Connecting exposes only your public wallet address. This preview does not request signatures, initiate transactions, or access funds.
+              Connecting exposes your public address. Playing requires a message signature, and each deposit, vote, withdrawal, or claim requires separate wallet approval.
             </p>
             {localError || error ? (
               <p className="wallet-error" role="alert">

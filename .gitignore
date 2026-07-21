@@ -40,3 +40,9 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/target/
+/test-ledger/
+/railway/node_modules/
+/railway/.env
+/railway/.env.*
+!/railway/.env.example
