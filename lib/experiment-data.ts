@@ -67,11 +67,11 @@ export const leaderboard: LeaderboardEntry[] = [
 ];
 
 export const feed: FeedEntry[] = [
-  { time: "T−19:42", event: "OFFER DECLINED", detail: "Majority chose HODL. The case opened for holders.", tone: "cooperate" },
-  { time: "T−18:07", event: "WALLET 8D4...2FA TOOK THE DEAL", detail: "Dealer bonus activated.", tone: "defect" },
-  { time: "T−14:31", event: "BETRAYAL BOUNTY FUNDED", detail: "A 19-day streak was forfeited.", tone: "gold" },
-  { time: "T−08:12", event: "BANKER’S OFFER REFUSED", detail: "Holders kept their cases closed.", tone: "gold" },
-  { time: "T−00:00", event: "BANKER ONLINE", detail: "Waiting for the next call.", tone: "neutral" },
+  { time: "20:45", event: "FEES SWEPT", detail: "0.184 SOL entered the box.", tone: "gold" },
+  { time: "20:30", event: "BANKER REVIEWING", detail: "Episode 024 remains sealed.", tone: "neutral" },
+  { time: "20:15", event: "FEES SWEPT", detail: "0.096 SOL entered the box.", tone: "gold" },
+  { time: "20:00", event: "EPISODE 024 OPENED", detail: "Snapshot balances are locked for this episode.", tone: "cooperate" },
+  { time: "19:59", event: "LAST BOX OPENED", detail: "Weighted HODL cleared the 70% line.", tone: "cooperate" },
 ];
 
 export const roundHistory: RoundHistoryEntry[] = [
@@ -90,40 +90,40 @@ export const mechanics = [
 ];
 
 export const streakSteps = [
-  { label: "DAY 1", value: "1.0x" },
-  { label: "DAY 3", value: "1.5x" },
-  { label: "WEEK 1", value: "2.0x" },
-  { label: "WEEK 2", value: "3.0x" },
-  { label: "LONG-TERM", value: "CONTINUING" },
+  { label: "0", value: "1.0x" },
+  { label: "1–2", value: "1.1x" },
+  { label: "3–5", value: "1.25x" },
+  { label: "6–9", value: "1.5x" },
+  { label: "10+", value: "2.0x" },
 ];
 
 export const outcomes = [
   {
-    you: "YOU HODL",
-    majority: "MAJORITY HODL",
-    title: "WEIGHTED SHARE",
-    copy: "The box opens for everyone. You receive the standard weighted fee share.",
+    you: "OUTCOME A",
+    majority: "HODL OR SILENT / LINE HOLDS",
+    title: "BOX OPENS",
+    copy: "Split the main pot (80% of fees) by payout weight. Your streak increases by one.",
     tone: "cooperate",
   },
   {
-    you: "YOU HODL",
-    majority: "TOO MANY TAKE THE DEAL",
-    title: "BOX STAYS SEALED",
-    copy: "No payout. The pot rolls into the next round’s box.",
-    tone: "neutral",
-  },
-  {
-    you: "YOU TAKE THE DEAL",
-    majority: "MAJORITY HODL",
-    title: "INCREASED SHARE",
-    copy: "You receive an increased share of the round.",
+    you: "OUTCOME B",
+    majority: "SIGNED NO HODL / LINE HOLDS",
+    title: "DEFECTOR'S DEAL",
+    copy: "Paid at 1.5x weight from the capped 20% tranche. Your streak drops one tier.",
     tone: "defect",
   },
   {
-    you: "YOU TAKE THE DEAL",
-    majority: "TOO MANY TAKE THE DEAL",
+    you: "OUTCOME C",
+    majority: "WEIGHTED HODL BELOW 70%",
     title: "MUTUAL LOSS",
-    copy: "No payout. The pot rolls into the next round.",
+    copy: "Nobody is paid. The full pot rolls into the next box. Defectors still take the tier penalty.",
+    tone: "defect",
+  },
+  {
+    you: "OUTCOME D",
+    majority: "BALANCE DECREASE DETECTED",
+    title: "SELLER",
+    copy: "Forced NO HODL. Full streak reset. No defector tranche and no payout.",
     tone: "defect",
   },
 ] as const;

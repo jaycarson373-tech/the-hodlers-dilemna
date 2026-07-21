@@ -47,9 +47,9 @@ export default function PlayPage() {
 
       <section className="game-room-hero section-shell">
         <div className="game-room-copy">
-          <p>LIVE GAME ROOM / 30-MINUTE ROUNDS</p>
+          <p>LIVE GAME ROOM / 6-HOUR EPISODES</p>
           <h1>THE BANKER IS CALLING.</h1>
-          <span>Connect your wallet, claim your 500K-token seat, then wait for the Banker&apos;s offer.</span>
+          <span>Creator fees enter the box every 15 minutes. The final hour is decision time.</span>
           <div className="game-room-actions">
             <a className="button button-primary" href="#game-console">Enter Game <b>↓</b></a>
             <Link className="button button-secondary" href="/">Back to Rules</Link>

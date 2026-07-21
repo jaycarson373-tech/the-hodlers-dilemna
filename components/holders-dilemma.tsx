@@ -1,18 +1,19 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { SectionHeading } from "@/components/section-heading";
+import { useBankerFeed } from "@/components/use-banker-feed";
 import { WalletConnect } from "@/components/wallet-connect";
 import {
-  feed,
   leaderboard,
-  mechanics,
   outcomes,
   roundHistory,
   streakSteps,
   tiers,
 } from "@/lib/experiment-data";
+import { lamportsToSol, protocolApiUrl, protocolRequest, type ProtocolStatus } from "@/lib/protocol-api";
+import { SIMULATION_COUNTDOWN_SECONDS, simulationStatus } from "@/lib/protocol-simulation";
 
 type Decision = "cooperate" | "defect" | null;
 
@@ -135,49 +136,63 @@ function StickyBuyBar({ onCopy }: { onCopy: (message: string) => void }) {
 
 function ExperimentPanel({
   broadcastStatus,
+  countdown,
   decision,
   onDecision,
+  simulation,
+  status,
 }: {
   broadcastStatus: string;
+  countdown: number;
   decision: Decision;
   onDecision: (decision: Exclude<Decision, null>) => void;
+  simulation: boolean;
+  status: ProtocolStatus;
 }) {
+  const round = status.round;
+  const currentPot = round?.potLamports ?? status.availablePoolLamports;
+  const hasFundedPot = Number(currentPot ?? "0") > 0;
+  const hasLiveRound = Boolean(status.roundActive && round);
+  const potText = hasFundedPot ? `${lamportsToSol(currentPot)} SOL` : "AWAITING FUNDED POT";
+
   return (
     <div className="experiment-panel live-protocol-panel">
       <div className="live-status-heading">
-        <p><i className="live-dot" /> BANKER ONLINE / LIVE BROADCAST</p>
-        <h2>WAITING FOR THE BANKER&apos;S CALL.</h2>
-        <span>The first case stays sealed until the funded pot is ready. Every holder eventually faces the same offer.</span>
+        <p><i className="live-dot" /> BANKER ONLINE / {simulation ? "SIMULATION" : "LIVE BROADCAST"}</p>
+        <h2>{hasLiveRound ? "THE BOX IS FILLING." : "WAITING FOR THE BANKER'S CALL."}</h2>
+        <span>Six-hour episodes. Creator fees enter the box every 15 minutes. The final hour is decision time.</span>
       </div>
 
       <div className="live-status-grid" aria-label="Round model data">
         <article className="live-status-card round-status-card">
-          <span>BROADCAST STATUS</span>
-          <strong><AnimatedValue>{broadcastStatus}</AnimatedValue></strong>
-          <small>THE BANKER IS REVIEWING</small>
+          <div className="live-card-label-row"><span>EPISODE</span>{simulation ? <b>SIMULATION</b> : null}</div>
+          <strong><AnimatedValue>{hasLiveRound ? `ROUND ${status.currentRound}` : broadcastStatus}</AnimatedValue></strong>
+          <small>{hasLiveRound ? "THE BANKER IS REVIEWING" : "AWAITING FIRST FUNDED POT"}</small>
 
-          <span>NEXT CALL</span>
-          <strong><AnimatedValue>Awaiting Call</AnimatedValue></strong>
-          <small>THE BANKER CONTROLS THE CLOCK</small>
+          <span>{hasLiveRound ? "THE BANKER CALLS IN" : "NEXT CALL"}</span>
+          <strong><AnimatedValue>{countdown > 0 ? formatTime(countdown) : "AWAITING CALL"}</AnimatedValue></strong>
+          <small>DECISION WINDOW / FINAL 60 MINUTES</small>
         </article>
 
         <article className="live-status-card signal-status-card">
-          <span>THE OFFER</span>
-          <strong><AnimatedValue>Decision pending</AnimatedValue></strong>
-          <small>NO OFFER AVAILABLE YET</small>
+          <span>AUDIENCE SIGNAL</span>
+          <strong><AnimatedValue>{simulation ? "62% HODL / 38% NO HODL" : "ESTIMATED SENTIMENT PENDING"}</AnimatedValue></strong>
+          <div className="audience-signal-bar" aria-hidden="true"><i style={{ width: simulation ? "62%" : "50%" }} /><b /></div>
+          <small>ESTIMATED SENTIMENT / NOT FINAL VOTES</small>
 
           <span>CURRENT POT</span>
-          <strong><AnimatedValue>Awaiting funded pot</AnimatedValue></strong>
+          <strong><AnimatedValue>{potText}</AnimatedValue></strong>
 
-          <span>CASE STATUS</span>
-          <strong><AnimatedValue>Locked</AnimatedValue></strong>
+          <span>LAST EPISODE</span>
+          <strong><AnimatedValue>{simulation ? "BOX OPENED / 74.2% HODL" : "AWAITING RESULT"}</AnimatedValue></strong>
         </article>
 
         <article className="live-status-card pot-status-card">
           <span>WHAT&apos;S IN THE BOX?</span>
-          <strong><AnimatedValue>?</AnimatedValue></strong>
-          <small>THE CASE IS SEALED</small>
-          <p>The Banker opens the round when the first funded pot is ready.</p>
+          <strong><AnimatedValue>{hasFundedPot ? lamportsToSol(currentPot) : "?"}</AnimatedValue></strong>
+          <small>{hasFundedPot ? "SOL / LIVE CREATOR FEES" : "THE CASE IS SEALED"}</small>
+          {status.potRolloverCount ? <div className="rollover-badge">POT HAS ROLLED {status.potRolloverCount}X</div> : null}
+          <p>Silence counts as HODL. Selling counts as NO HODL.</p>
 
           <div className="decision-grid" aria-label="Decision controls">
           <motion.button
@@ -201,7 +216,7 @@ function ExperimentPanel({
           </div>
 
           <p className="panel-footnote" role="status" aria-live="polite">
-            Live controls activate when the Banker opens the round.
+            {decision ? `DEMO CHOICE: ${decision === "cooperate" ? "HODL" : "NO HODL"}` : "Choices unlock during the final 60 minutes."}
           </p>
         </article>
       </div>
@@ -212,21 +227,20 @@ function ExperimentPanel({
 export function HoldersDilemma() {
   const reduceMotion = useReducedMotion();
   const [seconds, setSeconds] = useState(6138);
+  const [roundCountdown, setRoundCountdown] = useState(SIMULATION_COUNTDOWN_SECONDS);
+  const [roundStatus, setRoundStatus] = useState<ProtocolStatus | null>(null);
+  const [simulationMode, setSimulationMode] = useState(true);
   const [broadcastIndex, setBroadcastIndex] = useState(0);
   const [decision, setDecision] = useState<Decision>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [uiNotice, setUiNotice] = useState("");
   const [isLoading] = useState(false);
-  const streakRef = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: streakRef,
-    offset: ["start end", "end start"],
-  });
-  const streakProgress = useTransform(scrollYProgress, [0.12, 0.7], [0, 1]);
+  const { events: bankerFeed, isSimulation: feedIsSimulation } = useBankerFeed();
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       setSeconds((current) => (current > 0 ? current - 1 : 6138));
+      setRoundCountdown((current) => Math.max(0, current - 1));
     }, 1000);
 
     const statusPulse = window.setInterval(() => {
@@ -238,6 +252,40 @@ export function HoldersDilemma() {
       window.clearInterval(statusPulse);
     };
   }, [reduceMotion]);
+
+  useEffect(() => {
+    if (!protocolApiUrl) return;
+    let active = true;
+
+    const refreshStatus = async () => {
+      try {
+        const next = await protocolRequest<ProtocolStatus>("/api/status");
+        if (!active) return;
+        if (!next.configured) {
+          setRoundStatus(null);
+          setSimulationMode(true);
+          return;
+        }
+        setRoundStatus(next);
+        setSimulationMode(false);
+        const target = next.roundActive ? next.round?.closesAt : next.nextRoundAt;
+        setRoundCountdown(target ? Math.max(0, Math.floor((new Date(target).getTime() - Date.now()) / 1000)) : 0);
+      } catch (statusError) {
+        console.error("Live panel status refresh failed", statusError);
+        if (active) {
+          setRoundStatus(null);
+          setSimulationMode(true);
+        }
+      }
+    };
+
+    void refreshStatus();
+    const interval = window.setInterval(() => void refreshStatus(), 10_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     if (!decision) return;
@@ -252,6 +300,7 @@ export function HoldersDilemma() {
 
   const closeMenu = () => setMenuOpen(false);
   const broadcastStatus = ["BANKER ONLINE", "ROUND LOCKED", "OFFER INCOMING", "CASE OPENING", "DECISION PENDING", "OFFER LOCKED"][broadcastIndex];
+  const displayRoundStatus = simulationMode ? simulationStatus : roundStatus ?? simulationStatus;
 
   return (
     <>
@@ -392,8 +441,11 @@ export function HoldersDilemma() {
           <Reveal>
             <ExperimentPanel
               broadcastStatus={broadcastStatus}
+              countdown={roundCountdown}
               decision={decision}
               onDecision={setDecision}
+              simulation={simulationMode}
+              status={displayRoundStatus}
             />
           </Reveal>
         </section>
@@ -402,9 +454,9 @@ export function HoldersDilemma() {
           <Reveal>
             <div className="game-entry-card">
               <div className="game-entry-copy">
-                <span>LIVE GAME ROOM / 30-MINUTE ROUNDS</span>
+                <span>LIVE GAME ROOM / 6-HOUR EPISODES</span>
                 <h2>READY TO OPEN YOUR BOX?</h2>
-                <p>Connect a Solana wallet, claim your 500K-token seat, then choose HODL or NO HODL before the Banker closes the case.</p>
+                <p>Creator fees enter the pot every 15 minutes. The HODL or NO HODL decision unlocks during the final hour.</p>
               </div>
               <div className="game-entry-steps" aria-label="Game entry steps">
                 <span>01 CONNECT</span>
@@ -426,24 +478,27 @@ export function HoldersDilemma() {
           />
 
           <Reveal>
-            <div className="matrix" role="group" aria-label="Game theory outcome matrix">
-              <div className="matrix-corner-label">YOUR CHOICE ↓<br />BOARD RESULT →</div>
-              <div className="matrix-column">MAJORITY HODL</div>
-              <div className="matrix-column">TOO MANY TAKE THE DEAL</div>
-              <div className="matrix-row">YOU HODL</div>
-              {outcomes.slice(0, 2).map((outcome, index) => (
-                <article className={`outcome-card ${outcome.tone}`} key={`${outcome.you}-${outcome.majority}`}>
+            <div className="rules-terminal" aria-labelledby="rules-title">
+              <div className="rules-terminal-head">
+                <span>THE RULES</span>
+                <strong id="rules-title">THE 70% LINE DECIDES WHETHER THE BOX OPENS.</strong>
+              </div>
+              <div className="rules-terminal-grid">
+                <article><span>70% LINE</span><p>Weighted HODL must reach at least 70% of threshold weight. Snapshot balance decides the line; dust cannot swing it.</p></article>
+                <article><span>SILENCE</span><p>Silence counts as HODL at normal weight. Passive holders are never punished.</p></article>
+                <article><span>SELL / TRANSFER OUT</span><p>Any balance decrease forces NO HODL, fully resets the streak, and makes the wallet ineligible for the defector tranche.</p></article>
+                <article><span>SIGNED NO HODL</span><p>If the line holds, signed defectors are paid at 1.5x weight from a capped 20% tranche, then drop one streak tier.</p></article>
+              </div>
+              <p className="rules-terminal-lock">SELL AND YOU&apos;RE OUT. DEFECT AND YOU&apos;RE PAID.</p>
+            </div>
+          </Reveal>
+
+          <Reveal>
+            <div className="rules-outcome-grid" role="group" aria-label="Round outcome rules">
+              {outcomes.map((outcome) => (
+                <article className={`outcome-card ${outcome.tone}`} key={outcome.you}>
                   <div className="mobile-matrix-label"><span>{outcome.you}</span><span>{outcome.majority}</span></div>
-                  <span className="outcome-code">OUTCOME / {index === 0 ? "A" : "B"}</span>
-                  <h3>{outcome.title}</h3>
-                  <p>{outcome.copy}</p>
-                </article>
-              ))}
-              <div className="matrix-row">YOU TAKE THE DEAL</div>
-              {outcomes.slice(2).map((outcome, index) => (
-                <article className={`outcome-card ${outcome.tone}`} key={`${outcome.you}-${outcome.majority}`}>
-                  <div className="mobile-matrix-label"><span>{outcome.you}</span><span>{outcome.majority}</span></div>
-                  <span className="outcome-code">OUTCOME / {index === 0 ? "C" : "D"}</span>
+                  <span className="outcome-code">{outcome.you} / {outcome.majority}</span>
                   <h3>{outcome.title}</h3>
                   <p>{outcome.copy}</p>
                 </article>
@@ -478,37 +533,35 @@ export function HoldersDilemma() {
           </Reveal>
         </section>
 
-        <section className="content-section streak-section section-shell" id="streaks" ref={streakRef}>
+        <section className="content-section streak-section section-shell" id="streaks">
           <SectionHeading
             number="02"
-            eyebrow="DIAMOND HANDS STREAK"
+            eyebrow="STREAK LADDER"
             title="CONVICTION COMPOUNDS."
-            description="Your fee-share multiplier climbs the board for as long as your wallet holds without selling. Sell any amount and you drop back to the bottom row."
+            description="Successful HODL episodes advance the streak. A signed NO HODL drops one tier. Any sell or transfer out resets the streak to zero."
           />
 
           <div className="streak-layout">
-            <div className="streak-timeline">
-              <div className="timeline-line" aria-hidden="true">
-                <motion.div className="timeline-fill" style={{ scaleX: reduceMotion ? 1 : streakProgress }} />
-              </div>
-              {streakSteps.map((step, index) => (
-                <Reveal className="streak-step" delay={index * 0.07} key={step.label}>
-                  <span className="streak-node" aria-hidden="true" />
-                  <span>{step.label}</span>
-                  <strong>{step.value}</strong>
-                  {index === streakSteps.length - 1 ? <small>MULTIPLIER PROGRESSION</small> : null}
-                </Reveal>
-              ))}
-            </div>
+            <Reveal className="streak-ladder-wrap">
+              <table className="streak-ladder">
+                <caption className="sr-only">Streak multiplier ladder</caption>
+                <thead><tr><th>STREAK</th><th>MULTIPLIER</th></tr></thead>
+                <tbody>
+                  {streakSteps.map((step) => (
+                    <tr key={step.label}><td>{step.label}</td><td>{step.value}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </Reveal>
 
             <Reveal className="wallet-card-wrap" delay={0.12}>
               <div className="wallet-card terminal-frame">
-                <div className="wallet-card-header"><span>WALLET SEAT</span><span className="status-dot">BANKER WATCH</span></div>
+                <div className="wallet-card-header"><span>STREAK FORMAT</span><span className="status-dot">BANKER WATCH</span></div>
                 <div className="wallet-ident"><OfficialMark className="official-mark-wallet" /><strong>7F3...A91</strong></div>
                 <dl>
-                  <div><dt>Current Streak</dt><dd>12 Days</dd></div>
-                  <div><dt>Holding Tier</dt><dd>Diamond Hands</dd></div>
-                  <div className="multiplier-row"><dt>Current Multiplier</dt><dd>2.7x</dd></div>
+                  <div><dt>Current Streak</dt><dd>7 Episodes</dd></div>
+                  <div><dt>Streak Tier</dt><dd>6–9</dd></div>
+                  <div className="multiplier-row"><dt>Current Multiplier</dt><dd>1.5x</dd></div>
                 </dl>
                 <div className="wallet-bar"><motion.span animate={reduceMotion ? undefined : { width: ["68%", "72%", "68%"] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }} /></div>
                 <p>WALLET PROFILE FORMAT</p>
@@ -516,7 +569,7 @@ export function HoldersDilemma() {
             </Reveal>
           </div>
 
-          <p className="configuration-note"><span>ELIGIBILITY NOTE</span> Wallets need at least 500,000 tokens to enter the live game.</p>
+          <p className="configuration-note"><span>WEIGHTING NOTE</span> Payout weight uses snapshot balance × streak multiplier. Signed HODL receives a 5% participation bonus for that episode only.</p>
         </section>
 
         <section className="content-section section-shell tier-section" id="boxes">
@@ -643,9 +696,9 @@ export function HoldersDilemma() {
             description="Round, wallet, bounty, and temptation events are recorded in the protocol interface."
           />
           <div className="feed-shell">
-            <div className="feed-status"><span><i /> EVENT STREAM</span><span>UTC</span></div>
-            {feed.map((item, index) => (
-              <Reveal className={`feed-row ${item.tone}`} delay={index * 0.08} key={item.event}>
+            <div className="feed-status"><span><i /> EVENT STREAM</span><span>{feedIsSimulation ? "SIMULATION" : "REALTIME / UTC"}</span></div>
+            {bankerFeed.map((item, index) => (
+              <Reveal className={`feed-row ${item.tone}`} delay={index * 0.08} key={item.id}>
                 <time>{item.time}</time>
                 <span className="feed-marker" aria-hidden="true" />
                 <div><strong>{item.event}</strong><p>{item.detail}</p></div>
@@ -659,17 +712,29 @@ export function HoldersDilemma() {
           <SectionHeading
             number="07"
             eyebrow="MECHANICS"
-            title="HOW THE GAME WORKS."
+            title="HOW IT WORKS"
           />
-          <div className="mechanics-list">
-            {mechanics.map((mechanic, index) => (
-              <Reveal className="mechanic-row" delay={index * 0.06} key={mechanic.number}>
-                <span className="mechanic-number">{mechanic.number}</span>
-                <h3>{mechanic.title}</h3>
-                <p>{mechanic.copy}</p>
-                <span className="mechanic-arrow" aria-hidden="true">↘</span>
-              </Reveal>
-            ))}
+          <div className="how-it-works-list">
+            <Reveal className="how-it-works-step">
+              <span>01</span>
+              <div><h3>01 — CONNECT.</h3><p>Connect your wallet. Sign a message — no transaction, no approval, nothing leaves your wallet. Your box appears: balance, streak, multiplier, and your projected share of the pot if you hodl.</p></div>
+            </Reveal>
+            <Reveal className="how-it-works-step" delay={0.06}>
+              <span>02</span>
+              <div><h3>02 — THE POT FILLS.</h3><p>Creator fees sweep into the box every 15 minutes. All round long you can watch your number grow. That&apos;s all holding costs you: nothing.</p></div>
+            </Reveal>
+            <Reveal className="how-it-works-step" delay={0.12}>
+              <span>03</span>
+              <div><h3>03 — THE CALL COMES.</h3><p>Final hour of the episode, two buttons go live: <strong>HODL</strong> or <strong>NO HODL</strong>. Your choice is sealed — hashed on submission, revealed only after the window closes. Nobody sees the votes. Not even us until it&apos;s over. The audience signal bar? Non-binding. The crowd might be bluffing.</p></div>
+            </Reveal>
+            <Reveal className="how-it-works-step" delay={0.18}>
+              <span>04</span>
+              <div><h3>04 — THE BOX OPENS. OR IT DOESN&apos;T.</h3><p>Hodlers hold the line (70%+) → the box opens. Hodlers split the pot by bag × streak. Streaks tick up.<br />You took NO HODL and they held anyway → you get the defector&apos;s deal: 1.5x weight from a capped tranche. But your streak drops a tier. Money now, compounding later. Pick one.<br />Too many fold → nobody gets paid. The pot rolls into the next box. Bigger box, same question.</p></div>
+            </Reveal>
+            <Reveal className="how-it-works-step" delay={0.24}>
+              <span>05</span>
+              <div><h3>05 — YOU DON&apos;T EVEN HAVE TO SHOW UP.</h3><p>Silence counts as HODL at full weight. Voting HODL yourself earns a small bonus. But sell during a round and it doesn&apos;t matter what you clicked — <strong>selling is NO HODL. Streak gone. No deal. Sell and you&apos;re out. Defect and you&apos;re paid.</strong></p><p>Payouts hit wallets automatically. No claiming. Then the next episode begins.</p></div>
+            </Reveal>
           </div>
         </section>
 

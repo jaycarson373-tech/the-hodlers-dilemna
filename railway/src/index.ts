@@ -114,6 +114,7 @@ type DbConfig = {
   cluster?: string;
   current_round: number | string;
   available_pool_lamports: number | string;
+  pot_rollover_count?: number;
   round_length_seconds: number | string;
   claim_window_seconds: number | string;
   defect_threshold_bps: number;
@@ -619,6 +620,7 @@ app.get("/api/status", async (_req, res, next) => {
       tokenDecimals: decimals,
       currentRound: String(config.current_round),
       availablePoolLamports: String(config.available_pool_lamports),
+      potRolloverCount: config.pot_rollover_count ?? 0,
       roundLengthSeconds: String(config.round_length_seconds),
       claimWindowSeconds: String(config.claim_window_seconds),
       defectThresholdBps: config.defect_threshold_bps,

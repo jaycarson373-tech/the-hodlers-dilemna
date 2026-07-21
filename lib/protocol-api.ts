@@ -26,6 +26,7 @@ export type ProtocolStatus = {
   activeHolders?: number;
   longestStreakDays?: number;
   minHoldingTokens?: string;
+  potRolloverCount?: number;
   round?: ProtocolRound | null;
 };
 

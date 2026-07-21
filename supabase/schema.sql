@@ -10,6 +10,7 @@ create table if not exists public.protocol_config (
   cluster text not null default 'mainnet-beta',
   current_round bigint not null default 0,
   available_pool_lamports bigint not null default 0,
+  pot_rollover_count integer not null default 0,
   round_length_seconds bigint not null default 1800,
   claim_window_seconds bigint not null default 604800,
   defect_threshold_bps integer not null default 5000,
@@ -79,8 +80,55 @@ create table if not exists public.protocol_events (
   occurred_at timestamptz not null default now()
 );
 
+-- Public, presentation-safe event stream for the Banker Feed. The worker may
+-- continue writing protocol_events; the trigger below mirrors only display
+-- fields and keeps infrastructure details out of the browser-facing table.
+create table if not exists public.feed_events (
+  id uuid primary key default gen_random_uuid(),
+  event_type text not null,
+  round_number bigint,
+  title text,
+  detail text not null,
+  tone text not null default 'neutral' check (tone in ('cooperate','defect','gold','neutral')),
+  occurred_at timestamptz not null default now()
+);
+
+alter table public.protocol_config
+  add column if not exists pot_rollover_count integer not null default 0;
+
+create or replace function public.mirror_protocol_event_to_feed()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.feed_events (event_type, round_number, title, detail, tone, occurred_at)
+  values (
+    new.event_type,
+    new.round_number,
+    replace(new.event_type, '_', ' '),
+    new.detail,
+    case
+      when new.event_type ~* '(ROLL|DEFECT|SELL|NO_HODL|CLOSED)' then 'defect'
+      when new.event_type ~* '(OPEN|HODL|PAID|SETTLED)' then 'cooperate'
+      when new.event_type ~* '(FEE|POT|SWEEP|BONUS)' then 'gold'
+      else 'neutral'
+    end,
+    new.occurred_at
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists protocol_events_to_feed on public.protocol_events;
+create trigger protocol_events_to_feed
+after insert on public.protocol_events
+for each row execute function public.mirror_protocol_event_to_feed();
+
 create index if not exists holders_streak_idx on public.holders (streak_started_at asc) where position_amount > 0;
 create index if not exists protocol_events_time_idx on public.protocol_events (occurred_at desc);
+create index if not exists feed_events_time_idx on public.feed_events (occurred_at desc);
 create index if not exists round_votes_round_idx on public.round_votes (round_number, choice);
 
 alter table public.protocol_config enable row level security;
@@ -89,6 +137,7 @@ alter table public.holders enable row level security;
 alter table public.round_votes enable row level security;
 alter table public.reward_claims enable row level security;
 alter table public.protocol_events enable row level security;
+alter table public.feed_events enable row level security;
 
 drop policy if exists "public config read" on public.protocol_config;
 create policy "public config read" on public.protocol_config for select using (true);
@@ -102,6 +151,9 @@ drop policy if exists "public claims read" on public.reward_claims;
 create policy "public claims read" on public.reward_claims for select using (true);
 drop policy if exists "public events read" on public.protocol_events;
 create policy "public events read" on public.protocol_events for select using (true);
+drop policy if exists "public feed read" on public.feed_events;
+create policy "public feed read" on public.feed_events for select using (true);
+grant select on public.feed_events to anon, authenticated;
 
 do $$ begin
   alter publication supabase_realtime add table public.protocol_config;
@@ -114,4 +166,7 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table public.protocol_events;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.feed_events;
 exception when duplicate_object then null; end $$;

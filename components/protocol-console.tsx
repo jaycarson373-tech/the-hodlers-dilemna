@@ -10,6 +10,7 @@ import {
   type HolderState,
   type ProtocolStatus,
 } from "@/lib/protocol-api";
+import { SIMULATION_COUNTDOWN_SECONDS, simulationStatus } from "@/lib/protocol-simulation";
 
 const tierNames = ["Paper Hands", "Iron Hands", "Diamond Hands", "Obsidian Hands"];
 const base64FromBytes = (value: Uint8Array) => {
@@ -41,14 +42,26 @@ export function ProtocolConsole() {
   const [status, setStatus] = useState<ProtocolStatus | null>(null);
   const [holder, setHolder] = useState<HolderState | null>(null);
   const [sessionToken, setSessionToken] = useState("");
-  const [countdown, setCountdown] = useState(0);
+  const [countdown, setCountdown] = useState(SIMULATION_COUNTDOWN_SECONDS);
+  const [simulationMode, setSimulationMode] = useState(!protocolApiUrl);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
-    if (!protocolApiUrl) return;
+    if (!protocolApiUrl) {
+      setSimulationMode(true);
+      return;
+    }
     const nextStatus = await protocolRequest<ProtocolStatus>("/api/status");
+    if (!nextStatus.configured) {
+      setSimulationMode(true);
+      setStatus(null);
+      setHolder(null);
+      setCountdown((current) => current || SIMULATION_COUNTDOWN_SECONDS);
+      return;
+    }
+    setSimulationMode(false);
     setStatus(nextStatus);
     const target = nextStatus.roundActive ? nextStatus.round?.closesAt : nextStatus.nextRoundAt;
     setCountdown(remainingSeconds(target));
@@ -58,9 +71,17 @@ export function ProtocolConsole() {
   useEffect(() => {
     if (!protocolApiUrl) return;
     const initial = window.setTimeout(() => {
-      void refresh().catch((refreshError) => setError(refreshError instanceof Error ? refreshError.message : "Unable to load the protocol."));
+      void refresh().catch((refreshError) => {
+        console.error("Protocol status refresh failed", refreshError);
+        setSimulationMode(true);
+        setStatus(null);
+      });
     }, 0);
-    const interval = window.setInterval(() => void refresh().catch(() => undefined), 10_000);
+    const interval = window.setInterval(() => void refresh().catch((refreshError) => {
+      console.error("Protocol status refresh failed", refreshError);
+      setSimulationMode(true);
+      setStatus(null);
+    }), 10_000);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(interval);
@@ -123,25 +144,25 @@ export function ProtocolConsole() {
     }
   }, [address, refresh, sessionToken, signIn, wallet]);
 
-  const decimals = status?.tokenDecimals ?? 6;
+  const displayStatus = simulationMode ? simulationStatus : status;
+  const decimals = displayStatus?.tokenDecimals ?? 6;
   const positionAmount = holder?.position ? baseUnitsToTokenAmount(holder.position.amount, decimals) : "0";
-  const round = status?.round;
+  const round = displayStatus?.round;
   const hasPosition = Boolean(holder?.position && BigInt(holder.position.amount) > 0n);
   const canVote = Boolean(connected && sessionToken && hasPosition && status?.roundActive && round?.status === "open");
   const canClaim = Boolean(connected && sessionToken && round?.status === "settled");
-  const protocolReady = Boolean(protocolApiUrl && status?.configured);
-  const hasLiveRound = Boolean(protocolReady && status?.roundActive && round);
-  const currentPot = round?.potLamports ?? status?.availablePoolLamports;
+  const protocolReady = Boolean(!simulationMode && protocolApiUrl && status?.configured);
+  const hasLiveRound = Boolean(displayStatus?.roundActive && round);
+  const currentPot = round?.potLamports ?? displayStatus?.availablePoolLamports;
   const hasFundedPot = hasPositiveLamports(currentPot);
-  const hasVotes = Boolean(round && round.voterCount > 0);
-  const inFinalMinute = countdown > 0 && countdown <= 60 && Boolean(status?.roundActive);
+  const inFinalMinute = countdown > 0 && countdown <= 60 && Boolean(displayStatus?.roundActive);
   const countdownText = countdown > 0 ? formatCountdown(countdown) : "AWAITING CALL";
   const headline = useMemo(() => {
-    if (!protocolReady) return "WAITING FOR THE BANKER'S CALL.";
-    if (status?.roundActive) return "THE OFFER IS LIVE.";
+    if (simulationMode) return "THE BOX IS FILLING.";
+    if (displayStatus?.roundActive) return "THE OFFER IS LIVE.";
     if (hasFundedPot) return "OFFER INCOMING.";
     return "WAITING FOR THE BANKER'S CALL.";
-  }, [hasFundedPot, protocolReady, status?.roundActive]);
+  }, [displayStatus?.roundActive, hasFundedPot, simulationMode]);
 
   return (
     <section className={`protocol-console section-shell ${inFinalMinute ? "final-minute" : ""}`} id="play" aria-labelledby="protocol-console-title">
@@ -150,8 +171,9 @@ export function ProtocolConsole() {
           <div className="broadcast-status-row" aria-label="Broadcast status">
             <span><i /> LIVE</span>
             <span>BANKER ONLINE</span>
-            <span>{hasLiveRound ? `ROUND ${status?.currentRound}` : "BANKER ONLINE"}</span>
+            <span>{hasLiveRound ? `ROUND ${displayStatus?.currentRound}` : "BANKER ONLINE"}</span>
             <span>{inFinalMinute ? "BANKER PREPARING OFFER" : hasLiveRound ? "DECISION PENDING" : "NEXT OFFER PENDING"}</span>
+            {simulationMode ? <span className="simulation-tag">SIMULATION</span> : null}
           </div>
           <span>THE BANKER&apos;S ROOM / LIVE SOLANA GAME</span>
           <h2 id="protocol-console-title">{headline}</h2>
@@ -163,14 +185,17 @@ export function ProtocolConsole() {
       </div>
 
       {hasLiveRound || hasFundedPot ? (
+        <>
+        {displayStatus?.potRolloverCount ? <div className="rollover-badge">POT HAS ROLLED {displayStatus.potRolloverCount}X</div> : null}
         <div className="protocol-stats">
-          <div><span>ROUND</span><strong>{hasLiveRound ? status?.currentRound : "Offer incoming"}</strong></div>
+          <div><span>ROUND</span><strong>{hasLiveRound ? displayStatus?.currentRound : "Offer incoming"}</strong></div>
           <div><span>CURRENT POT</span><strong>{hasFundedPot ? `${lamportsToSol(currentPot)} SOL` : "Awaiting funded pot"}</strong></div>
-          <div><span>HODL</span><strong>{hasVotes ? `${round?.cooperatePercent.toFixed(1)}%` : "Decision pending"}</strong></div>
-          <div><span>NO HODL</span><strong>{hasVotes ? `${round?.defectPercent.toFixed(1)}%` : "Decision pending"}</strong></div>
-          <div><span>CONTESTANTS</span><strong>{status?.activeHolders ? status.activeHolders.toLocaleString() : "Waiting for holders"}</strong></div>
-          <div><span>YOUR SEAT</span><strong>{holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : connected ? "Claim seat" : "Connect wallet"}</strong></div>
+          <div><span>AUDIENCE SIGNAL</span><strong>{simulationMode ? "62% HODL / 38% NO HODL" : "ESTIMATED SENTIMENT PENDING"}</strong><small>NON-BINDING / NOT FINAL VOTES</small></div>
+          <div><span>LAST EPISODE</span><strong>{simulationMode ? "BOX OPENED / 74.2% HODL" : "AWAITING RESULT"}</strong></div>
+          <div><span>CONTESTANTS</span><strong>{displayStatus?.activeHolders ? displayStatus.activeHolders.toLocaleString() : "Waiting for holders"}</strong></div>
+          <div><span>YOUR SEAT</span><strong>{simulationMode ? "DEMO BOX" : holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : connected ? "Claim seat" : "Connect wallet"}</strong></div>
         </div>
+        </>
       ) : (
         <div className="protocol-waiting-card" role="status" aria-live="polite">
           <span>BANKER ONLINE</span>
@@ -180,8 +205,8 @@ export function ProtocolConsole() {
       )}
 
       <div className="protocol-wallet-row">
-        <div><span>WALLET ACCESS</span><strong>{address ? `${address.slice(0, 5)}…${address.slice(-5)}` : "NOT CONNECTED"}</strong><small>{sessionToken ? "SIGNED IN / GAME ENABLED" : connected ? "SIGN IN TO PLAY" : "CONNECT ABOVE TO CONTINUE"}</small></div>
-        {connected && !sessionToken ? <button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signInError) => setError(signInError instanceof Error ? signInError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button> : null}
+        <div><span>WALLET ACCESS</span><strong>{address ? `${address.slice(0, 5)}…${address.slice(-5)}` : "NOT CONNECTED"}</strong><small>{simulationMode ? "SIMULATION / NO TRANSACTIONS" : sessionToken ? "SIGNED IN / GAME ENABLED" : connected ? "SIGN IN TO PLAY" : "CONNECT ABOVE TO CONTINUE"}</small></div>
+        {connected && !sessionToken && !simulationMode ? <button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signInError) => setError(signInError instanceof Error ? signInError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button> : null}
       </div>
 
       {protocolApiUrl && status && !status.configured && connected && sessionToken ? (
@@ -205,8 +230,8 @@ export function ProtocolConsole() {
 
       {holder?.position ? <div className="protocol-position-line"><span>TIER <b>{tierNames[holder.position.tier] ?? holder.position.tierName}</b></span><span>STREAK <b>{Math.floor(Number(holder.position.streakSeconds) / 86_400)} DAYS</b></span><span>HELD <b>{positionAmount}</b></span></div> : null}
       {message ? <p className="protocol-success" role="status">{message}</p> : null}
-      {error ? <p className="protocol-error" role="alert">{error}</p> : null}
-      <p className="protocol-console-foot">Connect wallet → sign in → claim your 500K-token seat → wait for the Banker&apos;s call → choose HODL or NO HODL.</p>
+      {error && !simulationMode ? <p className="protocol-error" role="alert">{error}</p> : null}
+      <p className="protocol-console-foot">Connect wallet → sign in → view your box → wait for the final-hour call → choose HODL or NO HODL.</p>
     </section>
   );
 }

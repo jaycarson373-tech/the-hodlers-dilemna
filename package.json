@@ -20,6 +20,7 @@
     "@solana/react-hooks": "1.4.1",
     "@solana/sysvars": "4.0.0",
     "@solana/transactions": "5.5.1",
+    "@supabase/supabase-js": "2.57.4",
     "framer-motion": "12.42.2",
     "next": "16.2.6",
     "react": "19.2.6",
