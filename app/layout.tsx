@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import { SolanaWalletProvider } from "@/components/solana-wallet-provider";
 import "./globals.css";
 import "./broadcast.css";
@@ -14,6 +14,12 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-space-grotesk",
+});
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-ibm-plex-mono",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -53,7 +59,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={spaceGrotesk.variable}>
+      <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}>
         <SolanaWalletProvider>{children}</SolanaWalletProvider>
       </body>
     </html>
