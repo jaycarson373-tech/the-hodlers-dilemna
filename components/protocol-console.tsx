@@ -235,7 +235,7 @@ export function ProtocolConsole() {
       <section className={`broadcast-room ${finalMinute ? "is-final-minute" : ""} ${holder?.soldThisRound ? "is-out" : ""}`} id="game-console">
         <div className="broadcast-phase">
           <div><span>EPISODE {episode} · {status?.roundActive ? decisionOpen ? "DECISION" : "ACCUMULATING" : "STANDBY"}</span><strong>{phase}</strong></div>
-          <time>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : standbyCountdown ? `NEXT 15-MINUTE CALL ${standbyCountdown}` : "WAITING FOR THE BANKER"}</time>
+          <time><span>{status?.roundActive ? (decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN") : standbyCountdown ? "NEXT 15-MINUTE CALL" : "WAITING FOR"}</span><b>{status?.roundActive ? formatCountdown(callCountdown) : standbyCountdown || "THE BANKER"}</b></time>
         </div>
 
         <div className="broadcast-grid">
