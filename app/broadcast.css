@@ -3107,3 +3107,176 @@ html.dilemma-intro-active body {
     padding-top: clamp(88px, 14svh, 130px) !important;
   }
 }
+
+/* Exact supplied parallax artwork: landing market fall + game pill hand */
+.show-home::before {
+  background:
+    linear-gradient(90deg, rgba(8, 11, 10, .22), rgba(8, 11, 10, .68) 48%, rgba(8, 11, 10, .22)),
+    linear-gradient(180deg, rgba(8, 11, 10, .20), rgba(8, 11, 10, .72) 72%, #080b0a),
+    url("/holders-dilemma-market-bg.jpg") center top / cover no-repeat !important;
+  opacity: .82 !important;
+  filter: saturate(.95) contrast(1.04) brightness(.82);
+}
+
+.show-home::after {
+  background:
+    linear-gradient(rgba(170, 255, 219, .022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(170, 255, 219, .018) 1px, transparent 1px),
+    radial-gradient(circle at 22% 70%, rgba(78, 219, 154, .12) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 34%, rgba(255, 92, 108, .11) 0 1px, transparent 2px),
+    linear-gradient(90deg, rgba(0, 0, 0, .12), rgba(0, 0, 0, .64) 50%, rgba(0, 0, 0, .12)) !important;
+  background-size: 88px 88px, 88px 88px, 96px 96px, 120px 120px, 100% 100% !important;
+  opacity: .36 !important;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,.88), rgba(0,0,0,.62) 52%, rgba(0,0,0,.34)) !important;
+}
+
+.home-live-section::before {
+  background:
+    radial-gradient(circle at 38% 44%, rgba(78, 219, 154, .22), transparent 30%),
+    radial-gradient(circle at 62% 44%, rgba(255, 92, 108, .20), transparent 31%),
+    linear-gradient(180deg, rgba(8,11,10,.92), rgba(8,11,10,.25) 42%, rgba(8,11,10,.92)),
+    url("/holders-dilemma-pills-bg.jpg") center 36% / min(1060px, 88vw) auto no-repeat !important;
+  opacity: .26 !important;
+  filter: saturate(.92) contrast(1.04) brightness(.78);
+}
+
+.broadcast-page::before {
+  background:
+    linear-gradient(rgba(170, 255, 219, .022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(170, 255, 219, .018) 1px, transparent 1px),
+    radial-gradient(circle at 34% 40%, rgba(78, 219, 154, .20), transparent 28%),
+    radial-gradient(circle at 66% 40%, rgba(255, 92, 108, .18), transparent 29%),
+    linear-gradient(90deg, rgba(8,11,10,.48), rgba(8,11,10,.18) 44%, rgba(8,11,10,.18) 56%, rgba(8,11,10,.48)),
+    linear-gradient(180deg, rgba(8,11,10,.10), rgba(8,11,10,.66) 76%, #080b0a),
+    url("/holders-dilemma-pills-bg.jpg") !important;
+  background-size:
+    92px 92px,
+    92px 92px,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    min(1240px, 112vw) auto !important;
+  background-position:
+    center,
+    center,
+    center,
+    center,
+    center,
+    center,
+    center clamp(82px, 10vh, 145px) !important;
+  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat !important;
+  opacity: .62 !important;
+  filter: saturate(.94) contrast(1.05) brightness(.80);
+}
+
+.broadcast-room::before {
+  background:
+    radial-gradient(circle at 38% 48%, rgba(78,219,154,.17), transparent 27%),
+    radial-gradient(circle at 62% 48%, rgba(255,92,108,.17), transparent 29%),
+    linear-gradient(180deg, rgba(8,11,10,.70), rgba(8,11,10,.14) 44%, rgba(8,11,10,.72)),
+    url("/holders-dilemma-pills-bg.jpg") center center / min(1120px, 86vw) auto no-repeat !important;
+  opacity: .42 !important;
+  filter: saturate(.95) contrast(1.07) brightness(.78);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .show-home::before {
+    animation: suppliedMarketParallax 38s ease-in-out infinite alternate !important;
+  }
+
+  .show-home::after {
+    animation: suppliedDataParallax 46s linear infinite alternate !important;
+  }
+
+  .broadcast-page::before {
+    animation: suppliedPillPageParallax 24s ease-in-out infinite alternate !important;
+  }
+
+  .broadcast-room::before,
+  .home-live-section::before {
+    animation: suppliedPillHandParallax 18s ease-in-out infinite alternate !important;
+  }
+}
+
+@keyframes suppliedMarketParallax {
+  from {
+    background-position: center top, center top, center 0;
+  }
+  to {
+    background-position: center top, center top, center -42px;
+  }
+}
+
+@keyframes suppliedDataParallax {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0, center;
+  }
+  to {
+    background-position: 0 36px, 0 24px, 0 54px, 0 38px, center;
+  }
+}
+
+@keyframes suppliedPillPageParallax {
+  from {
+    background-position: center, center, center, center, center, center, center clamp(82px, 10vh, 145px);
+  }
+  to {
+    background-position: center, center, center, center, center, center, center clamp(116px, 14vh, 190px);
+  }
+}
+
+@keyframes suppliedPillHandParallax {
+  from {
+    transform: translate3d(0, -12px, 0) scale(1);
+  }
+  to {
+    transform: translate3d(0, 20px, 0) scale(1.018);
+  }
+}
+
+@media (max-width: 768px) {
+  .show-home::before {
+    background-size: auto, auto, auto 100% !important;
+    background-position: center top, center top, center top !important;
+    opacity: .66 !important;
+  }
+
+  .home-live-section::before {
+    background-size: auto, auto, auto, min(820px, 168vw) auto !important;
+    background-position: center 44% !important;
+    opacity: .18 !important;
+  }
+
+  .broadcast-page::before {
+    background-size:
+      72px 72px,
+      72px 72px,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      min(880px, 172vw) auto !important;
+    background-position: center, center, center, center, center, center, center 92px !important;
+    opacity: .34 !important;
+  }
+
+  .broadcast-room::before {
+    background-size: auto, auto, auto, min(820px, 172vw) auto !important;
+    opacity: .22 !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .broadcast-page::before {
+    background-size:
+      72px 72px,
+      72px 72px,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      min(760px, 184vw) auto !important;
+    background-position: center, center, center, center, center, center, center 112px !important;
+  }
+}
