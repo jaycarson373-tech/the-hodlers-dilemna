@@ -7,7 +7,7 @@ Live website: [hodlornohodl.fun](https://hodlornohodl.fun/)
 ## Game economy
 
 - Episodes and creator-fee sweeps run every 15 minutes.
-- Eligible wallets hold at least 1,000,000 tokens.
+- Eligible wallets hold at least 300,000 tokens.
 - Weight is snapshot balance × uninterrupted-hold multiplier.
 - The Banker posts a fully funded wallet-specific offer before choices open.
 - Creator fees split 80% to The Box and 20% to the separate Banker Reserve.
