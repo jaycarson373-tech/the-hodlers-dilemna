@@ -1445,9 +1445,8 @@ app.post("/api/vote/commit", async (req, res, next) => {
     const round = await fetchCurrentRound(config);
     if (!round || !isOpenRoundStatus(round.status)) throw new Error("No round is currently open.");
     if (String(round.round_number) !== body.roundNumber) throw new Error("This decision belongs to a different round.");
-    const now = Date.now();
     const closesAt = new Date(round.closes_at).getTime();
-    if (now < closesAt - env.DECISION_WINDOW_SECONDS * 1_000 || now >= closesAt) throw new Error("Choices unlock when the Banker calls.");
+    if (Date.now() >= closesAt) throw new Error("This episode has ended. Wait for the next Banker call.");
 
     const holder = await syncHolder(new PublicKey(body.wallet));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens to vote.`);

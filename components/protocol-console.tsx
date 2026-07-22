@@ -175,9 +175,8 @@ export function ProtocolConsole() {
   const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports ?? "0";
   const bankerPot = status?.bankerWalletBalanceLamports ?? "0";
   const hasPot = positive(pot);
-  const decisionWindow = Number(status?.decisionWindowSeconds ?? 300);
-  const decisionOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 0 && countdown <= decisionWindow);
-  const callCountdown = decisionOpen ? countdown : Math.max(0, countdown - decisionWindow);
+  const decisionOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 0);
+  const callCountdown = countdown;
   const finalMinute = decisionOpen && countdown <= 60;
   const hasPosition = Boolean(holder?.position && positive(holder.position.amount));
   const canChoose = Boolean(connected && sessionToken && hasPosition && decisionOpen && !holder?.soldThisRound);
@@ -191,15 +190,22 @@ export function ProtocolConsole() {
   const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : "—";
   const nextCallCountdown = status?.nextRoundAt ? remainingSeconds(status.nextRoundAt) : 0;
   const standbyCountdown = nextCallCountdown ? formatCountdown(nextCallCountdown) : "";
-  const phase = !status?.configured ? "WAITING FOR THE BANKER" : !status.roundActive ? "AWAITING FUNDED BOX" : decisionOpen ? "THE BANKER IS CALLING" : "THE BOX IS FILLING";
+  const phase = !status?.configured ? "WAITING FOR THE BANKER" : !status.roundActive ? "AWAITING FUNDED BOX" : finalMinute ? "FINAL MINUTE" : decisionOpen ? "THE BANKER IS CALLING" : "THE BOX IS FILLING";
 
   return (
     <>
       <section className={`broadcast-room ${finalMinute ? "is-final-minute" : ""} ${holder?.soldThisRound ? "is-out" : ""}`} id="game-console">
         <div className="broadcast-phase">
-          <div><span>EPISODE {episode} · {status?.roundActive ? decisionOpen ? "DECISION" : "ACCUMULATING" : "STANDBY"}</span><strong>{phase}</strong></div>
-          <time>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : standbyCountdown ? `NEXT 15-MINUTE CALL ${standbyCountdown}` : "WAITING FOR THE BANKER"}</time>
+          <div><span>EPISODE {episode} · {status?.roundActive ? "BANKER OFFER LIVE" : "STANDBY"}</span><strong>{phase}</strong></div>
+          <time>{status?.roundActive ? `${finalMinute ? "FINAL 60 SECONDS" : "THE BOX OPENS IN"} ${formatCountdown(callCountdown)}` : standbyCountdown ? `NEXT 15-MINUTE CALL ${standbyCountdown}` : "WAITING FOR THE BANKER"}</time>
         </div>
+        {finalMinute ? (
+          <div className="broadcast-final-countdown" role="status">
+            <span>FINAL 60 SECONDS</span>
+            <strong>{formatCountdown(countdown)}</strong>
+            <p>All decisions stay private. Votes reveal when the round ends.</p>
+          </div>
+        ) : null}
 
         <div className="broadcast-grid">
           <article className="broadcast-panel broadcast-box-panel">
@@ -216,7 +222,7 @@ export function ProtocolConsole() {
               <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>HODL</strong><span>Reject the guaranteed offer and play for the Box.</span></button>
               <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>NO HODL</strong><span>Take {offer} guaranteed.</span></button>
             </div>
-            <p className="broadcast-lock-note">{sealedChoice ? "DECISION SEALED — WAITING FOR THE REVEAL." : decisionOpen ? "CHOICES ARE OPEN · EVERY DECISION REMAINS SEALED" : `CHOICES UNLOCK WHEN THE BANKER CALLS${callCountdown ? ` · ${formatCountdown(callCountdown)}` : ""}`}</p>
+            <p className="broadcast-lock-note">{sealedChoice ? "DECISION SEALED — WAITING FOR THE REVEAL." : decisionOpen ? "CHOICES ARE OPEN · ALL VOTES ARE PRIVATE UNTIL THE REVEAL" : `THE BANKER CALLS IN ${standbyCountdown || formatCountdown(callCountdown)}`}</p>
             <p className="broadcast-rule-line">SILENCE COUNTS AS HODL. SELLING COUNTS AS NO HODL.</p>
           </article>
 
