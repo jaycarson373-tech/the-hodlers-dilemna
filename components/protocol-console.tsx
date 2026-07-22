@@ -15,13 +15,6 @@ import {
   type ProtocolStatus,
 } from "@/lib/protocol-api";
 
-type AudienceSignal = {
-  hodl: number | null;
-  noHodl: number | null;
-  sampleSize: number;
-  label: string;
-  phase?: "waiting" | "live" | "locked" | "revealing" | "final";
-};
 type SealedChoice = "cooperate" | "defect";
 type GameResponse = { ok?: boolean; message?: string };
 
@@ -54,7 +47,6 @@ export function ProtocolConsole() {
   const [status, setStatus] = useState<ProtocolStatus | null>(null);
   const [holder, setHolder] = useState<HolderState | null>(null);
   const [sessionToken, setSessionToken] = useState("");
-  const [audience, setAudience] = useState<AudienceSignal | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [sealedChoice, setSealedChoice] = useState<SealedChoice | null>(null);
   const [busy, setBusy] = useState("");
@@ -80,9 +72,6 @@ export function ProtocolConsole() {
       setRevealRound(nextStatus.round);
     }
     previousRound.current = nextStatus.round ?? null;
-    if (nextStatus.round?.roundNumber) {
-      setAudience(await protocolRequest<AudienceSignal>(`/api/audience-signal/${nextStatus.round.roundNumber}`));
-    }
     if (address && authToken && nextStatus.configured) {
       const nextHolder = await protocolRequest<HolderState>(`/api/holder/${address}`, undefined, authToken);
       setHolder(nextHolder);
@@ -183,14 +172,6 @@ export function ProtocolConsole() {
     } finally { setBusy(""); }
   }, [activeRoundNumber, address, refresh, sealedChoice, sessionToken, signIn, wallet]);
 
-  const sendSignal = useCallback(async (choice: SealedChoice) => {
-    if (!activeRoundNumber) return;
-    let signalId = window.localStorage.getItem("hodl-audience-signal-id");
-    if (!signalId) { signalId = window.crypto.randomUUID(); window.localStorage.setItem("hodl-audience-signal-id", signalId); }
-    await protocolRequest("/api/audience-signal", { method: "POST", body: JSON.stringify({ roundNumber: activeRoundNumber, choice, signalId }) });
-    setAudience(await protocolRequest<AudienceSignal>(`/api/audience-signal/${activeRoundNumber}`));
-  }, [activeRoundNumber]);
-
   const decimals = status?.tokenDecimals ?? 6;
   const round = status?.round;
   const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports ?? "0";
@@ -209,12 +190,6 @@ export function ProtocolConsole() {
   const playerWeight = holder ? baseUnitsToTokenAmount(holder.playerWeight, decimals) : "—";
   const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "AWAITING OFFER";
   const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "AWAITING BOX";
-  const signalHodl = audience?.hodl;
-  const signalNoHodl = audience?.noHodl;
-  const revealingSignal = Boolean(status?.roundActive && round?.closesAt && countdown === 0);
-  const finalSignal = Boolean(revealRound && revealRound.roundNumber === round?.roundNumber && round?.status !== "open" && round?.cooperatePercent !== null && round?.cooperatePercent !== undefined);
-  const settledHodl = round?.cooperatePercent ?? 0;
-  const settledNoHodl = round?.defectPercent ?? 100 - settledHodl;
   const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : "—";
   const phase = !status?.configured ? "WAITING FOR THE BANKER" : !status.roundActive ? "AWAITING FUNDED BOX" : decisionOpen ? "THE BANKER IS CALLING" : "THE BOX IS FILLING";
 
@@ -225,33 +200,6 @@ export function ProtocolConsole() {
           <div><span>EPISODE {episode} · {status?.roundActive ? decisionOpen ? "DECISION" : "ACCUMULATING" : "STANDBY"}</span><strong>{phase}</strong></div>
           <time>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : "WAITING FOR THE BANKER"}</time>
         </div>
-
-        <section className="spectator-board" aria-label="Live episode spectator dashboard">
-          <header>
-            <span>LIVE EPISODE / SPECTATOR BOARD</span>
-            <h2>{decisionOpen ? "DECISION WINDOW OPEN." : status?.roundActive ? "THE BOX IS GROWING." : "AWAITING THE BANKER."}</h2>
-            <p>Watch the live Box, the crowd signal, and the Banker&apos;s reserve. Connect only when you are ready to take a seat.</p>
-          </header>
-          <div className="spectator-grid">
-            <article>
-              <span>CURRENT EPISODE</span>
-              <strong>{status?.currentRound ? episode : "AWAITING FIRST EPISODE"}</strong>
-              <small>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : "WAITING FOR A FUNDED BOX"}</small>
-            </article>
-            <article className="spectator-audience-card">
-              <span>{revealingSignal ? "REVEALING FINAL DECISIONS..." : finalSignal ? "FINAL WEIGHTED RESULT" : finalMinute ? "FINAL MINUTE — SIGNAL LOCKED" : decisionOpen ? "AUDIENCE SIGNAL — LIVE, NOT FINAL" : "WAITING FOR THE BANKER"}</span>
-              {revealingSignal ? <strong>THE REVEAL IS UNDERWAY</strong> : finalSignal ? <><div className="spectator-signal"><i style={{ width: `${settledHodl}%` }} /><b style={{ width: `${settledNoHodl}%` }} /></div><p><b>HODL {settledHodl}%</b><b>NO HODL {settledNoHodl}%</b></p></> : decisionOpen && signalHodl !== null && signalHodl !== undefined && signalNoHodl !== null && signalNoHodl !== undefined ? <><div className="spectator-signal"><i style={{ width: `${signalHodl}%` }} /><b style={{ width: `${signalNoHodl}%` }} /></div><p><b>HODL {signalHodl}%</b><b>NO HODL {signalNoHodl}%</b></p>{finalMinute ? <small>Players may still change their decision. Final choices remain hidden until the reveal.</small> : null}</> : <strong>{decisionOpen ? "AUDIENCE FORMING" : "THE SIGNAL APPEARS WHEN THE OFFER OPENS"}</strong>}
-              <dl><div><dt>ACTIVE HOLDERS</dt><dd>{status?.activeHolders ? status.activeHolders.toLocaleString() : "AWAITING PLAYERS"}</dd></div><div><dt>LONGEST STREAK</dt><dd>{status?.longestStreakDays ? `${status.longestStreakDays} DAYS` : "FIRST STREAK FORMING"}</dd></div></dl>
-              {decisionOpen ? <nav><button type="button" onClick={() => void sendSignal("cooperate")}>SIGNAL HODL</button><button type="button" onClick={() => void sendSignal("defect")}>SIGNAL NO HODL</button></nav> : null}
-            </article>
-            <article className="spectator-box-card">
-              <span>LIVE TREASURY</span>
-              <strong>{hasPot ? `${lamportsToSol(pot)} SOL` : "AWAITING FUNDED BOX"}</strong>
-              <small>THE BOX · 80% OF CREATOR FEES</small>
-              <div><span>BANKER RESERVE · 20%</span><b>{positive(bankerPot) ? `${lamportsToSol(bankerPot)} SOL` : "AWAITING FEES"}</b></div>
-            </article>
-          </div>
-        </section>
 
         <div className="broadcast-grid">
           <article className="broadcast-panel broadcast-box-panel">
@@ -282,7 +230,7 @@ export function ProtocolConsole() {
               ) : holder?.soldThisRound ? (
                 <div className="broadcast-out"><strong>YOU&apos;RE OUT.</strong><p>SELLING IS NO HODL. Your streak reset, but you can still watch the Reveal.</p></div>
               ) : !holder?.position ? (
-                <div className="broadcast-entry"><strong>GET A BOX.</strong><p>Your wallet must hold 1,000,000 tokens to enter this episode.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CHECKING…" : "CHECK MY BALANCE"}</button></div>
+                <div className="broadcast-entry"><strong>GET A BOX.</strong><p>Your wallet must hold 300,000 tokens to enter this episode.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CHECKING…" : "CHECK MY BALANCE"}</button></div>
               ) : (
                 <>
                   <dl className="broadcast-stats">
