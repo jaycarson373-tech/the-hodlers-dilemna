@@ -10,10 +10,10 @@ Live website: [hodlornohodl.fun](https://hodlornohodl.fun/)
 - Eligible wallets hold at least 1,000,000 tokens.
 - Weight is snapshot balance × uninterrupted-hold multiplier.
 - The Banker posts a fully funded wallet-specific offer before choices open.
-- All accepted deals together can use at most 30% of The Box.
+- Creator fees split 80% to The Box and 20% to the separate Banker Reserve.
 - Silence is HODL. Selling or transferring out is NO HODL and resets the streak.
-- At 70% weighted HODL, HODL players split The Box after accepted deals.
-- Below 70%, accepted deals are still paid and only the unpaid balance rolls over.
+- At 70% weighted HODL, HODL players split The Box; accepted deals come from the Banker Reserve.
+- Below 70%, accepted deals are still paid and the full Box rolls over.
 - After three failures, the next episode force-opens for HODL players.
 - Payouts go directly to wallets; there is no claim step.
 

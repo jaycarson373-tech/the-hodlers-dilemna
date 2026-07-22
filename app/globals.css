@@ -2469,8 +2469,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   }
 }
 
-/* Phase 1: live-panel data states and exact rules surface. */
-.simulation-tag,
+/* Live-panel data states and exact rules surface. */
 .live-card-label-row b {
   display: inline-flex;
   align-items: center;
@@ -2894,7 +2893,6 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   .how-it-works-step { grid-template-columns: 46px minmax(0, 1fr); gap: 12px; padding: 24px 0; }
   .how-it-works-step > span { font-size: 1.4rem; }
   .how-it-works-step p { font-size: 0.94rem; }
-  .broadcast-status-row .simulation-tag { flex-basis: auto; }
   .faq-list { grid-template-columns: 1fr; }
   .faq-list summary { grid-template-columns: 32px minmax(0, 1fr); padding-right: 44px; }
   .faq-list details > p { padding: 0 18px 20px; }
@@ -3496,7 +3494,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 }
 
 /* -------------------------------------------------------------------------- */
-/* Hodlers Dilemma.fun — official mint identity                               */
+/* Hodl or No Hodl.fun — official mint identity                               */
 /* -------------------------------------------------------------------------- */
 
 :root {

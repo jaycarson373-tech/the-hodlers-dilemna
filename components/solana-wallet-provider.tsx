@@ -14,7 +14,7 @@ const solanaConfig: SolanaClientConfig = {
 
 const walletPersistence = {
   autoConnect: true,
-  storageKey: "hodlers-dilemna:wallet",
+  storageKey: "hodl-or-no-hodl:wallet",
 } as const;
 
 export function SolanaWalletProvider({ children }: { children: React.ReactNode }) {

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 import { ShowBrand } from "@/components/show-brand";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { WalletConnect } from "@/components/wallet-connect";
+import { HomeSpectatorBoard } from "@/components/home-spectator-board";
 
 const ladder = [
   ["UNDER 1 HOUR", "1.0×", "blue"], ["1 HOUR", "1.2×", "blue"],
@@ -12,16 +12,7 @@ const ladder = [
   ["1 DAY", "2.5×", "red"], ["3 DAYS", "3.0×", "red"], ["7 DAYS", "4.0× CAP", "gold"],
 ];
 
-const faqs = [
-  ["DO I HAVE TO VOTE?", "No. Silence counts as HODL. Your holding weight stays in the game."],
-  ["WHAT IF I SELL?", "Selling or transferring out during an episode counts as NO HODL and resets your streak."],
-  ["CAN I SEE OTHER CHOICES?", "No. Decisions stay sealed until the Reveal. The audience signal is sentiment, not the vote."],
-  ["HOW DO PAYOUTS ARRIVE?", "The worker sends settled payouts directly to eligible wallets. There is no claim step."],
-];
-
 export function HomeShow() {
-  const reduceMotion = useReducedMotion();
-
   return (
     <main className="show-home">
       <div className="show-bulbs" aria-hidden="true" />
@@ -29,7 +20,7 @@ export function HomeShow() {
         <ShowBrand />
         <nav aria-label="Primary navigation">
           <a href="#choice">The Choice</a><a href="#streaks">Streaks</a><a href="#boxes">Boxes</a>
-          <Link href="/play#leaderboard">Leaderboard</Link><LaunchNavLinks /><WalletConnect />
+          <Link href="/docs">Docs</Link><Link href="/play#leaderboard">Leaderboard</Link><LaunchNavLinks /><WalletConnect />
         </nav>
       </header>
 
@@ -45,11 +36,7 @@ export function HomeShow() {
           </div>
         </div>
 
-        <motion.div className="show-box-stage" animate={reduceMotion ? undefined : { y: [0, -5, 0] }} transition={{ duration: 5.8, repeat: Infinity, ease: "easeInOut" }} aria-label="The mystery Box">
-          <div className="show-box-light" aria-hidden="true" />
-          <div className="show-box"><span>?</span></div>
-          <div className="show-box-facts"><span>CONTESTANTS<b>HOLDERS</b></span><span>VARIABLE<b>CONVICTION</b></span><span>IN THE BOX<b>CREATOR FEES</b></span></div>
-        </motion.div>
+        <HomeSpectatorBoard />
       </section>
 
       <div className="show-ticker" aria-hidden="true"><div>HODL ★ NO HODL ★ THE BANKER IS CALLING ★ THE BOX IS GROWING ★ EVERY 15 MINUTES ★ HODL ★ NO HODL ★ THE BANKER IS CALLING ★</div></div>
@@ -58,7 +45,7 @@ export function HomeShow() {
         <span>01 / THE CHOICE</span><h2>COORDINATION HAS A PRICE.<br />SO DOES BETRAYAL.</h2>
         <p>The Banker posts a fully funded offer. Take certainty—or trust enough weighted holders to open The Box.</p>
         <div className="show-choice-grid">
-          <article><small>YOU HODL · THE CROWD HOLDS</small><h3>WEIGHTED SHARE</h3><p>The Box opens. You receive your weighted share of everything left after accepted deals.</p></article>
+          <article><small>YOU HODL · THE CROWD HOLDS</small><h3>WEIGHTED SHARE</h3><p>The Box opens. You receive your weighted share; Banker deals come from the separate reserve.</p></article>
           <article><small>YOU HODL · THE CROWD FAILS</small><h3>BOX STAYS SEALED</h3><p>No payout. Your streak survives and the unpaid balance rolls forward.</p></article>
           <article className="is-red"><small>YOU TAKE THE DEAL</small><h3>GUARANTEED OFFER</h3><p>Your posted offer is paid. Your streak resets and your multiplier returns to 1.0×.</p></article>
           <article><small>YOU SELL DURING THE EPISODE</small><h3>YOU&apos;RE OUT</h3><p>Selling counts as NO HODL. Your streak resets immediately.</p></article>
@@ -85,18 +72,27 @@ export function HomeShow() {
         <div className="show-phone-card"><b>☎</b><span>DECISION WINDOW</span><strong>15:00</strong><small>CHOICES STAY SEALED</small></div>
       </section>
 
-      <section className="show-how" id="how-it-works">
-        <span>05 / HOW IT WORKS</span><h2>THE GAME IN FOUR MOVES.</h2>
-        <div><article><b>01</b><h3>CONNECT</h3><p>Open your Box and see your balance, multiplier, offer, and projected payout.</p></article><article><b>02</b><h3>WATCH THE BOX</h3><p>Creator fees keep adding to the live prize every 15 minutes.</p></article><article><b>03</b><h3>MAKE THE CALL</h3><p>HODL for the Box or take your guaranteed Banker offer.</p></article><article><b>04</b><h3>THE REVEAL</h3><p>Choices unlock together. Payouts go directly to eligible wallets.</p></article></div>
+      <section className="show-bounty-section">
+        <span>05 / THE DEAL</span><h2>WHEN SOMEONE TAKES THE DEAL,<br />THE HODLERS WHO REMAIN BENEFIT.</h2>
+        <p>The Banker reserve pays the accepted offer. That wallet leaves the HODL side, resets its multiplier, and the holders who remain keep their weight in The Box.</p>
+        <div className="show-bounty-grid">
+          <article><b>01</b><h3>DEAL TAKEN</h3><p>A player accepts their fully funded Banker offer.</p></article>
+          <article><b>02</b><h3>STREAK RESET</h3><p>Their streak ends and their multiplier returns to 1.0×.</p></article>
+          <article><b>03</b><h3>BANKER PAYS</h3><p>The guaranteed offer comes from the separate Banker reserve.</p></article>
+          <article><b>04</b><h3>HODLERS REMAIN</h3><p>If the 70% line holds, remaining HODL weight shares The Box.</p></article>
+        </div>
+        <Link className="show-button show-button-red" href="/play">THEIR DEAL. YOUR CONVICTION.</Link>
       </section>
 
-      <section className="show-faq">
-        <span>06 / FAQ</span><h2>BEFORE THE PHONE RINGS.</h2>
-        <div>{faqs.map(([question, answer]) => <details key={question}><summary>{question}<i>+</i></summary><p>{answer}</p></details>)}</div>
+      <section className="show-how" id="how-it-works">
+        <span>06 / HOW IT WORKS</span><h2>THE GAME IN FOUR MOVES.</h2>
+        <div><article><b>01</b><h3>CONNECT</h3><p>Open your Box and see your balance, multiplier, offer, and projected payout.</p></article><article><b>02</b><h3>WATCH THE BOX</h3><p>Every 15 minutes, 80% of creator fees fills The Box and 20% funds the Banker.</p></article><article><b>03</b><h3>MAKE THE CALL</h3><p>HODL for the Box or take your guaranteed Banker offer.</p></article><article><b>04</b><h3>THE REVEAL</h3><p>Choices unlock together. Payouts go directly to eligible wallets.</p></article></div>
       </section>
+
+      <section className="show-docs-cta"><span>07 / FULL DOCUMENTATION</span><h2>KNOW WHAT HAPPENS<br />BEFORE THE PHONE RINGS.</h2><p>Read the full episode timeline, eligibility rules, sealed-choice system, settlement math, rollover logic, and payout safeguards.</p><Link className="show-button show-button-gold" href="/docs">OPEN THE DOCS</Link></section>
 
       <section className="show-final-call"><p>EVERY HOLDER EVENTUALLY FACES THE BANKER.</p><h2>HODL...<br />OR NO HODL?</h2><Link className="show-button show-button-red" href="/play">ENTER THE LIVE GAME</Link></section>
-      <footer className="show-footer"><ShowBrand /><span>Every 15 minutes. One funded offer. One sealed decision.</span><Link href="/rules">Rules</Link><LaunchFooterLinks /></footer>
+      <footer className="show-footer"><ShowBrand /><span>Every 15 minutes. One funded offer. One sealed decision.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
     </main>
   );
 }

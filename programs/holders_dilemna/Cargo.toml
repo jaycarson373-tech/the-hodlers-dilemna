@@ -1,7 +1,7 @@
 [package]
 name = "holders-dilemna"
 version = "0.1.0"
-description = "Devnet-first on-chain game engine for Hodlers Dilemma.fun"
+description = "Legacy experimental program source for Hodl or No Hodl.fun"
 edition = "2021"
 
 [lib]
