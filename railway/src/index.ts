@@ -153,7 +153,20 @@ type DbRound = {
   settled_at?: string | null;
 };
 
-const dbOpenRoundStatuses = ["open", "active", "live", "accumulating", "pending"];
+const dbOpenRoundStatuses = [
+  "open",
+  "active",
+  "live",
+  "accumulating",
+  "pending",
+  "commit",
+  "committing",
+  "voting",
+  "decision",
+  "started",
+  "running",
+  "ongoing",
+];
 const isOpenRoundStatus = (status?: string | null) => dbOpenRoundStatuses.includes(String(status ?? "").toLowerCase());
 const publicRoundStatus = (status: string): "open" | "settled" | "rolled_over" | "closed" => {
   const normalized = status.toLowerCase();
