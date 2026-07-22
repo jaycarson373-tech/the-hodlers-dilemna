@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 import { useWalletConnection } from "@solana/react-hooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBankerFeed } from "@/components/use-banker-feed";
-import { usePublicLeaderboard } from "@/components/use-public-leaderboard";
 import {
   baseUnitsToTokenAmount,
   lamportsToSol,
@@ -55,7 +54,6 @@ export function ProtocolConsole() {
   const [revealRound, setRevealRound] = useState<ProtocolRound | null>(null);
   const previousRound = useRef<ProtocolRound | null>(null);
   const { events } = useBankerFeed(8);
-  const { entries } = usePublicLeaderboard(10);
 
   const realtime = useMemo(() => {
     if (!supabaseUrl || !supabaseKey) return null;
@@ -191,6 +189,8 @@ export function ProtocolConsole() {
   const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "AWAITING OFFER";
   const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "AWAITING BOX";
   const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : "—";
+  const nextCallCountdown = status?.nextRoundAt ? remainingSeconds(status.nextRoundAt) : 0;
+  const standbyCountdown = nextCallCountdown ? formatCountdown(nextCallCountdown) : "";
   const phase = !status?.configured ? "WAITING FOR THE BANKER" : !status.roundActive ? "AWAITING FUNDED BOX" : decisionOpen ? "THE BANKER IS CALLING" : "THE BOX IS FILLING";
 
   return (
@@ -198,7 +198,7 @@ export function ProtocolConsole() {
       <section className={`broadcast-room ${finalMinute ? "is-final-minute" : ""} ${holder?.soldThisRound ? "is-out" : ""}`} id="game-console">
         <div className="broadcast-phase">
           <div><span>EPISODE {episode} · {status?.roundActive ? decisionOpen ? "DECISION" : "ACCUMULATING" : "STANDBY"}</span><strong>{phase}</strong></div>
-          <time>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : "WAITING FOR THE BANKER"}</time>
+          <time>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : standbyCountdown ? `NEXT 15-MINUTE CALL ${standbyCountdown}` : "WAITING FOR THE BANKER"}</time>
         </div>
 
         <div className="broadcast-grid">
@@ -230,7 +230,7 @@ export function ProtocolConsole() {
               ) : holder?.soldThisRound ? (
                 <div className="broadcast-out"><strong>YOU&apos;RE OUT.</strong><p>SELLING IS NO HODL. Your streak reset, but you can still watch the Reveal.</p></div>
               ) : !holder?.position ? (
-                <div className="broadcast-entry"><strong>GET A BOX.</strong><p>Your wallet must hold 300,000 tokens to enter this episode.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CHECKING…" : "CHECK MY BALANCE"}</button></div>
+                <div className="broadcast-entry"><strong>GET A BOX.</strong><p>Claim your seat to verify the required token balance.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY SEAT"}</button></div>
               ) : (
                 <>
                   <dl className="broadcast-stats">
@@ -255,11 +255,6 @@ export function ProtocolConsole() {
             </article>
           </aside>
         </div>
-      </section>
-
-      <section className="broadcast-leaderboard" id="leaderboard">
-        <header><span>LIVE RANKING</span><h2>LAST CONTESTANTS STANDING.</h2><p>Wallet · score · tier · total SOL paid · wins / losses</p></header>
-        {entries.length ? <div className="broadcast-table-wrap"><table><thead><tr><th>#</th><th>Wallet</th><th>Score</th><th>Tier</th><th>SOL Paid</th><th>W / L</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.wallet}><td>{String(entry.rank).padStart(2, "0")}</td><td>{shortWallet(entry.wallet)}</td><td>{entry.score}</td><td>{entry.tier}</td><td>{entry.totalSolAirdropped}</td><td>{entry.wins} / {entry.losses}</td></tr>)}</tbody></table></div> : <p className="broadcast-no-ranking">THE BOARD LIGHTS UP AFTER THE FIRST SETTLEMENT.</p>}
       </section>
 
       {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>EPISODE {String(revealRound.roundNumber).padStart(3, "0")} · THE REVEAL</span><h2>{revealRound.status === "settled" ? "THE BOX OPENS." : "THE BOX STAYS CLOSED."}</h2><strong>{revealRound.weightedHodlBps == null ? "CHOICES REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% WEIGHTED HODL`}</strong><p>{revealRound.status === "settled" ? "HODL players split The Box. Accepted deals were paid separately by the Banker." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next episode.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE STUDIO</button></article></div> : null}

@@ -16,7 +16,7 @@ export default function PlayPage() {
       <div className="broadcast-bulbs" aria-hidden="true" />
       <header className="broadcast-nav">
         <ShowBrand />
-        <nav aria-label="Game room navigation"><Link href="/">Home</Link><Link href="/rules">Rules</Link><a href="#leaderboard">Leaderboard</a><LaunchNavLinks /><WalletConnect /></nav>
+        <nav aria-label="Game room navigation"><Link href="/">Home</Link><Link href="/rules">Rules</Link><Link href="/leaderboard">Leaderboard</Link><LaunchNavLinks /><WalletConnect /></nav>
       </header>
       <ProtocolConsole />
       <footer className="broadcast-footer">

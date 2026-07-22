@@ -161,15 +161,13 @@ type RoundSnapshot = {
   banker_offer_lamports: number | string;
 };
 
-type DbHolder = {
-  wallet: string;
-  position_amount: number | string;
+type LegacyDbHolder = {
+  wallet_address: string;
+  token_balance_raw: number | string;
   streak_started_at: string | null;
-  last_withdraw_at: string | null;
-  bonus_bps: number;
+  streak_seconds: number | string;
   tier: number;
-  cooperate_votes: number;
-  defect_votes: number;
+  multiplier_bps: number;
 };
 
 const nonces = new Map<string, { nonce: string; expiresAt: number }>();
@@ -553,11 +551,14 @@ async function syncHolder(wallet: PublicKey) {
     const { error: resetError } = await db
       .from("holders")
       .update({
-        position_amount: "0",
+        token_balance_raw: "0",
         streak_started_at: null,
+        streak_seconds: "0",
+        tier: 0,
+        multiplier_bps: 10_000,
         updated_at: nowIso(),
       })
-      .eq("wallet", walletAddress);
+      .eq("wallet_address", walletAddress);
     if (resetError) console.error("ineligible holder reset failed", resetError);
 
     return {
@@ -571,32 +572,11 @@ async function syncHolder(wallet: PublicKey) {
   const { data: existing, error } = await db
     .from("holders")
     .select("*")
-    .eq("wallet", walletAddress)
-    .maybeSingle<DbHolder>();
-  if (error && !isMissingSchemaObject(error)) throw error;
+    .eq("wallet_address", walletAddress)
+    .maybeSingle<LegacyDbHolder>();
+  if (error) throw error;
 
-  // Balance verification is sourced from Solana, not from the holder cache. An
-  // older holder table must never prevent an otherwise eligible wallet from
-  // entering. Persistence resumes automatically after the schema migration.
-  if (error && isMissingSchemaObject(error)) {
-    const streakStartedAt = nowIso();
-    return {
-      wallet: walletAddress,
-      walletTokenBalance: balance.amount.toString(),
-      position: {
-        amount: eligibleAmount.toString(),
-        streakStartedAt,
-        streakSeconds: "0",
-        lockedUntil: null,
-        bonusBps: 0,
-        tier: 0,
-        tierName: tierName(0),
-      },
-      ...await safePlayerRoundSummary(walletAddress, balance.amount, streakStartedAt),
-    };
-  }
-
-  const previousAmount = bigintValue(existing?.position_amount);
+  const previousAmount = bigintValue(existing?.token_balance_raw);
   const soldOrDropped = eligibleAmount > 0n && existing && previousAmount > eligibleAmount;
   const entered = eligibleAmount > 0n && (!existing || previousAmount === 0n || !existing.streak_started_at);
   const streakStartedAt = eligibleAmount === 0n
@@ -608,18 +588,19 @@ async function syncHolder(wallet: PublicKey) {
   const bonusBps = Math.max(0, multiplierBps(streakStartedAt) - 10_000);
 
   const row = {
-    wallet: walletAddress,
-    position_amount: eligibleAmount.toString(),
+    wallet_address: walletAddress,
+    token_balance_raw: eligibleAmount.toString(),
+    supply_bps: 0,
     streak_started_at: streakStartedAt,
-    last_withdraw_at: soldOrDropped ? nowIso() : existing?.last_withdraw_at ?? null,
-    bonus_bps: bonusBps,
+    streak_seconds: streakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(streakStartedAt).getTime()) / 1000)).toString() : "0",
     tier,
-    cooperate_votes: existing?.cooperate_votes ?? 0,
-    defect_votes: existing?.defect_votes ?? 0,
+    multiplier_bps: multiplierBps(streakStartedAt),
+    position_consistency_bps: 10_000,
+    last_indexed_slot: 0,
     updated_at: nowIso(),
   };
 
-  const { error: upsertError } = await db.from("holders").upsert(row, { onConflict: "wallet" });
+  const { error: upsertError } = await db.from("holders").upsert(row, { onConflict: "wallet_address" });
   if (upsertError) throw upsertError;
 
   const streakSeconds = streakStartedAt
@@ -669,6 +650,14 @@ async function openRound(config: DbConfig) {
   const round = {
     round_number: next.toString(),
     status: "open",
+    opens_at: openedAt.toISOString(),
+    commit_closes_at: closesAt,
+    reveal_closes_at: closesAt,
+    fee_pot_lamports: pot.toString(),
+    cooperate_weight_raw: "0",
+    defect_weight_raw: "0",
+    outcome: null,
+    settlement_signature: null,
     opened_at: openedAt.toISOString(),
     closes_at: closesAt,
     claim_deadline: null,
@@ -702,10 +691,17 @@ async function openRound(config: DbConfig) {
     if (snapshotError) throw snapshotError;
     const { error: holdersError } = await db.from("holders").upsert(weighted.map((item) => ({
       wallet: item.wallet,
+      wallet_address: item.wallet,
       position_amount: item.balance.toString(),
+      token_balance_raw: item.balance.toString(),
+      supply_bps: 0,
       streak_started_at: item.streakStartedAt,
+      streak_seconds: Math.max(0, Math.floor((Date.now() - new Date(item.streakStartedAt).getTime()) / 1000)).toString(),
       bonus_bps: Math.max(0, item.multiplier - 10_000),
+      multiplier_bps: item.multiplier,
       tier: tierFor(item.streakStartedAt),
+      position_consistency_bps: 10_000,
+      last_indexed_slot: 0,
       updated_at: nowIso(),
     })), { onConflict: "wallet" });
     if (holdersError) throw holdersError;
@@ -1118,7 +1114,9 @@ app.get("/health/live", (_req, res) => {
 
 app.get("/health/ready", async (_req, res) => {
   const health = await readinessResponse();
-  res.status(health.ok ? 200 : 503).json(health);
+  // Railway uses this endpoint as a process health check. Report dependency
+  // readiness in the body without rejecting an otherwise healthy API process.
+  res.status(200).json(health);
 });
 
 app.get("/api/health", async (_req, res) => {

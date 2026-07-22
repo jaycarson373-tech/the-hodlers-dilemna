@@ -20,7 +20,7 @@ export function HomeShow() {
         <ShowBrand />
         <nav aria-label="Primary navigation">
           <a href="#choice">The Choice</a><a href="#streaks">Streaks</a><a href="#boxes">Boxes</a>
-          <Link href="/docs">Docs</Link><Link href="/play#leaderboard">Leaderboard</Link><LaunchNavLinks /><WalletConnect />
+          <Link href="/docs">Docs</Link><Link href="/leaderboard">Leaderboard</Link><LaunchNavLinks /><WalletConnect />
         </nav>
       </header>
 
