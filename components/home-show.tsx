@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ShowBrand } from "@/components/show-brand";
+import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { WalletConnect } from "@/components/wallet-connect";
 
 const ladder = [
@@ -28,7 +29,7 @@ export function HomeShow() {
         <ShowBrand />
         <nav aria-label="Primary navigation">
           <a href="#choice">The Choice</a><a href="#streaks">Streaks</a><a href="#boxes">Boxes</a>
-          <Link href="/play#leaderboard">Leaderboard</Link><WalletConnect />
+          <Link href="/play#leaderboard">Leaderboard</Link><LaunchNavLinks /><WalletConnect />
         </nav>
       </header>
 
@@ -95,7 +96,7 @@ export function HomeShow() {
       </section>
 
       <section className="show-final-call"><p>EVERY HOLDER EVENTUALLY FACES THE BANKER.</p><h2>HODL...<br />OR NO HODL?</h2><Link className="show-button show-button-red" href="/play">ENTER THE LIVE GAME</Link></section>
-      <footer className="show-footer"><ShowBrand /><span>Every 15 minutes. One funded offer. One sealed decision.</span><Link href="/rules">Rules</Link></footer>
+      <footer className="show-footer"><ShowBrand /><span>Every 15 minutes. One funded offer. One sealed decision.</span><Link href="/rules">Rules</Link><LaunchFooterLinks /></footer>
     </main>
   );
 }
