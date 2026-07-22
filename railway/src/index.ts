@@ -134,7 +134,7 @@ type DbConfig = {
 
 type DbRound = {
   round_number: number | string;
-  status: "open" | "settled" | "rolled_over" | "closed";
+  status: string;
   opened_at: string;
   closes_at: string;
   claim_deadline: string | null;
@@ -152,6 +152,35 @@ type DbRound = {
   force_open?: boolean;
   settled_at?: string | null;
 };
+
+const dbOpenRoundStatuses = [
+  "open",
+  "active",
+  "live",
+  "accumulating",
+  "pending",
+  "commit",
+  "committing",
+  "voting",
+  "decision",
+  "started",
+  "running",
+  "ongoing",
+];
+const isOpenRoundStatus = (status?: string | null) => dbOpenRoundStatuses.includes(String(status ?? "").toLowerCase());
+const publicRoundStatus = (status: string): "open" | "settled" | "rolled_over" | "closed" => {
+  const normalized = status.toLowerCase();
+  if (isOpenRoundStatus(normalized)) return "open";
+  if (normalized === "rolled" || normalized === "rollover" || normalized === "rolled_over") return "rolled_over";
+  if (normalized === "closed" || normalized === "cancelled" || normalized === "canceled") return "closed";
+  return "settled";
+};
+const isRoundStatusConstraintError = (error: unknown) =>
+  Boolean(error && typeof error === "object"
+    && "code" in error
+    && (error as { code?: string }).code === "23514"
+    && "message" in error
+    && /rounds_status_check/i.test(String((error as { message?: string }).message)));
 
 type RoundSnapshot = {
   wallet: string;
@@ -512,7 +541,7 @@ function publicRound(round: DbRound | null) {
   const cooperate = bigintValue(round.cooperate_weight);
   const defect = bigintValue(round.defect_weight);
   const total = cooperate + defect;
-  const choicesArePublic = round.status !== "open";
+  const choicesArePublic = !isOpenRoundStatus(round.status);
   const cooperatePercent = choicesArePublic ? (total === 0n ? 0 : Number((cooperate * 10_000n) / total) / 100) : null;
   return {
     roundNumber: String(round.round_number),
@@ -533,7 +562,7 @@ function publicRound(round: DbRound | null) {
     weightedHodlBps: choicesArePublic ? round.weighted_hodl_bps ?? null : null,
     forceOpen: Boolean(round.force_open),
     settledAt: iso(round.settled_at),
-    status: round.status,
+    status: publicRoundStatus(round.status),
   };
 }
 
@@ -647,9 +676,8 @@ async function openRound(config: DbConfig) {
   const bankerBalance = bankerWalletAddress ? BigInt(await connection.getBalance(bankerWalletAddress, "confirmed")) : 0n;
   const dealBudget = bankerBalance > 5_000_000n ? bankerBalance - 5_000_000n : 0n;
 
-  const round = {
+  const roundBase = {
     round_number: next.toString(),
-    status: "open",
     opens_at: openedAt.toISOString(),
     commit_closes_at: closesAt,
     reveal_closes_at: closesAt,
@@ -676,7 +704,16 @@ async function openRound(config: DbConfig) {
     settled_at: null,
     updated_at: nowIso(),
   };
-  const { error: roundError } = await db.from("rounds").upsert(round);
+  let roundError: unknown = null;
+  for (const status of dbOpenRoundStatuses) {
+    const { error } = await db.from("rounds").upsert({ ...roundBase, status });
+    if (!error) {
+      roundError = null;
+      break;
+    }
+    roundError = error;
+    if (!isRoundStatusConstraintError(error)) break;
+  }
   if (roundError) throw roundError;
   if (weighted.length) {
     const snapshotRows = weighted.map((item) => ({
@@ -880,11 +917,11 @@ async function keeperTick() {
     const nextAt = config.next_round_at ? new Date(config.next_round_at).getTime() : 0;
     const round = await fetchCurrentRound(config);
 
-    if (config.round_active && round?.status === "open" && now >= nextAt) {
+    if (config.round_active && round && isOpenRoundStatus(round.status) && now >= nextAt) {
       await settleRound(config, round);
     }
 
-    if (config.round_active && round?.status === "open") {
+    if (config.round_active && round && isOpenRoundStatus(round.status)) {
       const decisionAt = new Date(round.closes_at).getTime() - Number(config.decision_window_seconds ?? env.DECISION_WINDOW_SECONDS) * 1_000;
       if (now >= decisionAt && now < new Date(round.closes_at).getTime()) {
         const db = requireDb();
@@ -1216,7 +1253,7 @@ app.get("/api/rounds/:roundNumber/reveals", async (req, res, next) => {
     const roundNumber = z.string().regex(/^\d+$/).parse(req.params.roundNumber);
     const { data: round, error: roundError } = await db.from("rounds").select("status").eq("round_number", roundNumber).single<{ status: string }>();
     if (roundError) throw roundError;
-    if (round.status === "open") return res.status(423).json({ error: "Choices remain sealed until the reveal." });
+    if (isOpenRoundStatus(round.status)) return res.status(423).json({ error: "Choices remain sealed until the reveal." });
     const { data, error } = await db.from("revealed_choices").select("round_number,wallet,choice,salt,commitment,revealed_at").eq("round_number", roundNumber).order("wallet", { ascending: true });
     if (error) throw error;
     res.json(data ?? []);
@@ -1230,7 +1267,7 @@ app.get("/api/audience-signal/:roundNumber", async (req, res, next) => {
     const { data: round, error: roundError } = await db.from("rounds").select("status,closes_at,cooperate_weight,defect_weight").eq("round_number", roundNumber).maybeSingle<Pick<DbRound, "status" | "closes_at" | "cooperate_weight" | "defect_weight">>();
     if (roundError) throw roundError;
     if (!round) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "WAITING FOR THE BANKER" });
-    if (round.status !== "open") {
+    if (!isOpenRoundStatus(round.status)) {
       audienceSignalLocks.delete(roundNumber);
       const cooperateWeight = bigintValue(round.cooperate_weight);
       const defectWeight = bigintValue(round.defect_weight);
@@ -1406,7 +1443,7 @@ app.post("/api/vote/commit", async (req, res, next) => {
     const config = await ensureGameConfig();
     if (!config.round_active) throw new Error("No round is currently open.");
     const round = await fetchCurrentRound(config);
-    if (!round || round.status !== "open") throw new Error("No round is currently open.");
+    if (!round || !isOpenRoundStatus(round.status)) throw new Error("No round is currently open.");
     if (String(round.round_number) !== body.roundNumber) throw new Error("This decision belongs to a different round.");
     const now = Date.now();
     const closesAt = new Date(round.closes_at).getTime();
