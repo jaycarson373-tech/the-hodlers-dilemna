@@ -13,6 +13,10 @@ export const metadata: Metadata = {
 export default function PlayPage() {
   return (
     <main className="broadcast-page">
+      <div className="supplied-pill-backdrop" aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/holders-dilemma-pills-bg.jpg" alt="" />
+      </div>
       <div className="broadcast-bulbs" aria-hidden="true" />
       <header className="broadcast-nav">
         <ShowBrand />

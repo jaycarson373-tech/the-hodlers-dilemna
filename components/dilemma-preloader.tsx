@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 const INTRO_KEY = "holders-dilemma-intro-seen";
-const IMAGE_SRC = "/dilemma-preloader-hand.jpg";
+const IMAGE_SRC = "/holders-dilemma-pills-bg.jpg";
 
 type IntroStep = "incoming" | "image" | "choice" | "pill";
 
@@ -23,16 +23,22 @@ function safeSessionHasKey() {
   }
 }
 
-function safeSessionClearOnRefresh() {
-  try {
-    window.sessionStorage.removeItem(INTRO_KEY);
-  } catch {
-    // Ignore storage failures; the overlay is non-critical.
-  }
+function subscribeIntroStore() {
+  return () => {};
+}
+
+function getClientIntroSnapshot() {
+  return !safeSessionHasKey();
+}
+
+function getServerIntroSnapshot() {
+  return false;
 }
 
 export function DilemmaPreloader() {
-  const [active, setActive] = useState(() => (typeof window === "undefined" ? true : !safeSessionHasKey()));
+  const shouldShowIntro = useSyncExternalStore(subscribeIntroStore, getClientIntroSnapshot, getServerIntroSnapshot);
+  const [dismissed, setDismissed] = useState(false);
+  const active = shouldShowIntro && !dismissed;
   const [step, setStep] = useState<IntroStep>("incoming");
   const finishedRef = useRef(false);
 
@@ -41,7 +47,7 @@ export function DilemmaPreloader() {
     finishedRef.current = true;
     safeSessionSet();
     document.documentElement.classList.remove("dilemma-intro-active");
-    setActive(false);
+    setDismissed(true);
   }, []);
 
   useEffect(() => {
@@ -74,13 +80,10 @@ export function DilemmaPreloader() {
     );
 
     const hardTimeout = window.setTimeout(finish, 4000);
-    const clearOnFullUnload = () => safeSessionClearOnRefresh();
-    window.addEventListener("beforeunload", clearOnFullUnload);
 
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
       window.clearTimeout(hardTimeout);
-      window.removeEventListener("beforeunload", clearOnFullUnload);
       document.documentElement.classList.remove("dilemma-intro-active");
     };
   }, [active, finish]);

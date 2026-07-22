@@ -12,6 +12,10 @@ import { WalletConnect } from "@/components/wallet-connect";
 export function HomeShow() {
   return (
     <main className="show-home">
+      <div className="supplied-market-backdrop" aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/holders-dilemma-market-bg.jpg" alt="" />
+      </div>
       <div className="show-bulbs" aria-hidden="true" />
       <header className="show-nav">
         <ShowBrand />

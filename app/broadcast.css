@@ -2855,10 +2855,10 @@ html.dilemma-intro-active body {
 }
 
 .dilemma-preloader__skip {
-  position: absolute;
+  position: fixed;
   top: max(16px, env(safe-area-inset-top));
   right: max(16px, env(safe-area-inset-right));
-  z-index: 4;
+  z-index: 100001;
   min-width: 70px;
   min-height: 42px;
   border: 1px solid rgba(245, 248, 245, .22);
@@ -2870,6 +2870,8 @@ html.dilemma-intro-active body {
   font-weight: 700;
   letter-spacing: .12em;
   cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
   backdrop-filter: blur(14px);
 }
 
@@ -3278,5 +3280,114 @@ html.dilemma-intro-active body {
       100% 100%,
       min(760px, 184vw) auto !important;
     background-position: center, center, center, center, center, center, center 112px !important;
+  }
+}
+
+/* Guaranteed supplied image layers. These are real DOM layers so old generated
+   effects cannot hide the requested art. */
+.supplied-market-backdrop,
+.supplied-pill-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.supplied-market-backdrop img,
+.supplied-pill-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: translate3d(0, 0, 0) scale(1.02);
+}
+
+.supplied-market-backdrop {
+  opacity: .58;
+}
+
+.supplied-market-backdrop::after,
+.supplied-pill-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.supplied-market-backdrop::after {
+  background:
+    linear-gradient(90deg, rgba(8,11,10,.16), rgba(8,11,10,.78) 50%, rgba(8,11,10,.18)),
+    linear-gradient(180deg, rgba(8,11,10,.18), rgba(8,11,10,.58) 64%, #080b0a);
+}
+
+.supplied-pill-backdrop {
+  opacity: .62;
+}
+
+.supplied-pill-backdrop::after {
+  background:
+    radial-gradient(circle at 39% 43%, rgba(78,219,154,.18), transparent 26%),
+    radial-gradient(circle at 61% 43%, rgba(255,92,108,.16), transparent 27%),
+    linear-gradient(90deg, rgba(8,11,10,.50), rgba(8,11,10,.18) 45%, rgba(8,11,10,.18) 55%, rgba(8,11,10,.50)),
+    linear-gradient(180deg, rgba(8,11,10,.10), rgba(8,11,10,.72) 74%, #080b0a);
+}
+
+.show-home > :not(.supplied-market-backdrop),
+.broadcast-page > :not(.supplied-pill-backdrop) {
+  position: relative;
+  z-index: 2;
+}
+
+.show-hero-poster {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .supplied-market-backdrop img {
+    animation: suppliedDomMarketDrift 34s ease-in-out infinite alternate;
+  }
+
+  .supplied-pill-backdrop img {
+    animation: suppliedDomPillDrift 22s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes suppliedDomMarketDrift {
+  from { transform: translate3d(0, -10px, 0) scale(1.035); }
+  to { transform: translate3d(0, 24px, 0) scale(1.055); }
+}
+
+@keyframes suppliedDomPillDrift {
+  from { transform: translate3d(0, -16px, 0) scale(1.04); }
+  to { transform: translate3d(0, 22px, 0) scale(1.065); }
+}
+
+@media (max-width: 768px) {
+  .supplied-market-backdrop {
+    opacity: .52;
+  }
+
+  .supplied-market-backdrop img {
+    object-position: center top;
+  }
+
+  .supplied-pill-backdrop {
+    opacity: .48;
+  }
+
+  .supplied-pill-backdrop img {
+    width: 150vw;
+    max-width: none;
+    transform: translate3d(-16vw, 0, 0) scale(1.03);
+    object-position: center top;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .supplied-market-backdrop img,
+  .supplied-pill-backdrop img {
+    animation: none !important;
+    transform: none !important;
   }
 }
