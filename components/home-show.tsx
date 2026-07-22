@@ -8,12 +8,12 @@ import { ShowBrand } from "@/components/show-brand";
 import { WalletConnect } from "@/components/wallet-connect";
 
 const ladder = [
-  ["NEW HOLDER", "1.0×", "blue"],
-  ["FIRST HOUR", "1.2×", "blue"],
-  ["2 HOURS", "1.5×", "blue"],
-  ["6 HOURS", "2.0×", "red"],
-  ["1 DAY", "2.5×", "red"],
-  ["3 DAYS", "3.0×", "red"],
+  ["NEW HOLDER", "BASE WEIGHT", "blue"],
+  ["FIRST HOUR", "+20% BOOST", "blue"],
+  ["2 HOURS", "+50% BOOST", "blue"],
+  ["6 HOURS", "2.0× WEIGHT", "red"],
+  ["1 DAY", "2.5× WEIGHT", "red"],
+  ["3 DAYS", "3.0× WEIGHT", "red"],
   ["7 DAYS", "4.0× CAP", "gold"],
 ];
 
@@ -39,7 +39,7 @@ export function HomeShow() {
         <div className="show-hero-copy">
           <p>ON-CHAIN HOLDER GAME / $DILEMMA</p>
           <h1 id="show-home-title">HOLDERS<br /><em>DILEMMA</em></h1>
-          <span>Every 15 minutes, holders face the split: HOLD to roll the pot forward, or JEET and fight for the fees if JEET wins.</span>
+          <span>Every 15 minutes, holders face the split: HOLD to keep the pot alive, or JEET and fight for the fees if JEET wins.</span>
           <div className="show-hero-actions">
             <Link className="show-button show-button-red" href="/play">ENTER THE LIVE GAME</Link>
             <Link className="show-button show-button-gold" href="/rules">READ THE RULES</Link>
@@ -58,27 +58,27 @@ export function HomeShow() {
       <section className="show-live-call" id="choice">
         <span>01 / THE DILEMMA</span>
         <h2>THE POT SPINS.<br />THE ROOM CHOOSES.</h2>
-        <p>This is the holder&apos;s roulette. If JEET wins, jeeters split the fee pot. If HOLD wins, nobody gets paid yet — the pot rolls forward and only holders who stayed can vote next round.</p>
+        <p>This is holder roulette. If JEET wins, jeeters split the fee pot by holding weight. If HOLD wins, nobody gets paid yet — the pot rolls forward and only holders who stayed can vote next round.</p>
         <div className="show-choice-grid">
           <article><small>YOU HOLD · HOLD WINS</small><h3>POT ROLLS</h3><p>No payout this round. Your seat survives and the next round gets bigger.</p></article>
-          <article className="is-red"><small>YOU JEET · JEET WINS</small><h3>FEES PAID</h3><p>JEET players split the round&apos;s fees by eligible weight.</p></article>
+          <article className="is-red"><small>YOU JEET · JEET WINS</small><h3>FEES PAID</h3><p>JEET players split the round&apos;s fees by holding weight.</p></article>
           <article><small>YOU HOLD · JEET WINS</small><h3>YOU MISS THE CUT</h3><p>The JEET side takes the fees. You held conviction but the room broke.</p></article>
           <article><small>YOU JEET · HOLD WINS</small><h3>NO PAYOUT</h3><p>The room held. The pot rolls, and the next vote belongs to the wallets that held.</p></article>
         </div>
       </section>
 
       <section className="show-streak-section" id="streaks">
-        <div><span>02 / HOLDER STREAK</span><h2>STAYING IN KEEPS YOU ON THE BOARD.</h2><p>Holding preserves your seat for the next round when HOLD wins. The longer you remain eligible, the stronger your player weight becomes.</p></div>
+        <div><span>02 / HOLDING WEIGHT</span><h2>YOUR BAG SETS THE BASE.</h2><p>Payouts start with how much $DILEMMA you hold. Time held adds a rolling boost to winnings and airdrops, but the game is still weight-first.</p></div>
         <div className="show-ladder">{ladder.map(([label, value, color]) => <div className={`is-${color}`} key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
       </section>
 
       <section className="show-boxes-section" id="survivors">
         <span>03 / HOLDER TIERS</span><h2>THE BOARD GETS SMALLER<br />WHEN HOLD WINS.</h2>
         <div className="show-tier-grid">
-          <article><b>01</b><h3>PAPER HANDS</h3><p>New seat on the board. Eligible, but light.</p></article>
-          <article className="is-blue"><b>02</b><h3>IRON HANDS</h3><p>Streak forming. Weight starts to matter.</p></article>
-          <article className="is-red"><b>03</b><h3>DIAMOND HANDS</h3><p>Stayed through pressure. Higher weight, bigger presence.</p></article>
-          <article className="is-gold"><b>04</b><h3>OBSIDIAN HANDS</h3><p>The room remembers who survived the most dilemmas.</p></article>
+          <article><b>01</b><h3>PAPER HANDS</h3><p>New seat on the board. Eligible, but base weight only.</p></article>
+          <article className="is-blue"><b>02</b><h3>IRON HANDS</h3><p>Holding time starts adding force to the bag.</p></article>
+          <article className="is-red"><b>03</b><h3>DIAMOND HANDS</h3><p>Stayed through pressure. More weight in payouts and airdrops.</p></article>
+          <article className="is-gold"><b>04</b><h3>OBSIDIAN HANDS</h3><p>The largest time-held boost for wallets that keep surviving.</p></article>
         </div>
       </section>
 

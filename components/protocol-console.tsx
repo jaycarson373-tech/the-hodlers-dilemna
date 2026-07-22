@@ -236,7 +236,7 @@ export function ProtocolConsole() {
   const balance = holder ? baseUnitsToTokenAmount(holder.walletTokenBalance, decimals) : "—";
   const streakSeconds = Number(holder?.position?.streakSeconds ?? 0);
   const streak = streakSeconds >= 86_400 ? `${Math.floor(streakSeconds / 86_400)} DAYS` : `${Math.floor(streakSeconds / 3_600)} HOURS`;
-  const multiplier = holder ? `${(holder.multiplierBps / 10_000).toFixed(1)}×` : "—";
+  const timeHeldBoost = holder ? `${(holder.multiplierBps / 10_000).toFixed(1)}×` : "—";
   const playerWeight = holder ? baseUnitsToTokenAmount(holder.playerWeight, decimals) : "—";
   const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "POT FORMING";
   const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "POT FORMING";
@@ -296,7 +296,7 @@ export function ProtocolConsole() {
             <article className={`broadcast-panel broadcast-player ${holder?.soldThisRound ? "player-sold" : ""}`}>
               <span>YOUR POSITION · HOLDER {shortWallet(address)}</span>
               {!connected ? (
-                <div className="broadcast-entry"><strong>SEE YOUR POSITION.</strong><p>Connect your wallet to reveal your seat, multiplier, vote status, and projected payout.</p><button type="button" onClick={() => document.getElementById("wallet-access")?.click()}>CONNECT WALLET</button></div>
+                <div className="broadcast-entry"><strong>SEE YOUR POSITION.</strong><p>Connect your wallet to reveal your seat, holding weight, vote status, and projected payout.</p><button type="button" onClick={() => document.getElementById("wallet-access")?.click()}>CONNECT WALLET</button></div>
               ) : !sessionToken ? (
                 <div className="broadcast-entry"><strong>ENTER THE DILEMMA.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
               ) : holder?.soldThisRound ? (
@@ -309,12 +309,12 @@ export function ProtocolConsole() {
                     <div><dt>BALANCE</dt><dd>{balance}</dd></div>
                     <div><dt>HOLDER STREAK</dt><dd>{streak}</dd></div>
                     <div><dt>TIER</dt><dd>{tierNames[holder.position.tier] ?? holder.position.tierName}</dd></div>
-                    <div><dt>MULTIPLIER</dt><dd>{multiplier}</dd></div>
-                    <div><dt>PLAYER WEIGHT</dt><dd>{playerWeight}</dd></div>
+                    <div><dt>TIME-HELD BOOST</dt><dd>{timeHeldBoost}</dd></div>
+                    <div><dt>HOLDING WEIGHT</dt><dd>{playerWeight}</dd></div>
                     <div><dt>JEET-SIDE EST.</dt><dd>{offer}</dd></div>
                     <div><dt>DECISION</dt><dd>{sealedChoice === "cooperate" ? "HOLD · SEALED" : sealedChoice === "defect" ? "JEET · SEALED" : "NOT SUBMITTED"}</dd></div>
                   </dl>
-                  <div className="broadcast-projection"><span>PROJECTED JEET PAYOUT · ESTIMATE</span><strong>{projected}</strong><small>BALANCE × MULTIPLIER ÷ JEET WEIGHT × CURRENT POT</small></div>
+                  <div className="broadcast-projection"><span>PROJECTED JEET PAYOUT · ESTIMATE</span><strong>{projected}</strong><small>BALANCE × TIME-HELD BOOST ÷ WINNING-SIDE WEIGHT × CURRENT POT</small></div>
                 </>
               )}
               {message ? <p className="broadcast-message">{message}</p> : null}

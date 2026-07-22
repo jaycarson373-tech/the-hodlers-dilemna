@@ -3,26 +3,28 @@
   --stage-red: #07110c;
   --panel-red: #0b1710;
   --panel-deep: #061009;
-  --line-gold: rgba(20, 241, 149, 0.34);
-  --cream: #eafff2;
-  --gold: #14f195;
-  --gold-hot: #7cffb2;
-  --scarlet: #ff2a1f;
-  --scarlet-hot: #ff5a32;
-  --display: Impact, Haettenschweiler, "Arial Narrow Bold", "Arial Narrow", sans-serif;
-  --terminal: "Arial Narrow", "SFMono-Regular", Consolas, monospace;
+  --line-gold: rgba(0, 255, 106, 0.34);
+  --cream: #dfffee;
+  --gold: #00ff6a;
+  --gold-hot: #8cffbd;
+  --scarlet: #ff1f34;
+  --scarlet-hot: #ff5f67;
+  --display: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Roboto Mono", "Courier New", monospace;
+  --terminal: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Roboto Mono", "Courier New", monospace;
 }
 
 html { background: var(--stage); color-scheme: dark; }
-body { background: var(--stage); color: var(--cream); }
+body { background: var(--stage); color: var(--cream); font-family: var(--terminal); }
 
 .show-home, .rules-page, .docs-page, .broadcast-page {
   position: relative;
   min-height: 100svh;
   overflow-x: clip;
   background:
-    radial-gradient(ellipse at 50% 13%, rgba(20, 241, 149, .18), transparent 37%),
-    linear-gradient(180deg, #07100b 0%, #050807 52%, #07120c 100%);
+    radial-gradient(ellipse at 29% 13%, rgba(0, 255, 106, .2), transparent 34%),
+    radial-gradient(ellipse at 72% 13%, rgba(255, 31, 52, .18), transparent 35%),
+    linear-gradient(90deg, rgba(0, 255, 106, .07), transparent 28%, transparent 72%, rgba(255, 31, 52, .08)),
+    linear-gradient(180deg, #020604 0%, #050807 52%, #090304 100%);
   color: var(--cream);
 }
 
@@ -32,6 +34,22 @@ body { background: var(--stage); color: var(--cream); }
     repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.013) 3px 4px),
     radial-gradient(circle at 50% 20%, transparent 0 26%, rgba(0,0,0,.36) 78%);
   opacity: .8;
+}
+
+.show-home::after, .rules-page::after, .docs-page::after, .broadcast-page::after {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    repeating-linear-gradient(180deg, rgba(0,255,106,.22) 0 2px, transparent 2px 19px) left top / 50% 260px repeat-y,
+    repeating-linear-gradient(90deg, transparent 0 26px, rgba(0,255,106,.09) 26px 28px, transparent 28px 54px) left top / 50% 100% no-repeat,
+    repeating-linear-gradient(180deg, rgba(255,31,52,.2) 0 2px, transparent 2px 22px) right -110px / 50% 290px repeat-y,
+    repeating-linear-gradient(90deg, transparent 0 26px, rgba(255,31,52,.08) 26px 28px, transparent 28px 54px) right top / 50% 100% no-repeat;
+  mask-image: radial-gradient(ellipse at 50% 20%, rgba(0,0,0,.9), rgba(0,0,0,.44) 47%, transparent 83%);
+  opacity: .55;
+  animation: matrixFall 22s linear infinite;
 }
 
 .show-home > *, .rules-page > *, .docs-page > *, .broadcast-page > * { position: relative; z-index: 1; }
@@ -128,6 +146,7 @@ body { background: var(--stage); color: var(--cream); }
 .show-ticker { overflow: hidden; border-block: 1px solid rgba(20,241,149,.48); background: linear-gradient(180deg,#14f195,#059669); box-shadow: 0 0 22px rgba(20,241,149,.25); }
 .show-ticker div { width: max-content; padding: 16px 0; color: #021008; font: 900 .8rem/1 var(--terminal); letter-spacing: .11em; animation: showTicker 28s linear infinite; }
 @keyframes showTicker { to { transform: translateX(-50%); } }
+@keyframes matrixFall { to { background-position:left 260px, left top, right 180px, right top; } }
 
 .show-live-call, .show-streak-section, .show-boxes-section, .show-banker-section, .show-bounty-section, .show-how, .show-docs-cta, .show-final-call {
   width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: clamp(82px, 9vw, 136px) 0;
@@ -442,4 +461,11 @@ body { background: var(--stage); color: var(--cream); }
   .wallet-modal-backdrop { padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom))!important; }.wallet-modal { max-height:calc(100svh - 20px)!important;padding:20px!important; }.wallet-modal-header h2 { font-size:2rem!important; }
 }
 
-@media (prefers-reduced-motion: reduce) { .show-ticker div,.broadcast-case.is-lit { animation:none!important; } }
+@media (prefers-reduced-motion: reduce) {
+  .show-ticker div,
+  .broadcast-case.is-lit,
+  .show-home::after,
+  .rules-page::after,
+  .docs-page::after,
+  .broadcast-page::after { animation:none!important; }
+}

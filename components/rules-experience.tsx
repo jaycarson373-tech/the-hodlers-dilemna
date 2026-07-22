@@ -6,12 +6,12 @@ const chapters = [
   ["01", "THE POT", "FEES ENTER THE WHEEL.", "Every 15 minutes, creator fees are split: 65% main pot, 25% Banker fund, 10% airdrop fund. The pot pays only when JEET wins. If HOLD wins, it rolls forward."],
   ["02", "THE CHOICE", "HOLD OR JEET.", "HOLD means you stay in and let the pot grow. JEET means you are playing for the current round's fees."],
   ["03", "THE SIGNAL", "THE ROOM CAN BLUFF.", "Signal is visible for 10 minutes, then heavily obfuscated for 4 minutes, then locked in the final minute."],
-  ["04", "IF JEET WINS", "JEETERS RECEIVE THE FEES.", "Eligible JEET voters split the round's fee pot by player weight. The round ends and the next one begins."],
+  ["04", "IF JEET WINS", "JEETERS RECEIVE THE FEES.", "Eligible JEET voters split the round's fee pot by holding weight. Bigger bags carry more weight. Time held can boost that weight."],
   ["05", "IF HOLD WINS", "THE POT MOVES ON.", "Nobody is paid yet. The full pot rolls to the next round, and only wallets that held remain eligible to vote next round."],
   ["06", "THE REVEAL", "ONE SIDE WINS.", "At zero, the final hidden choices reveal. The board shows whether the round landed HOLD or JEET."],
 ] as const;
 
-const ladder = [["NEW", "1.0×", "PAPER"], ["1 HOUR", "1.2×", "PAPER"], ["2 HOURS", "1.5×", "IRON"], ["6 HOURS", "2.0×", "IRON"], ["1 DAY", "2.5×", "DIAMOND"], ["3 DAYS", "3.0×", "DIAMOND"], ["7 DAYS", "4.0× CAP", "OBSIDIAN"]];
+const ladder = [["NEW", "BASE", "PAPER"], ["1 HOUR", "+20%", "PAPER"], ["2 HOURS", "+50%", "IRON"], ["6 HOURS", "2.0×", "IRON"], ["1 DAY", "2.5×", "DIAMOND"], ["3 DAYS", "3.0×", "DIAMOND"], ["7 DAYS", "4.0× CAP", "OBSIDIAN"]];
 
 function RuleVisual({ number }: { number: string }) {
   if (number === "01") return <div className="rule-diagram fee"><strong>CREATOR FEES</strong><i>↓</i><span>65% POT · 25% BANKER · 10% AIRDROP<br /><b>15-MINUTE ROUND</b></span></div>;
@@ -19,7 +19,7 @@ function RuleVisual({ number }: { number: string }) {
   if (number === "03") return <div className="rule-diagram line"><span>LIVE → HEAVY BLUR → LOCK</span><i><b /></i><strong>10 MIN · 4 MIN · 1 MIN</strong></div>;
   if (number === "04") return <div className="rule-diagram math"><span>JEET WINS</span><i>→</i><strong>JEETERS SPLIT FEES</strong></div>;
   if (number === "05") return <div className="rule-diagram math"><span>HOLD WINS</span><i>→</i><strong>POT ROLLS FORWARD</strong></div>;
-  return <div className="rule-ladder">{ladder.map(([held, multiplier, tier]) => <div key={held}><span>{held}</span><strong>{multiplier}</strong><b>{tier}</b></div>)}</div>;
+  return <div className="rule-ladder">{ladder.map(([held, boost, tier]) => <div key={held}><span>{held}</span><strong>{boost}</strong><b>{tier}</b></div>)}</div>;
 }
 
 export function RulesExperience() {

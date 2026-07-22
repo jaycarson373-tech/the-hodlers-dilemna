@@ -8,10 +8,10 @@ HOLD, or JEET.
 
 - Rounds run every 15 minutes.
 - Eligible wallets hold the configured minimum amount of `$DILEMMA`.
-- Player weight is token balance × holder multiplier.
+- Holding weight is token balance × time-held boost.
 - Creator fees split 65% to the main pot, 25% to the Banker fund, and 10% to the airdrop fund.
 - Before the reveal, players choose `HOLD` or `JEET`.
-- If `JEET` wins, JEET voters split the current fee pot in SOL by weight.
+- If `JEET` wins, JEET voters split the current fee pot in SOL by holding weight.
 - If `HOLD` wins, nobody is paid yet; the pot rolls into the next round.
 - After a HOLD rollover, only wallets that held remain eligible to vote in the next round.
 - The signal is visible for 10 minutes, heavily obfuscated for 4 minutes, and fully locked in the final minute.
