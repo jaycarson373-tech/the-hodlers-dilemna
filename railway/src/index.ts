@@ -411,6 +411,29 @@ async function playerRoundSummary(wallet: string, liveBalance: bigint, streakSta
   };
 }
 
+function betweenRoundsSummary(liveBalance: bigint, streakStartedAt: string | null) {
+  const currentMultiplier = multiplierBps(streakStartedAt);
+  return {
+    snapshotBalance: liveBalance.toString(),
+    multiplierBps: currentMultiplier,
+    playerWeight: ((liveBalance * BigInt(currentMultiplier)) / 10_000n).toString(),
+    bankerOfferLamports: "0",
+    projectedShareLamports: "0",
+    participationStatus: "between-rounds",
+    soldThisRound: false,
+  };
+}
+
+async function safePlayerRoundSummary(wallet: string, liveBalance: bigint, streakStartedAt: string | null) {
+  try {
+    return await playerRoundSummary(wallet, liveBalance, streakStartedAt);
+  } catch (error) {
+    if (!isMissingSchemaObject(error)) throw error;
+    console.error("player round summary unavailable until database migration completes", error);
+    return betweenRoundsSummary(liveBalance, streakStartedAt);
+  }
+}
+
 async function ensureGameConfig() {
   const db = requireDb();
   if (!tokenMint) throw new Error("TOKEN_MINT is not configured.");
@@ -541,7 +564,7 @@ async function syncHolder(wallet: PublicKey) {
       wallet: walletAddress,
       walletTokenBalance: balance.amount.toString(),
       position: null,
-      ...await playerRoundSummary(walletAddress, balance.amount, null),
+      ...await safePlayerRoundSummary(walletAddress, balance.amount, null),
     };
   }
 
@@ -550,7 +573,28 @@ async function syncHolder(wallet: PublicKey) {
     .select("*")
     .eq("wallet", walletAddress)
     .maybeSingle<DbHolder>();
-  if (error) throw error;
+  if (error && !isMissingSchemaObject(error)) throw error;
+
+  // Balance verification is sourced from Solana, not from the holder cache. An
+  // older holder table must never prevent an otherwise eligible wallet from
+  // entering. Persistence resumes automatically after the schema migration.
+  if (error && isMissingSchemaObject(error)) {
+    const streakStartedAt = nowIso();
+    return {
+      wallet: walletAddress,
+      walletTokenBalance: balance.amount.toString(),
+      position: {
+        amount: eligibleAmount.toString(),
+        streakStartedAt,
+        streakSeconds: "0",
+        lockedUntil: null,
+        bonusBps: 0,
+        tier: 0,
+        tierName: tierName(0),
+      },
+      ...await safePlayerRoundSummary(walletAddress, balance.amount, streakStartedAt),
+    };
+  }
 
   const previousAmount = bigintValue(existing?.position_amount);
   const soldOrDropped = eligibleAmount > 0n && existing && previousAmount > eligibleAmount;
@@ -594,7 +638,7 @@ async function syncHolder(wallet: PublicKey) {
       tier,
       tierName: tierName(tier),
     } : null,
-    ...await playerRoundSummary(walletAddress, balance.amount, streakStartedAt),
+    ...await safePlayerRoundSummary(walletAddress, balance.amount, streakStartedAt),
   };
 }
 
@@ -1097,10 +1141,13 @@ app.get("/api/status", async (_req, res, next) => {
       boxWalletAddress ? connection.getBalance(boxWalletAddress, "confirmed") : Promise.resolve(0),
       bankerWalletAddress ? connection.getBalance(bankerWalletAddress, "confirmed") : Promise.resolve(0),
     ]);
-    if (holderCountResult.error) throw holderCountResult.error;
-    if (oldestResult.error) throw oldestResult.error;
-    const count = holderCountResult.count;
-    const oldest = oldestResult.data;
+    if (holderCountResult.error && !isMissingSchemaObject(holderCountResult.error)) throw holderCountResult.error;
+    if (oldestResult.error && !isMissingSchemaObject(oldestResult.error)) throw oldestResult.error;
+    if (holderCountResult.error || oldestResult.error) {
+      console.error("holder statistics unavailable until database migration completes", holderCountResult.error ?? oldestResult.error);
+    }
+    const count = holderCountResult.error ? 0 : holderCountResult.count;
+    const oldest = oldestResult.error ? null : oldestResult.data;
     const longestStreakDays = oldest?.streak_started_at
       ? Math.max(0, Math.floor((Date.now() - new Date(oldest.streak_started_at).getTime()) / 86_400_000))
       : 0;
@@ -1137,6 +1184,10 @@ app.get("/api/leaderboard", async (_req, res, next) => {
   try {
     if (!supabase) return res.json([]);
     const { data, error } = await supabase.from("holders").select("wallet,position_amount,streak_started_at,tier,cooperate_votes,defect_votes,bonus_bps").gt("position_amount", 0).order("streak_started_at", { ascending: true }).limit(50);
+    if (error && isMissingSchemaObject(error)) {
+      console.error("leaderboard unavailable until database migration completes", error);
+      return res.json([]);
+    }
     if (error) throw error;
     res.json(data ?? []);
   } catch (error) { next(error); }
