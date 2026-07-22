@@ -2,7 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
-import { leaderboard as simulationLeaderboard, type LeaderboardEntry } from "@/lib/experiment-data";
+import type { LeaderboardEntry } from "@/lib/experiment-data";
 
 type LeaderboardRow = {
   rank: number | string;
@@ -42,8 +42,7 @@ const toLeaderboardEntry = (row: LeaderboardRow): LeaderboardEntry => ({
 });
 
 export function usePublicLeaderboard(limit = 25) {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>(simulationLeaderboard);
-  const [isSimulation, setIsSimulation] = useState(true);
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
 
   const client = useMemo(() => {
     if (!supabaseUrl || !supabasePublishableKey) return null;
@@ -70,7 +69,6 @@ export function usePublicLeaderboard(limit = 25) {
       }
 
       setEntries((data as LeaderboardRow[]).map(toLeaderboardEntry));
-      setIsSimulation(false);
     };
 
     void refresh();
@@ -91,5 +89,5 @@ export function usePublicLeaderboard(limit = 25) {
     };
   }, [client, limit]);
 
-  return { entries, isSimulation };
+  return { entries };
 }

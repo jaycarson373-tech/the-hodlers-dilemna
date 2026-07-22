@@ -20,12 +20,9 @@ export function WalletConnect() {
     wallet,
   } = useWalletConnection();
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [localError, setLocalError] = useState("");
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const address = wallet?.account.address.toString();
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -82,6 +79,7 @@ export function WalletConnect() {
   return (
     <>
       <button
+        id="wallet-access"
         type="button"
         className={`wallet-button ${connected ? "connected" : ""}`}
         aria-haspopup="dialog"
@@ -93,7 +91,7 @@ export function WalletConnect() {
         {buttonLabel}
       </button>
 
-      {mounted && isOpen ? createPortal((
+      {typeof document !== "undefined" && isOpen ? createPortal((
         <div
           className="wallet-modal-backdrop"
           role="presentation"
@@ -167,7 +165,7 @@ export function WalletConnect() {
             )}
 
             <p className="wallet-permission-note">
-              Connecting exposes your public address. Playing requires a message signature, and each deposit, vote, withdrawal, or claim requires separate wallet approval.
+              Connecting exposes your public address. Signing in asks for one message signature only. Choices are sealed without a wallet transaction; settled payouts arrive directly.
             </p>
             {localError || error ? (
               <p className="wallet-error" role="alert">

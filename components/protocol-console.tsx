@@ -1,18 +1,28 @@
 "use client";
 
+import { createClient } from "@supabase/supabase-js";
 import { useWalletConnection } from "@solana/react-hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useBankerFeed } from "@/components/use-banker-feed";
+import { usePublicLeaderboard } from "@/components/use-public-leaderboard";
 import {
   baseUnitsToTokenAmount,
   lamportsToSol,
   protocolApiUrl,
   protocolRequest,
   type HolderState,
+  type ProtocolRound,
   type ProtocolStatus,
 } from "@/lib/protocol-api";
-import { SIMULATION_COUNTDOWN_SECONDS, simulationStatus } from "@/lib/protocol-simulation";
 
+type AudienceSignal = { hodl: number; noHodl: number; sampleSize: number; label: string };
+type SealedChoice = "cooperate" | "defect";
+type GameResponse = { ok?: boolean; message?: string };
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+const supabaseKey = (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)?.trim();
 const tierNames = ["Paper Hands", "Iron Hands", "Diamond Hands", "Obsidian Hands"];
+
 const base64FromBytes = (value: Uint8Array) => {
   let binary = "";
   value.forEach((byte) => { binary += String.fromCharCode(byte); });
@@ -25,20 +35,12 @@ const formatCountdown = (seconds: number) => {
   const hours = Math.floor(seconds / 3600).toString().padStart(2, "0");
   const minutes = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0");
   const secs = Math.floor(seconds % 60).toString().padStart(2, "0");
-  return `${hours}:${minutes}:${secs}`;
+  return hours === "00" ? `${minutes}:${secs}` : `${hours}:${minutes}:${secs}`;
 };
-
-type GameResponse = { ok?: boolean; message?: string; signature?: string; amountLamports?: string };
-type AudienceSignal = { hodl: number; noHodl: number; sampleSize: number; label: string };
-type SealedChoice = "cooperate" | "defect";
-
-const hasPositiveLamports = (value?: string) => {
-  try {
-    return BigInt(value ?? "0") > 0n;
-  } catch {
-    return false;
-  }
+const positive = (value?: string) => {
+  try { return BigInt(value ?? "0") > 0n; } catch { return false; }
 };
+const shortWallet = (value?: string) => value ? `${value.slice(0, 4)}...${value.slice(-4)}` : "NOT CONNECTED";
 
 export function ProtocolConsole() {
   const { connected, wallet } = useWalletConnection();
@@ -46,35 +48,36 @@ export function ProtocolConsole() {
   const [status, setStatus] = useState<ProtocolStatus | null>(null);
   const [holder, setHolder] = useState<HolderState | null>(null);
   const [sessionToken, setSessionToken] = useState("");
-  const [countdown, setCountdown] = useState(SIMULATION_COUNTDOWN_SECONDS);
-  const [simulationMode, setSimulationMode] = useState(!protocolApiUrl);
+  const [audience, setAudience] = useState<AudienceSignal | null>(null);
+  const [countdown, setCountdown] = useState(0);
+  const [sealedChoice, setSealedChoice] = useState<SealedChoice | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [sealedChoice, setSealedChoice] = useState<SealedChoice | null>(null);
-  const [audienceSignal, setAudienceSignal] = useState<AudienceSignal | null>(null);
+  const [revealRound, setRevealRound] = useState<ProtocolRound | null>(null);
+  const previousRound = useRef<ProtocolRound | null>(null);
+  const { events } = useBankerFeed(8);
+  const { entries } = usePublicLeaderboard(10);
+
+  const realtime = useMemo(() => {
+    if (!supabaseUrl || !supabaseKey) return null;
+    return createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  }, []);
 
   const refresh = useCallback(async (authToken = sessionToken) => {
-    if (!protocolApiUrl) {
-      setSimulationMode(true);
-      return;
-    }
+    if (!protocolApiUrl) return;
     const nextStatus = await protocolRequest<ProtocolStatus>("/api/status");
-    if (!nextStatus.configured) {
-      setSimulationMode(true);
-      setStatus(null);
-      setHolder(null);
-      setCountdown((current) => current || SIMULATION_COUNTDOWN_SECONDS);
-      return;
-    }
-    setSimulationMode(false);
     setStatus(nextStatus);
     const target = nextStatus.roundActive ? nextStatus.round?.closesAt : nextStatus.nextRoundAt;
     setCountdown(remainingSeconds(target));
-    if (nextStatus.round?.roundNumber) {
-      setAudienceSignal(await protocolRequest<AudienceSignal>(`/api/audience-signal/${nextStatus.round.roundNumber}`));
+    if (previousRound.current?.status === "open" && nextStatus.round && nextStatus.round.status !== "open") {
+      setRevealRound(nextStatus.round);
     }
-    if (address && authToken) {
+    previousRound.current = nextStatus.round ?? null;
+    if (nextStatus.round?.roundNumber) {
+      setAudience(await protocolRequest<AudienceSignal>(`/api/audience-signal/${nextStatus.round.roundNumber}`));
+    }
+    if (address && authToken && nextStatus.configured) {
       const nextHolder = await protocolRequest<HolderState>(`/api/holder/${address}`, undefined, authToken);
       setHolder(nextHolder);
       setSealedChoice(nextHolder.participationStatus === "HODL" ? "cooperate" : nextHolder.participationStatus === "NO HODL" ? "defect" : null);
@@ -83,26 +86,22 @@ export function ProtocolConsole() {
 
   useEffect(() => {
     if (!protocolApiUrl) return;
-    const initial = window.setTimeout(() => {
-      void refresh().catch((refreshError) => {
-        console.error("Protocol status refresh failed", refreshError);
-        setSimulationMode(true);
-        setStatus(null);
-      });
-    }, 0);
-    const interval = window.setInterval(() => void refresh().catch((refreshError) => {
-      console.error("Protocol status refresh failed", refreshError);
-      setSimulationMode(true);
-      setStatus(null);
-    }), 10_000);
-    return () => {
-      window.clearTimeout(initial);
-      window.clearInterval(interval);
-    };
+    const initial = window.setTimeout(() => void refresh().catch((refreshError) => console.error("Live game refresh failed", refreshError)), 0);
+    const interval = window.setInterval(() => void refresh().catch((refreshError) => console.error("Live game refresh failed", refreshError)), 10_000);
+    return () => { window.clearTimeout(initial); window.clearInterval(interval); };
   }, [refresh]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setCountdown((current) => Math.max(0, current - 1)), 1000);
+    if (!realtime) return;
+    const channel = realtime.channel("live-game-room")
+      .on("postgres_changes", { event: "*", schema: "public", table: "rounds" }, () => void refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "protocol_config" }, () => void refresh())
+      .subscribe();
+    return () => { void realtime.removeChannel(channel); };
+  }, [realtime, refresh]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCountdown((current) => Math.max(0, current - 1)), 1_000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -112,17 +111,11 @@ export function ProtocolConsole() {
       setSealedChoice(null);
       setMessage("");
       setError("");
-      if (!address || !protocolApiUrl) {
-        setSessionToken("");
-        return;
-      }
+      if (!address || !protocolApiUrl) { setSessionToken(""); return; }
       const stored = window.sessionStorage.getItem(`hodl-session:${address}`) ?? "";
-      if (!stored) {
-        setSessionToken("");
-        return;
-      }
+      if (!stored) { setSessionToken(""); return; }
       try {
-        await protocolRequest<{ ok: true; wallet: string }>("/api/auth/session", undefined, stored);
+        await protocolRequest("/api/auth/session", undefined, stored);
         setSessionToken(stored);
       } catch {
         window.sessionStorage.removeItem(`hodl-session:${address}`);
@@ -133,9 +126,8 @@ export function ProtocolConsole() {
 
   const signIn = useCallback(async () => {
     if (!wallet || !address) throw new Error("Connect a Solana wallet first.");
-    if (!wallet.signMessage) throw new Error("This wallet does not support message signing.");
-    setBusy("signin");
-    setError("");
+    if (!wallet.signMessage) throw new Error("This wallet cannot sign the Banker's message.");
+    setBusy("signin"); setError("");
     try {
       const challenge = await protocolRequest<{ message: string }>(`/api/auth/challenge?wallet=${encodeURIComponent(address)}`);
       const signature = await wallet.signMessage(new TextEncoder().encode(challenge.message));
@@ -145,190 +137,149 @@ export function ProtocolConsole() {
       });
       setSessionToken(verified.token);
       window.sessionStorage.setItem(`hodl-session:${address}`, verified.token);
-      setMessage("Wallet verified. Claim your seat, then wait for the Banker's call.");
+      setMessage("SEAT VERIFIED — YOUR BOX IS READY.");
+      await refresh(verified.token);
       return verified.token;
-    } finally {
-      setBusy("");
-    }
-  }, [address, wallet]);
+    } finally { setBusy(""); }
+  }, [address, refresh, wallet]);
 
-  const sendGameAction = useCallback(async (path: string, body: Record<string, string>, label: string) => {
-    if (!wallet || !address) throw new Error("Connect a Solana wallet first.");
-    setBusy(label);
-    setError("");
-    setMessage("");
+  const claimSeat = useCallback(async () => {
+    if (!wallet || !address) return;
+    setBusy("seat"); setError("");
     try {
       const token = sessionToken || await signIn();
-      const response = await protocolRequest<GameResponse>(path, {
-        method: "POST",
-        body: JSON.stringify({ wallet: address, ...body }),
-      }, token);
-      const suffix = response.signature ? ` ${response.signature}` : "";
-      setMessage(response.message ? `${response.message}${suffix}` : `${label} submitted.${suffix}`);
-      await new Promise((resolve) => window.setTimeout(resolve, 1200));
+      const response = await protocolRequest<GameResponse>("/api/tx/open-position", { method: "POST", body: JSON.stringify({ wallet: address }) }, token);
+      setMessage(response.message ?? "YOUR BOX IS ON THE BOARD.");
       await refresh(token);
-    } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : `${label} failed.`);
-    } finally {
-      setBusy("");
-    }
+    } catch (seatError) {
+      setError(seatError instanceof Error ? seatError.message : "The Banker could not verify this seat.");
+    } finally { setBusy(""); }
   }, [address, refresh, sessionToken, signIn, wallet]);
 
   const activeRoundNumber = status?.round?.roundNumber;
-
-  const submitSealedDecision = useCallback(async (choice: SealedChoice) => {
-    if (!wallet || !address || !activeRoundNumber) throw new Error("Connect and enter the live episode first.");
-    if (sealedChoice && sealedChoice !== choice && !window.confirm("UNSEAL AND CHANGE? Your previous commitment will be superseded.")) return;
-    setBusy(choice);
-    setError("");
-    setMessage("");
+  const submitDecision = useCallback(async (choice: SealedChoice) => {
+    if (!wallet || !address || !activeRoundNumber) return;
+    if (sealedChoice && sealedChoice !== choice && !window.confirm("UNSEAL AND CHANGE? Your earlier sealed choice will be replaced.")) return;
+    setBusy(choice); setError(""); setMessage("");
     try {
       const token = sessionToken || await signIn();
       const salt = hexFromBytes(window.crypto.getRandomValues(new Uint8Array(32)));
-      const roundNumber = activeRoundNumber;
-      const commitment = await sha256Hex(`${choice}${salt}${address}${roundNumber}`);
-      await protocolRequest<GameResponse>("/api/vote/commit", {
+      const commitment = await sha256Hex(`${choice}${salt}${address}${activeRoundNumber}`);
+      await protocolRequest("/api/vote/commit", {
         method: "POST",
-        body: JSON.stringify({ wallet: address, roundNumber, choice, salt, commitment }),
+        body: JSON.stringify({ wallet: address, roundNumber: activeRoundNumber, choice, salt, commitment }),
       }, token);
       setSealedChoice(choice);
       setMessage("DECISION SEALED — WAITING FOR THE REVEAL.");
       await refresh(token);
-    } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : "The decision could not be sealed.");
-    } finally {
-      setBusy("");
-    }
+    } catch (decisionError) {
+      setError(decisionError instanceof Error ? decisionError.message : "The decision could not be sealed.");
+    } finally { setBusy(""); }
   }, [activeRoundNumber, address, refresh, sealedChoice, sessionToken, signIn, wallet]);
 
-  const sendAudienceSignal = useCallback(async (choice: SealedChoice) => {
-    const roundNumber = activeRoundNumber;
-    if (!roundNumber) return;
+  const sendSignal = useCallback(async (choice: SealedChoice) => {
+    if (!activeRoundNumber) return;
     let signalId = window.localStorage.getItem("hodl-audience-signal-id");
-    if (!signalId) {
-      signalId = window.crypto.randomUUID();
-      window.localStorage.setItem("hodl-audience-signal-id", signalId);
-    }
-    await protocolRequest("/api/audience-signal", {
-      method: "POST",
-      body: JSON.stringify({ roundNumber, choice, signalId }),
-    });
-    setAudienceSignal(await protocolRequest<AudienceSignal>(`/api/audience-signal/${roundNumber}`));
+    if (!signalId) { signalId = window.crypto.randomUUID(); window.localStorage.setItem("hodl-audience-signal-id", signalId); }
+    await protocolRequest("/api/audience-signal", { method: "POST", body: JSON.stringify({ roundNumber: activeRoundNumber, choice, signalId }) });
+    setAudience(await protocolRequest<AudienceSignal>(`/api/audience-signal/${activeRoundNumber}`));
   }, [activeRoundNumber]);
 
-  const displayStatus = simulationMode ? simulationStatus : status;
-  const decimals = displayStatus?.tokenDecimals ?? 6;
-  const positionAmount = holder?.position ? baseUnitsToTokenAmount(holder.position.amount, decimals) : "0";
-  const round = displayStatus?.round;
-  const hasPosition = Boolean(holder?.position && BigInt(holder.position.amount) > 0n);
-  const decisionWindowOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 0 && countdown <= 3_600);
-  const canVote = Boolean(connected && sessionToken && hasPosition && decisionWindowOpen && !holder?.soldThisRound);
-  const protocolReady = Boolean(!simulationMode && protocolApiUrl && status?.configured);
-  const hasLiveRound = Boolean(displayStatus?.roundActive && round);
-  const currentPot = round?.potLamports ?? displayStatus?.availablePoolLamports;
-  const hasFundedPot = hasPositiveLamports(currentPot);
-  const inFinalMinute = countdown > 0 && countdown <= 60 && Boolean(displayStatus?.roundActive);
-  const countdownText = countdown > 0 ? formatCountdown(countdown) : "AWAITING CALL";
-  const headline = useMemo(() => {
-    if (simulationMode) return "THE BOX IS FILLING.";
-    if (displayStatus?.roundActive) return "THE OFFER IS LIVE.";
-    if (hasFundedPot) return "OFFER INCOMING.";
-    return "WAITING FOR THE BANKER'S CALL.";
-  }, [displayStatus?.roundActive, hasFundedPot, simulationMode]);
-  const projectedShare = holder?.projectedShareLamports && hasPositiveLamports(holder.projectedShareLamports)
-    ? `${lamportsToSol(holder.projectedShareLamports)} SOL`
-    : "WAITING FOR LIVE POT";
+  const decimals = status?.tokenDecimals ?? 6;
+  const round = status?.round;
+  const pot = round?.potLamports ?? status?.availablePoolLamports ?? "0";
+  const hasPot = positive(pot);
+  const decisionWindow = Number(status?.decisionWindowSeconds ?? 300);
+  const decisionOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 0 && countdown <= decisionWindow);
+  const callCountdown = decisionOpen ? countdown : Math.max(0, countdown - decisionWindow);
+  const finalMinute = decisionOpen && countdown <= 60;
+  const hasPosition = Boolean(holder?.position && positive(holder.position.amount));
+  const canChoose = Boolean(connected && sessionToken && hasPosition && decisionOpen && !holder?.soldThisRound);
+  const balance = holder ? baseUnitsToTokenAmount(holder.walletTokenBalance, decimals) : "—";
+  const streakSeconds = Number(holder?.position?.streakSeconds ?? 0);
+  const streak = streakSeconds >= 86_400 ? `${Math.floor(streakSeconds / 86_400)} DAYS` : `${Math.floor(streakSeconds / 3_600)} HOURS`;
+  const multiplier = holder ? `${(holder.multiplierBps / 10_000).toFixed(1)}×` : "—";
+  const playerWeight = holder ? baseUnitsToTokenAmount(holder.playerWeight, decimals) : "—";
+  const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "AWAITING OFFER";
+  const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "AWAITING BOX";
+  const signalHodl = audience?.hodl ?? 50;
+  const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : "—";
+  const phase = !status?.configured ? "WAITING FOR THE BANKER" : !status.roundActive ? "AWAITING FUNDED BOX" : decisionOpen ? "THE BANKER IS CALLING" : "THE BOX IS FILLING";
 
   return (
-    <section className={`protocol-console section-shell ${inFinalMinute ? "final-minute" : ""} ${holder?.soldThisRound ? "player-out" : ""}`} id="play" aria-labelledby="protocol-console-title">
-      <div className="protocol-console-head">
-        <div>
-          <div className="broadcast-status-row" aria-label="Broadcast status">
-            <span><i /> LIVE</span>
-            <span>BANKER ONLINE</span>
-            <span>{hasLiveRound ? `ROUND ${displayStatus?.currentRound}` : "BANKER ONLINE"}</span>
-            <span>{inFinalMinute ? "BANKER PREPARING OFFER" : hasLiveRound ? "DECISION PENDING" : "NEXT OFFER PENDING"}</span>
-            {simulationMode ? <span className="simulation-tag">SIMULATION</span> : null}
-          </div>
-          <span>THE BANKER&apos;S ROOM / LIVE SOLANA GAME</span>
-          <h2 id="protocol-console-title">{headline}</h2>
+    <>
+      <section className={`broadcast-room ${finalMinute ? "is-final-minute" : ""} ${holder?.soldThisRound ? "is-out" : ""}`} id="game-console">
+        <div className="broadcast-phase">
+          <div><span>EPISODE {episode} · {status?.roundActive ? decisionOpen ? "DECISION" : "ACCUMULATING" : "STANDBY"}</span><strong>{phase}</strong></div>
+          <time>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : "WAITING FOR THE BANKER"}</time>
         </div>
-        <div className="protocol-countdown">
-          <span>{inFinalMinute ? "BANKER PREPARING OFFER" : hasLiveRound ? "BANKER CLOSES CASE IN" : "NEXT CALL"}</span>
-          <strong>{countdownText}</strong>
+
+        <div className="broadcast-grid">
+          <article className="broadcast-panel broadcast-box-panel">
+            <div className={`broadcast-case ${decisionOpen ? "is-lit" : ""}`} aria-hidden="true"><i /><b>?</b></div>
+            <strong className="broadcast-pot">{hasPot ? `${lamportsToSol(pot)} SOL` : "AWAITING FUNDED BOX"}</strong>
+            <span className="broadcast-pot-caption">WHAT&apos;S IN THE BOX · LIVE CREATOR FEES</span>
+            {status?.potRolloverCount ? <div className="broadcast-rollover">POT HAS ROLLED {status.potRolloverCount}X</div> : null}
+
+            <div className="broadcast-signal">
+              <span>AUDIENCE SIGNAL</span>
+              <div><i style={{ width: `${signalHodl}%` }} /><b style={{ width: `${100 - signalHodl}%` }} /></div>
+              <p><strong>HODL — {signalHodl}%</strong><strong>NO HODL — {100 - signalHodl}%</strong></p>
+              <small>ESTIMATED SENTIMENT · NOT FINAL VOTES · IS THE CROWD BLUFFING?</small>
+              {round?.status === "open" ? <nav><button type="button" onClick={() => void sendSignal("cooperate")}>SIGNAL HODL</button><button type="button" onClick={() => void sendSignal("defect")}>SIGNAL NO HODL</button></nav> : null}
+            </div>
+
+            <div className="broadcast-choices">
+              <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>HODL</strong><span>Reject the guaranteed offer and play for the Box.</span></button>
+              <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>NO HODL</strong><span>Take {offer} guaranteed.</span></button>
+            </div>
+            <p className="broadcast-lock-note">{sealedChoice ? "DECISION SEALED — WAITING FOR THE REVEAL." : decisionOpen ? "CHOICES ARE OPEN · EVERY DECISION REMAINS SEALED" : `CHOICES UNLOCK WHEN THE BANKER CALLS${callCountdown ? ` · ${formatCountdown(callCountdown)}` : ""}`}</p>
+            <p className="broadcast-rule-line">SILENCE COUNTS AS HODL. SELLING COUNTS AS NO HODL.</p>
+          </article>
+
+          <aside className="broadcast-sidebar">
+            <article className={`broadcast-panel broadcast-player ${holder?.soldThisRound ? "player-sold" : ""}`}>
+              <span>YOUR BOX · CONTESTANT {shortWallet(address)}</span>
+              {!connected ? (
+                <div className="broadcast-entry"><strong>SEE YOUR BOX.</strong><p>Connect your wallet to reveal your seat, multiplier, offer, and projected payout.</p><button type="button" onClick={() => document.getElementById("wallet-access")?.click()}>CONNECT — SEE YOUR BOX</button></div>
+              ) : !sessionToken ? (
+                <div className="broadcast-entry"><strong>ANSWER THE CALL.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
+              ) : holder?.soldThisRound ? (
+                <div className="broadcast-out"><strong>YOU&apos;RE OUT.</strong><p>SELLING IS NO HODL. Your streak reset, but you can still watch the Reveal.</p></div>
+              ) : !holder?.position ? (
+                <div className="broadcast-entry"><strong>GET A BOX.</strong><p>Your wallet must hold 1,000,000 tokens to enter this episode.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CHECKING…" : "CHECK MY BALANCE"}</button></div>
+              ) : (
+                <>
+                  <dl className="broadcast-stats">
+                    <div><dt>BALANCE</dt><dd>{balance}</dd></div>
+                    <div><dt>HOLD STREAK</dt><dd>{streak}</dd></div>
+                    <div><dt>TIER</dt><dd>{tierNames[holder.position.tier] ?? holder.position.tierName}</dd></div>
+                    <div><dt>MULTIPLIER</dt><dd>{multiplier}</dd></div>
+                    <div><dt>PLAYER WEIGHT</dt><dd>{playerWeight}</dd></div>
+                    <div><dt>BANKER OFFER</dt><dd>{offer}</dd></div>
+                    <div><dt>DECISION</dt><dd>{sealedChoice === "cooperate" ? "HODL · SEALED" : sealedChoice === "defect" ? "NO HODL · SEALED" : "NOT SUBMITTED"}</dd></div>
+                  </dl>
+                  <div className="broadcast-projection"><span>PROJECTED HODL PAYOUT · ESTIMATE</span><strong>{projected}</strong><small>BALANCE × MULTIPLIER ÷ HODL WEIGHT × REMAINING BOX</small></div>
+                </>
+              )}
+              {message ? <p className="broadcast-message">{message}</p> : null}
+              {error ? <p className="broadcast-error" role="alert">{error}</p> : null}
+            </article>
+
+            <article className="broadcast-panel broadcast-feed">
+              <span>STUDIO FEED</span>
+              <div>{events.length ? events.map((event) => <p key={event.id}><time>{event.time}</time><span><b>{event.event}</b>{event.detail}</span></p>) : <p><time>LIVE</time><span><b>AWAITING FIRST UPDATE</b>The studio feed begins with the next funded Box.</span></p>}</div>
+            </article>
+          </aside>
         </div>
-      </div>
+      </section>
 
-      {hasLiveRound || hasFundedPot ? (
-        <>
-        {displayStatus?.potRolloverCount ? <div className="rollover-badge">POT HAS ROLLED {displayStatus.potRolloverCount}X</div> : null}
-        <div className="protocol-stats">
-          <div><span>ROUND</span><strong>{hasLiveRound ? displayStatus?.currentRound : "Offer incoming"}</strong></div>
-          <div><span>CURRENT POT</span><strong>{hasFundedPot ? `${lamportsToSol(currentPot)} SOL` : "Awaiting funded pot"}</strong></div>
-          <div><span>AUDIENCE SIGNAL</span><strong>{simulationMode ? "62% HODL / 38% NO HODL" : audienceSignal ? `${audienceSignal.hodl}% HODL / ${audienceSignal.noHodl}% NO HODL` : "ESTIMATED SENTIMENT PENDING"}</strong><small>ESTIMATED SENTIMENT — NOT FINAL VOTES</small></div>
-          <div className="projected-share-stat"><span>PROJECTED SHARE</span><strong>{simulationMode ? "DEMO" : projectedShare}</strong></div>
-          <div><span>CONTESTANTS</span><strong>{displayStatus?.activeHolders ? displayStatus.activeHolders.toLocaleString() : "Waiting for holders"}</strong></div>
-          <div><span>YOUR SEAT</span><strong>{simulationMode ? "DEMO BOX" : holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : connected ? "Claim seat" : "Connect wallet"}</strong></div>
-        </div>
-        </>
-      ) : (
-        <div className="protocol-waiting-card" role="status" aria-live="polite">
-          <span>BANKER ONLINE</span>
-          <strong>Waiting for the Banker&apos;s call.</strong>
-          <p>{countdown > 0 ? `Next call in ${formatCountdown(countdown)}.` : "The next offer is pending."}</p>
-        </div>
-      )}
+      <section className="broadcast-leaderboard" id="leaderboard">
+        <header><span>LIVE RANKING</span><h2>LAST CONTESTANTS STANDING.</h2><p>Wallet · score · tier · total SOL paid · wins / losses</p></header>
+        {entries.length ? <div className="broadcast-table-wrap"><table><thead><tr><th>#</th><th>Wallet</th><th>Score</th><th>Tier</th><th>SOL Paid</th><th>W / L</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.wallet}><td>{String(entry.rank).padStart(2, "0")}</td><td>{shortWallet(entry.wallet)}</td><td>{entry.score}</td><td>{entry.tier}</td><td>{entry.totalSolAirdropped}</td><td>{entry.wins} / {entry.losses}</td></tr>)}</tbody></table></div> : <p className="broadcast-no-ranking">THE BOARD LIGHTS UP AFTER THE FIRST SETTLEMENT.</p>}
+      </section>
 
-      <div className="protocol-wallet-row">
-        <div><span>WALLET ACCESS</span><strong>{address ? `${address.slice(0, 5)}…${address.slice(-5)}` : "NOT CONNECTED"}</strong><small>{simulationMode ? "SIMULATION / NO TRANSACTIONS" : sessionToken ? "SIGNED IN / GAME ENABLED" : connected ? "SIGN IN TO PLAY" : "CONNECT ABOVE TO CONTINUE"}</small></div>
-        {connected && !sessionToken && !simulationMode ? <button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signInError) => setError(signInError instanceof Error ? signInError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button> : null}
-      </div>
-
-      {holder?.soldThisRound ? (
-        <div className="player-out-state" role="alert"><span>YOU&apos;RE OUT</span><strong>SELLING IS NO HODL.</strong><p>You can still watch the reveal, but this round&apos;s payout and streak are gone.</p></div>
-      ) : holder?.position ? (
-        <div className="your-box-panel" aria-live="polite">
-          <div><span>SNAPSHOT BALANCE</span><strong>{baseUnitsToTokenAmount(holder.snapshotBalance, decimals)}</strong></div>
-          <div><span>CURRENT STREAK</span><strong>{Math.floor(Number(holder.position.streakSeconds) / 3_600)} HOURS</strong></div>
-          <div><span>MULTIPLIER</span><strong>{(holder.multiplierBps / 10_000).toFixed(1)}×</strong></div>
-          <div className="your-box-projection"><span>PROJECTED SHARE IF YOU HODL</span><strong>{projectedShare}</strong></div>
-          <div><span>PARTICIPATION</span><strong>{holder.participationStatus}</strong></div>
-        </div>
-      ) : null}
-
-      {protocolApiUrl && status && !status.configured && connected && sessionToken ? (
-        <div className="protocol-actions">
-          <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/initialize", {}, "FIRST OFFER")}>ARM FIRST OFFER</button>
-        </div>
-      ) : null}
-
-      {protocolReady && connected && sessionToken ? (
-        <div className="protocol-actions">
-          {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/open-position", {}, "SEAT CLAIM")}>CLAIM YOUR SEAT</button> : (
-            <>
-              <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/deposit", {}, "SEAT REFRESH")}>REFRESH SEAT</button>
-              <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitSealedDecision("cooperate")}>HODL</button>
-              <button className="defect-action" type="button" disabled={Boolean(busy) || !canVote} aria-pressed={sealedChoice === "defect"} onClick={() => void submitSealedDecision("defect")}>NO HODL</button>
-            </>
-          )}
-        </div>
-      ) : null}
-
-      {protocolReady && round?.status === "open" ? (
-        <div className="audience-poll" aria-label="Audience signal poll">
-          <span>AUDIENCE SIGNAL — ESTIMATED SENTIMENT — NOT FINAL VOTES</span>
-          <button type="button" onClick={() => void sendAudienceSignal("cooperate")}>SIGNAL HODL</button>
-          <button type="button" onClick={() => void sendAudienceSignal("defect")}>SIGNAL NO HODL</button>
-        </div>
-      ) : null}
-
-      {holder?.position && !decisionWindowOpen && round?.status === "open" ? <p className="decision-locked">CHOICES UNLOCK IN {formatCountdown(Math.max(0, countdown - 3_600))}</p> : null}
-      {sealedChoice ? <p className="decision-sealed">DECISION SEALED — WAITING FOR THE REVEAL. {decisionWindowOpen ? "UNSEAL AND CHANGE? Choose again above." : ""}</p> : null}
-
-      {holder?.position ? <div className="protocol-position-line"><span>TIER <b>{tierNames[holder.position.tier] ?? holder.position.tierName}</b></span><span>STREAK <b>{Math.floor(Number(holder.position.streakSeconds) / 86_400)} DAYS</b></span><span>HELD <b>{positionAmount}</b></span></div> : null}
-      {message ? <p className="protocol-success" role="status">{message}</p> : null}
-      {error && !simulationMode ? <p className="protocol-error" role="alert">{error}</p> : null}
-      <p className="protocol-console-foot">Connect wallet → sign in → view your box → wait for the Banker&apos;s call → choose HODL or NO HODL.</p>
-    </section>
+      {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>EPISODE {String(revealRound.roundNumber).padStart(3, "0")} · THE REVEAL</span><h2>{revealRound.status === "settled" ? "THE BOX OPENS." : "THE BOX STAYS CLOSED."}</h2><strong>{revealRound.weightedHodlBps == null ? "CHOICES REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% WEIGHTED HODL`}</strong><p>{revealRound.status === "settled" ? "Banker deals were paid first. HODL players split the remaining Box." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next episode after Banker deals.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE STUDIO</button></article></div> : null}
+    </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
-import { feed as simulationFeed, type FeedEntry } from "@/lib/experiment-data";
+import type { FeedEntry } from "@/lib/experiment-data";
 
 type FeedEventRow = {
   id: string;
@@ -20,11 +20,6 @@ const supabasePublishableKey = (
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )?.trim();
-
-const scriptedFeed: BankerFeedItem[] = simulationFeed.map((event, index) => ({
-  ...event,
-  id: `simulation-${index}`,
-}));
 
 const titleFromType = (value: string) => value.replaceAll("_", " ");
 
@@ -53,8 +48,7 @@ const toFeedItem = (row: FeedEventRow): BankerFeedItem => ({
 });
 
 export function useBankerFeed(limit = 8) {
-  const [events, setEvents] = useState<BankerFeedItem[]>(scriptedFeed);
-  const [isSimulation, setIsSimulation] = useState(true);
+  const [events, setEvents] = useState<BankerFeedItem[]>([]);
 
   const client = useMemo(() => {
     if (!supabaseUrl || !supabasePublishableKey) return null;
@@ -80,7 +74,6 @@ export function useBankerFeed(limit = 8) {
         }
         if (data?.length) {
           setEvents((data as FeedEventRow[]).map(toFeedItem));
-          setIsSimulation(false);
         }
       });
 
@@ -93,7 +86,6 @@ export function useBankerFeed(limit = 8) {
           if (!active) return;
           const next = toFeedItem(payload.new as FeedEventRow);
           setEvents((current) => [next, ...current.filter((item) => item.id !== next.id)].slice(0, limit));
-          setIsSimulation(false);
         },
       )
       .subscribe((status) => {
@@ -106,5 +98,5 @@ export function useBankerFeed(limit = 8) {
     };
   }, [client, limit]);
 
-  return { events, isSimulation };
+  return { events };
 }

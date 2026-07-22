@@ -3,12 +3,13 @@
 import type { SolanaClientConfig } from "@solana/client";
 import { SolanaProvider } from "@solana/react-hooks";
 
-const configuredRpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+const configuredRpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
+const rpcEndpoint = configuredRpc || "https://rpc-not-configured.invalid";
 
 const solanaConfig: SolanaClientConfig = {
   cluster: "mainnet-beta",
   commitment: "confirmed",
-  ...(configuredRpc ? { endpoint: configuredRpc as SolanaClientConfig["endpoint"] } : {}),
+  endpoint: rpcEndpoint as SolanaClientConfig["endpoint"],
 };
 
 const walletPersistence = {
