@@ -7,8 +7,8 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://holdersdile
 const title = "Holders Dilemma";
 const description =
   "A pump.fun holder dilemma where every 30-minute round asks the same question: hold, or sell?";
-const brandIcon = "/holders-dilemma-icon.svg";
-const socialImage = `${siteUrl}/holders-dilemma-og.svg`;
+const brandIcon = "/holders-dilemma-logo.png";
+const socialImage = `${siteUrl}/holders-dilemma-og.png`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: brandIcon, type: "image/svg+xml" },
+      { url: brandIcon, type: "image/png" },
     ],
     shortcut: brandIcon,
     apple: brandIcon,
