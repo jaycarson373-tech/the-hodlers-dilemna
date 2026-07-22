@@ -230,7 +230,7 @@ export function ProtocolConsole() {
               ) : holder?.soldThisRound ? (
                 <div className="broadcast-out"><strong>YOU&apos;RE OUT.</strong><p>SELLING IS NO HODL. Your streak reset, but you can still watch the Reveal.</p></div>
               ) : !holder?.position ? (
-                <div className="broadcast-entry"><strong>GET A BOX.</strong><p>Your wallet must hold 300,000 tokens to enter this episode.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CHECKING…" : "CHECK MY BALANCE"}</button></div>
+                <div className="broadcast-entry"><strong>GET A BOX.</strong><p>Claim your seat to verify the required token balance.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY SEAT"}</button></div>
               ) : (
                 <>
                   <dl className="broadcast-stats">
