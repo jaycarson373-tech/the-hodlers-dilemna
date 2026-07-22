@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FooterBanner } from "@/components/footer-banner";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { ShowBrand } from "@/components/show-brand";
 
@@ -40,6 +41,7 @@ export function DocsExperience() {
       <section className="docs-section"><header><span>08 / CHAT & LEADERBOARD</span><h2>THE ROOM IS LIVE.</h2></header><div className="docs-grid two"><article><b>CHAT</b><p>Connected wallets can open the chat pop-up, pick a display name, and talk without exposing their full wallet in chat.</p></article><article><b>LEADERBOARD</b><p>The public leaderboard tracks wallet, tier, score, time-held boosts, total SOL paid, wins, and losses after settlement.</p></article></div></section>
 
       <section className="docs-end"><span>READY?</span><h2>HOLD... OR JEET?</h2><div><Link className="show-button show-button-red" href="/play">Enter Live Game</Link><Link className="show-button show-button-gold" href="/rules">One-Minute Rules</Link></div></section>
+      <FooterBanner />
       <footer className="show-footer"><ShowBrand /><span>Full rules. Live rounds. Direct SOL settlement.</span><LaunchFooterLinks /></footer>
     </main>
   );

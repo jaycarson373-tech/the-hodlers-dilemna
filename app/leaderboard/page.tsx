@@ -28,7 +28,7 @@ export default function LeaderboardPage() {
       <PublicLeaderboardBoard limit={50} />
       <footer className="broadcast-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/holders-dilemma-og.png" alt="Holders Dilemma" width="1200" height="630" />
+        <img src="/holders-dilemma-banner.png" alt="Holders Dilemma" width="1280" height="426" />
         <div>
           <ShowBrand />
           <span>The public board updates after every settlement.</span>

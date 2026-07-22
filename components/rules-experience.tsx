@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FooterBanner } from "@/components/footer-banner";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { ShowBrand } from "@/components/show-brand";
 
@@ -31,6 +32,7 @@ export function RulesExperience() {
       {chapters.map(([number, eyebrow, title, copy]) => <section className="rules-chapter" key={number}><div className="rules-chapter-copy"><span>{number} / {eyebrow}</span><h2>{title}</h2><p>{copy}</p></div><RuleVisual number={number} /></section>)}
       <section className="rules-formula"><span>THE WHOLE GAME</span><h2>JEET WINS: FEES PAID.<br />HOLD WINS: POT ROLLS.</h2><p>The pressure is simple. Take the current round, or keep the wheel spinning.</p></section>
       <section className="rules-one-line"><p>$DILEMMA</p><h2>DO YOU HOLD...<br />OR DO YOU JEET?</h2><span>Everything else is timing, bluffing, and conviction.</span><Link className="show-button show-button-red" href="/play">Enter Live Game</Link></section>
+      <FooterBanner />
       <footer className="show-footer"><ShowBrand /><span>Every 15 minutes. One dilemma.</span><LaunchFooterLinks /></footer>
     </main>
   );

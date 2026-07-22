@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FooterBanner } from "@/components/footer-banner";
 import { HomeSpectatorBoard } from "@/components/home-spectator-board";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { RoundHistoryBoard } from "@/components/round-history-board";
@@ -112,6 +113,7 @@ export function HomeShow() {
       <section className="show-docs-cta"><span>07 / FULL RULES</span><h2>THE SIMPLE VERSION<br />IS THE WHOLE GAME.</h2><p>Read the exact HOLD / JEET outcome flow, signal fade schedule, rollover rule, eligibility, chat, and leaderboard scoring.</p><Link className="show-button show-button-gold" href="/docs">OPEN THE DOCS</Link></section>
 
       <section className="show-final-call"><p>THE HOLDER&apos;S DILEMMA IS SIMPLE.</p><h2>HOLD...<br />OR JEET?</h2><Link className="show-button show-button-red" href="/play">ENTER THE LIVE GAME</Link></section>
+      <FooterBanner />
       <footer className="show-footer"><ShowBrand /><span>Every 15 minutes. One pot. Two sides.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
     </main>
   );

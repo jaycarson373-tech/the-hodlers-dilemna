@@ -21,7 +21,7 @@ export default function PlayPage() {
       <ProtocolConsole />
       <footer className="broadcast-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/holders-dilemma-og.png" alt="Holders Dilemma" width="1200" height="630" />
+        <img src="/holders-dilemma-banner.png" alt="Holders Dilemma" width="1280" height="426" />
         <div><ShowBrand /><span>Every 15 minutes, every holder faces the same dilemma.</span><Link href="/rules">Read the Rules</Link><LaunchFooterLinks /></div>
       </footer>
     </main>
