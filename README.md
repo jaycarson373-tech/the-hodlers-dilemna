@@ -77,4 +77,4 @@ MIN_HOLDING_TOKENS=1000000
 - `app/`, `components/`, `lib/` — website and game console
 - `railway/` — wallet authentication, holder verification, keeper, fee collection, chat, and payout API
 - `supabase/schema.sql` — read-model schema and RLS policies
-- `public/holders-dilemma-icon.svg`, `public/holders-dilemma-og.svg` — launch metadata assets
+- `public/holders-dilemma-logo.png`, `public/holders-dilemma-og.png`, `app/icon.jpg`, `app/apple-icon.jpg` — launch metadata and brand assets

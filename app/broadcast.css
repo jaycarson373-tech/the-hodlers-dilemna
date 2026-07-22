@@ -67,7 +67,7 @@ body { background: var(--stage); color: var(--cream); }
 .show-brand em { color: var(--gold-hot); font-style: normal; }
 .show-brand > span:last-child > span { display:block;margin-top:4px;color:rgba(124,255,178,.72);font:900 .52rem/1 var(--terminal);letter-spacing:.16em; }
 .show-brand-mark {
-  position: relative; display: grid; width: 38px; height: 31px; place-items: center;
+  position: relative; display: grid; width: 42px; height: 42px; place-items: center;
   overflow: hidden; border: 1px solid #14f195; border-radius: 6px;
   background: #061009;
   box-shadow: 0 0 16px rgba(20, 241, 149, .42), inset 0 1px 0 rgba(255,255,255,.25);
