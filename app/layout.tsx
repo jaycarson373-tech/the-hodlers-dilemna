@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import { DilemmaPreloader } from "@/components/dilemma-preloader";
 import { SolanaWalletProvider } from "@/components/solana-wallet-provider";
 import "./globals.css";
 import "./broadcast.css";
@@ -60,6 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}>
+        <DilemmaPreloader />
         <SolanaWalletProvider>{children}</SolanaWalletProvider>
       </body>
     </html>

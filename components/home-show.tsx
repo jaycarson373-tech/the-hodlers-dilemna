@@ -28,10 +28,6 @@ export function HomeShow() {
 
       <section className="show-hero" aria-labelledby="show-home-title">
         <div className="show-spotlights" aria-hidden="true"><i /><i /></div>
-        <div className="show-hero-poster" aria-hidden="true">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/holders-dilemma-banner.png" alt="" width="1280" height="426" />
-        </div>
         <div className="show-hero-copy">
           <p>ON-CHAIN HOLDER GAME / $DILEMMA</p>
           <h1 id="show-home-title">HOLDERS<br /><em>DILEMMA</em></h1>
@@ -79,8 +75,8 @@ export function HomeShow() {
       </section>
 
       <section className="show-final-call"><p>THE EXPERIMENT IS LIVE.</p><h2>GREEN...<br />OR RED?</h2><Link className="show-button show-button-green" href="/play">ENTER THE DILEMMA</Link></section>
-      <FooterBanner />
       <footer className="show-footer"><ShowBrand /><span>Every 15 minutes. One pot. Two sides.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
+      <FooterBanner />
     </main>
   );
 }

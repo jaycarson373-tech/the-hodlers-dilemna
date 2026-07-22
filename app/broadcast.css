@@ -2801,3 +2801,309 @@ body {
     line-height: .84 !important;
   }
 }
+
+/* Cinematic site preloader */
+html.dilemma-intro-active,
+html.dilemma-intro-active body {
+  overflow: hidden !important;
+}
+
+.dilemma-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 24% 45%, rgba(78, 219, 154, .105), transparent 34%),
+    radial-gradient(circle at 76% 45%, rgba(255, 92, 108, .095), transparent 34%),
+    linear-gradient(90deg, rgba(78, 219, 154, .035), transparent 42%, rgba(0,0,0,.70) 50%, transparent 58%, rgba(255, 92, 108, .035)),
+    #020403;
+  color: #f5f8f5;
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+.dilemma-preloader::before,
+.dilemma-preloader::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.dilemma-preloader::before {
+  background:
+    linear-gradient(rgba(245, 248, 245, .035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, transparent 0 54%, rgba(0,0,0,.68) 100%),
+    repeating-linear-gradient(180deg, rgba(255,255,255,.026) 0 1px, transparent 1px 5px);
+  background-size: 100% 5px, 100% 100%, 100% 6px;
+  opacity: .48;
+  mix-blend-mode: screen;
+}
+
+.dilemma-preloader::after {
+  background:
+    radial-gradient(circle at 18% 65%, rgba(78,219,154,.20) 0 1px, transparent 2px),
+    radial-gradient(circle at 82% 32%, rgba(255,92,108,.18) 0 1px, transparent 2px),
+    linear-gradient(115deg, transparent 0 44%, rgba(78,219,154,.06) 44.2% 44.5%, transparent 44.7%),
+    linear-gradient(247deg, transparent 0 52%, rgba(255,92,108,.06) 52.2% 52.5%, transparent 52.7%);
+  background-size: 88px 88px, 106px 106px, 640px 500px, 740px 560px;
+  opacity: .36;
+}
+
+.dilemma-preloader__skip {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 4;
+  min-width: 70px;
+  min-height: 42px;
+  border: 1px solid rgba(245, 248, 245, .22);
+  border-radius: 999px;
+  background: rgba(5, 8, 7, .48);
+  color: rgba(245, 248, 245, .74);
+  font-family: var(--font-ibm-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+}
+
+.dilemma-preloader__skip:focus-visible {
+  outline: 2px solid rgba(78, 219, 154, .9);
+  outline-offset: 4px;
+}
+
+.dilemma-preloader__preload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dilemma-preloader__frame {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(1.025);
+  pointer-events: none;
+}
+
+.dilemma-preloader__frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 42%, rgba(0,0,0,.64) 70%, rgba(0,0,0,.86) 100%),
+    linear-gradient(90deg, rgba(0,0,0,.16), rgba(0,0,0,.46) 50%, rgba(0,0,0,.16));
+}
+
+.dilemma-preloader__frame img {
+  width: min(960px, 94vw);
+  height: auto;
+  max-height: min(72svh, 680px);
+  object-fit: contain;
+  filter: brightness(.70) saturate(.92) contrast(1.08);
+}
+
+.dilemma-preloader__copy {
+  position: relative;
+  z-index: 3;
+  width: min(920px, calc(100vw - 32px));
+  text-align: center;
+}
+
+.dilemma-preloader__copy p {
+  margin: 0;
+  color: #f5f8f5;
+  font-family: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
+  font-size: clamp(2.05rem, 7.2vw, 6.4rem);
+  font-weight: 800;
+  letter-spacing: .055em;
+  line-height: .92;
+  text-transform: uppercase;
+  text-shadow:
+    -1px 0 rgba(78, 219, 154, .22),
+    1px 0 rgba(255, 92, 108, .20),
+    0 10px 42px rgba(0,0,0,.80);
+}
+
+.dilemma-preloader__decision {
+  display: grid;
+  gap: clamp(4px, 1vw, 10px);
+}
+
+.dilemma-preloader__decision em {
+  color: rgba(245, 248, 245, .52);
+  font-family: var(--font-ibm-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: clamp(.82rem, 2vw, 1.1rem);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: .28em;
+}
+
+.dilemma-preloader.is-incoming .dilemma-preloader__copy,
+.dilemma-preloader.is-choice .dilemma-preloader__copy,
+.dilemma-preloader.is-pill .dilemma-preloader__copy {
+  animation: dilemmaTextIn 520ms cubic-bezier(.2,.75,.25,1) both;
+}
+
+.dilemma-preloader.is-image .dilemma-preloader__frame {
+  animation: dilemmaImageFlash 620ms cubic-bezier(.16,.84,.28,1) both;
+}
+
+.dilemma-preloader.is-image .dilemma-preloader__copy {
+  opacity: 0;
+}
+
+.dilemma-preloader.is-choice,
+.dilemma-preloader.is-pill {
+  animation: dilemmaRgbKick 260ms steps(2, end) both;
+}
+
+.dilemma-preloader.is-pill::before {
+  animation: dilemmaFinalStatic 760ms steps(5, end) both;
+}
+
+@keyframes dilemmaTextIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(.985);
+    filter: blur(8px);
+    clip-path: inset(0 50% 0 50%);
+  }
+  18% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  28% {
+    transform: translate(-2px, 0) scale(1.002);
+    text-shadow:
+      -5px 0 rgba(78, 219, 154, .24),
+      5px 0 rgba(255, 92, 108, .20),
+      0 10px 42px rgba(0,0,0,.80);
+  }
+  42% {
+    transform: translate(2px, 0) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes dilemmaImageFlash {
+  0% {
+    opacity: 0;
+    transform: scale(1.04);
+    filter: blur(5px);
+  }
+  20% {
+    opacity: .92;
+    transform: scale(1.01);
+    filter: none;
+  }
+  78% {
+    opacity: .88;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+    filter: blur(8px);
+  }
+}
+
+@keyframes dilemmaRgbKick {
+  0%, 100% {
+    transform: none;
+  }
+  28% {
+    transform: translateX(-2px);
+    filter: drop-shadow(5px 0 rgba(255,92,108,.18)) drop-shadow(-5px 0 rgba(78,219,154,.16));
+  }
+  50% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes dilemmaFinalStatic {
+  0%, 100% {
+    opacity: .48;
+  }
+  30% {
+    opacity: .72;
+  }
+  42% {
+    opacity: .30;
+  }
+  52% {
+    opacity: .64;
+  }
+}
+
+@media (max-width: 640px) {
+  .dilemma-preloader__copy p {
+    font-size: clamp(2.05rem, 12vw, 4.1rem);
+    letter-spacing: .03em;
+  }
+
+  .dilemma-preloader__frame img {
+    width: min(760px, 132vw);
+    max-height: 62svh;
+  }
+
+  .dilemma-preloader__skip {
+    min-width: 64px;
+    min-height: 40px;
+    font-size: .58rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .dilemma-preloader__copy {
+    width: min(92vw, 360px);
+  }
+
+  .dilemma-preloader__copy p {
+    font-size: clamp(1.9rem, 11vw, 3.45rem);
+  }
+
+  .dilemma-preloader__frame img {
+    width: 138vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dilemma-preloader,
+  .dilemma-preloader::before,
+  .dilemma-preloader::after,
+  .dilemma-preloader__copy,
+  .dilemma-preloader__frame {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .dilemma-preloader::before {
+    opacity: .18;
+  }
+}
+
+/* Top banner removed: keep the hero title centered without the old poster gap */
+.show-hero-copy {
+  padding-top: clamp(110px, 18svh, 190px) !important;
+}
+
+@media (max-width: 640px) {
+  .show-hero-copy {
+    padding-top: clamp(88px, 14svh, 130px) !important;
+  }
+}
