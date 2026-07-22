@@ -24,7 +24,8 @@ const supabasePublishableKey = (
 const titleFromType = (value: string) => value.replaceAll("_", " ");
 const cleanCopy = (value: string) => value
   .replace(new RegExp(["Hodl", "or", "No", "Hodl"].join(" ") + "\\.fun", "gi"), "Holders Dilemma")
-  .replace(/NO\s+HODL/gi, "SELL")
+  .replace(/NO\s+HODL/gi, "JEET")
+  .replace(/\bSELL\b/gi, "JEET")
   .replace(/HODL/gi, "HOLD")
   .replace(/\bHodl\b/g, "Hold")
   .replace(/\bBanker'?s?\b/gi, "Dilemma")
@@ -36,7 +37,7 @@ const toneFromRow = (row: FeedEventRow): FeedEntry["tone"] => {
   if (row.tone === "cooperate" || row.tone === "defect" || row.tone === "gold" || row.tone === "neutral") {
     return row.tone;
   }
-  if (/ROLL|DEFECT|SELL|NO_HODL|CLOSED/i.test(row.event_type)) return "defect";
+  if (/ROLL|DEFECT|SELL|JEET|NO_HODL|CLOSED/i.test(row.event_type)) return "defect";
   if (/OPEN|HODL|PAID|SETTLED/i.test(row.event_type)) return "cooperate";
   if (/FEE|POT|SWEEP|BONUS/i.test(row.event_type)) return "gold";
   return "neutral";

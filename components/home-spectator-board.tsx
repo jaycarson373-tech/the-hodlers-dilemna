@@ -44,7 +44,6 @@ export function HomeSpectatorBoard() {
   const round = status?.round;
   const remaining = round?.closesAt ? Math.max(0, Math.floor((new Date(round.closesAt).getTime() - now) / 1_000)) : 0;
   const roundActive = Boolean(status?.roundActive && remaining > 0);
-  const softObfuscation = Boolean(roundActive && remaining <= 600 && remaining > 300);
   const heavyObfuscation = Boolean(roundActive && remaining <= 300 && remaining > 60);
   const signalLocked = Boolean(roundActive && remaining <= 60 && remaining > 0);
   const revealing = Boolean(status?.roundActive && round?.closesAt && remaining === 0);
@@ -52,13 +51,11 @@ export function HomeSpectatorBoard() {
   const finalHoldPercent = finalHold ?? 0;
   const settledAge = round?.settledAt ? now - new Date(round.settledAt).getTime() : Number.POSITIVE_INFINITY;
   const finalSignal = !status?.roundActive && settledAge >= 0 && settledAge < 30_000 && round?.status !== "open" && finalHold !== null && finalHold !== undefined;
-  const showSignal = roundActive && !softObfuscation && !heavyObfuscation && !signalLocked && signal.hodl !== null && signal.noHodl !== null;
-  const softDrift = Math.round(Math.sin(now / 8_500) * 9);
+  const showSignal = roundActive && !heavyObfuscation && !signalLocked && signal.hodl !== null && signal.noHodl !== null;
   const heavyDrift = Math.round(Math.sin(now / 5_500) * 4);
-  const softHold = 50 + softDrift;
   const heavyHold = 50 + heavyDrift;
   const nextRoundCountdown = !roundActive && status?.nextRoundAt ? Math.max(0, Math.floor((new Date(status.nextRoundAt).getTime() - now) / 1_000)) : 0;
-  const displayCountdown = roundActive ? formatClock(remaining) : nextRoundCountdown ? formatClock(nextRoundCountdown) : "30:00";
+  const displayCountdown = roundActive ? formatClock(remaining) : nextRoundCountdown ? formatClock(nextRoundCountdown) : "15:00";
   const episodeLabel = status?.currentRound ? `ROUND ${Number(status.currentRound)}` : "ROUND 1";
   const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports ?? "0";
 
@@ -77,14 +74,14 @@ export function HomeSpectatorBoard() {
           <b>{displayCountdown}</b>
         </article>
         <article className="spectator-audience-card">
-          <span>{revealing ? "REVEALING FINAL DECISIONS..." : finalSignal ? "FINAL WEIGHTED RESULT" : signalLocked ? "FINAL MINUTE — SIGNAL LOCKED" : heavyObfuscation ? "FINAL FIVE — SIGNAL HEAVILY OBFUSCATED" : softObfuscation ? "FINAL TEN — SIGNAL OBFUSCATED" : roundActive ? "AUDIENCE SIGNAL — LIVE, NOT FINAL" : "WAITING FOR THE DILEMMA"}</span>
-          {revealing ? <strong>THE REVEAL IS UNDERWAY</strong> : finalSignal ? <><div className="spectator-signal"><i style={{ width: `${finalHoldPercent}%` }} /><b style={{ width: `${100 - finalHoldPercent}%` }} /></div><p><b>HOLD {finalHoldPercent}%</b><b>SELL {100 - finalHoldPercent}%</b></p></> : signalLocked ? <div className="spectator-blackout"><strong>{formatClock(remaining)}</strong><small>Final decisions are hidden until the reveal.</small></div> : heavyObfuscation ? <><div className="spectator-signal is-heavy-obfuscated"><i style={{ width: `${heavyHold}%` }} /><b style={{ width: `${100 - heavyHold}%` }} /></div><p><b>HOLD ???</b><b>SELL ???</b></p><small>The room is nearly unreadable.</small></> : softObfuscation ? <><div className="spectator-signal is-ambiguous"><i style={{ width: `${softHold}%` }} /><b style={{ width: `${100 - softHold}%` }} /></div><p><b>HOLD ?</b><b>SELL ?</b></p><small>The signal is fading. Early reads may be bait.</small></> : showSignal ? <><div className="spectator-signal"><i style={{ width: `${signal.hodl}%` }} /><b style={{ width: `${signal.noHodl}%` }} /></div><p><b>HOLD {signal.hodl}%</b><b>SELL {signal.noHodl}%</b></p></> : <strong>{displayCountdown}</strong>}
+          <span>{revealing ? "REVEALING FINAL DECISIONS..." : finalSignal ? "FINAL WEIGHTED RESULT" : signalLocked ? "FINAL MINUTE — SIGNAL LOCKED" : heavyObfuscation ? "FINAL FOUR — SIGNAL HEAVILY OBFUSCATED" : roundActive ? "AUDIENCE SIGNAL — LIVE, NOT FINAL" : "DILEMMA SIGNAL FORMING"}</span>
+          {revealing ? <strong>THE REVEAL IS UNDERWAY</strong> : finalSignal ? <><div className="spectator-signal"><i style={{ width: `${finalHoldPercent}%` }} /><b style={{ width: `${100 - finalHoldPercent}%` }} /></div><p><b>HOLD {finalHoldPercent}%</b><b>JEET {100 - finalHoldPercent}%</b></p></> : signalLocked ? <div className="spectator-blackout"><strong>{formatClock(remaining)}</strong><small>Final decisions are hidden until the reveal.</small></div> : heavyObfuscation ? <><div className="spectator-signal is-heavy-obfuscated"><i style={{ width: `${heavyHold}%` }} /><b style={{ width: `${100 - heavyHold}%` }} /></div><p><b>HOLD ???</b><b>JEET ???</b></p><small>The room is nearly unreadable.</small></> : showSignal ? <><div className="spectator-signal"><i style={{ width: `${signal.hodl}%` }} /><b style={{ width: `${signal.noHodl}%` }} /></div><p><b>HOLD {signal.hodl}%</b><b>JEET {signal.noHodl}%</b></p></> : <strong>{displayCountdown}</strong>}
           <dl><div><dt>ACTIVE HOLDERS</dt><dd>{status?.activeHolders ? status.activeHolders.toLocaleString() : "BOARD FORMING"}</dd></div><div><dt>LONGEST STREAK</dt><dd>{status?.longestStreakDays ? `${status.longestStreakDays} DAYS` : "ROUND 1"}</dd></div></dl>
         </article>
         <article className="spectator-box-card">
           <span>LIVE FEE POT</span>
           <div className="spectator-mini-box" aria-hidden="true">$</div>
-          <strong>{Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "WAITING FOR FEES"}</strong>
+          <strong>{Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</strong>
           <small>$DILEMMA · CREATOR FEES</small>
           {status?.potRolloverCount ? <div><span>ROLLOVER</span><b>{status.potRolloverCount}X</b></div> : null}
         </article>

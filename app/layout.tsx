@@ -6,7 +6,7 @@ import "./broadcast.css";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://holdersdilemma.fun";
 const title = "Holders Dilemma";
 const description =
-  "A pump.fun holder dilemma where every 30-minute round asks the same question: hold, or sell?";
+  "A pump.fun holder dilemma where every 15-minute round asks the same question: HOLD, or JEET?";
 const brandIcon = "/holders-dilemma-logo.png";
 const socialImage = `${siteUrl}/holders-dilemma-og.png`;
 

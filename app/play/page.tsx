@@ -7,7 +7,7 @@ import { WalletConnect } from "@/components/wallet-connect";
 
 export const metadata: Metadata = {
   title: "Live Game | Holders Dilemma",
-  description: "Enter the live 30-minute Holders Dilemma round. Choose HOLD or SELL before the reveal.",
+  description: "Enter the live 15-minute Holders Dilemma round. Choose HOLD or JEET before the reveal.",
 };
 
 export default function PlayPage() {
@@ -22,7 +22,7 @@ export default function PlayPage() {
       <footer className="broadcast-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/holders-dilemma-og.png" alt="Holders Dilemma" width="1200" height="630" />
-        <div><ShowBrand /><span>Every 30 minutes, every holder faces the same dilemma.</span><Link href="/rules">Read the Rules</Link><LaunchFooterLinks /></div>
+        <div><ShowBrand /><span>Every 15 minutes, every holder faces the same dilemma.</span><Link href="/rules">Read the Rules</Link><LaunchFooterLinks /></div>
       </footer>
     </main>
   );

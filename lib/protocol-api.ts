@@ -31,10 +31,13 @@ export type ProtocolStatus = {
   cooperationThresholdBps?: number;
   boxAllocationBps?: number;
   bankerAllocationBps?: number;
+  airdropAllocationBps?: number;
   boxWallet?: string | null;
   bankerWallet?: string | null;
+  airdropWallet?: string | null;
   boxWalletBalanceLamports?: string;
   bankerWalletBalanceLamports?: string;
+  airdropWalletBalanceLamports?: string;
   nextRoundAt?: string | null;
   roundActive?: boolean;
   paused?: boolean;

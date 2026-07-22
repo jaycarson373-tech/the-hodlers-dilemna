@@ -11,8 +11,8 @@ create table if not exists public.protocol_config (
   current_round bigint not null default 0,
   available_pool_lamports bigint not null default 0,
   pot_rollover_count integer not null default 0,
-  round_length_seconds bigint not null default 1800,
-  decision_window_seconds bigint not null default 600,
+  round_length_seconds bigint not null default 900,
+  decision_window_seconds bigint not null default 900,
   cooperation_threshold_bps integer not null default 5000,
   failed_round_count integer not null default 0,
   claim_window_seconds bigint not null default 604800,
@@ -213,7 +213,7 @@ alter table public.protocol_config
   add column if not exists cluster text default 'mainnet-beta',
   add column if not exists current_round bigint default 0,
   add column if not exists available_pool_lamports bigint default 0,
-  add column if not exists round_length_seconds bigint default 1800,
+  add column if not exists round_length_seconds bigint default 900,
   add column if not exists next_round_at timestamptz,
   add column if not exists round_active boolean default false,
   add column if not exists paused boolean default false,
@@ -451,11 +451,11 @@ $$;
 
 alter table public.protocol_config
   add column if not exists pot_rollover_count integer not null default 0,
-  add column if not exists decision_window_seconds bigint not null default 600,
+  add column if not exists decision_window_seconds bigint not null default 900,
   add column if not exists cooperation_threshold_bps integer not null default 5000,
   add column if not exists failed_round_count integer not null default 0;
 alter table public.protocol_config
-  alter column round_length_seconds set default 1800;
+  alter column round_length_seconds set default 900;
 alter table public.rounds
   add column if not exists deal_budget_lamports bigint not null default 0,
   add column if not exists accepted_deals_lamports bigint not null default 0,
@@ -528,7 +528,7 @@ begin
     replace(new.event_type, '_', ' '),
     new.detail,
     case
-      when new.event_type ~* '(ROLL|DEFECT|SELL|NO_HODL|CLOSED)' then 'defect'
+      when new.event_type ~* '(ROLL|DEFECT|SELL|JEET|NO_HODL|CLOSED)' then 'defect'
       when new.event_type ~* '(OPEN|HODL|PAID|SETTLED)' then 'cooperate'
       when new.event_type ~* '(FEE|POT|SWEEP|BONUS)' then 'gold'
       else 'neutral'

@@ -2,18 +2,19 @@
 
 Holders Dilemma (`$DILEMMA`) is a Solana holder game with one simple pressure point:
 
-Hold, or sell.
+HOLD, or JEET.
 
 ## Game economy
 
-- Rounds run every 30 minutes.
+- Rounds run every 15 minutes.
 - Eligible wallets hold the configured minimum amount of `$DILEMMA`.
 - Player weight is token balance × holder multiplier.
-- Before the reveal, players choose `HOLD` or `SELL`.
-- If `SELL` wins, SELL voters split the current fee pot in SOL by weight.
+- Creator fees split 65% to the main pot, 25% to the Banker fund, and 10% to the airdrop fund.
+- Before the reveal, players choose `HOLD` or `JEET`.
+- If `JEET` wins, JEET voters split the current fee pot in SOL by weight.
 - If `HOLD` wins, nobody is paid yet; the pot rolls into the next round.
 - After a HOLD rollover, only wallets that held remain eligible to vote in the next round.
-- The signal is visible early, starts obfuscating at 10 minutes, gets heavier at 5 minutes, and fully locks in the final minute.
+- The signal is visible for 10 minutes, heavily obfuscated for 4 minutes, and fully locked in the final minute.
 - Payouts go directly to wallets; there is no claim step.
 
 ## Website
@@ -60,11 +61,12 @@ pnpm start
 Current production defaults:
 
 ```dotenv
-FEE_COLLECTION_INTERVAL_MS=1800000
-ROUND_LENGTH_SECONDS=1800
-DECISION_WINDOW_SECONDS=600
-BOX_ALLOCATION_BPS=10000
-BANKER_ALLOCATION_BPS=0
+FEE_COLLECTION_INTERVAL_MS=900000
+ROUND_LENGTH_SECONDS=900
+DECISION_WINDOW_SECONDS=900
+BOX_ALLOCATION_BPS=6500
+BANKER_ALLOCATION_BPS=2500
+AIRDROP_ALLOCATION_BPS=1000
 MIN_HOLDING_TOKENS=1000000
 ```
 
