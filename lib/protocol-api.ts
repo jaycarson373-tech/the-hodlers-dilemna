@@ -49,6 +49,20 @@ export type ProtocolStatus = {
   round?: ProtocolRound | null;
 };
 
+export type RoundHistoryEntry = {
+  roundNumber: string;
+  result: "HOLD" | "JEET" | "LIVE" | "CLOSED";
+  status: ProtocolRound["status"];
+  potLamports: string;
+  paidLamports: string;
+  rolloverLamports: string;
+  holdPercent: number | null;
+  jeetPercent: number | null;
+  voterCount: number;
+  openedAt: string | null;
+  settledAt: string | null;
+};
+
 export type HolderState = {
   wallet: string;
   walletTokenBalance: string;

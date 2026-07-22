@@ -157,6 +157,20 @@ type DbRound = {
   settled_at?: string | null;
 };
 
+type DbRoundHistory = {
+  round_number: number | string;
+  status: string;
+  opened_at: string | null;
+  pot_lamports: number | string;
+  cooperate_weight: number | string;
+  defect_weight: number | string;
+  accepted_deals_lamports?: number | string;
+  rollover_lamports?: number | string;
+  weighted_hodl_bps?: number | null;
+  voter_count: number;
+  settled_at?: string | null;
+};
+
 const dbOpenRoundStatuses = [
   "open",
   "active",
@@ -575,6 +589,34 @@ function publicRound(round: DbRound | null) {
     forceOpen: Boolean(round.force_open),
     settledAt: iso(round.settled_at),
     status: publicRoundStatus(round.status),
+  };
+}
+
+function publicRoundHistory(round: DbRoundHistory) {
+  const cooperate = bigintValue(round.cooperate_weight);
+  const defect = bigintValue(round.defect_weight);
+  const total = cooperate + defect;
+  const status = publicRoundStatus(round.status);
+  const holdPercent = status === "open"
+    ? null
+    : round.weighted_hodl_bps !== null && round.weighted_hodl_bps !== undefined
+      ? Number(round.weighted_hodl_bps) / 100
+      : total === 0n
+        ? null
+        : Number((cooperate * 10_000n) / total) / 100;
+
+  return {
+    roundNumber: String(round.round_number),
+    result: status === "rolled_over" ? "HOLD" : status === "settled" ? "JEET" : status === "open" ? "LIVE" : "CLOSED",
+    status,
+    potLamports: String(round.pot_lamports ?? "0"),
+    paidLamports: String(round.accepted_deals_lamports ?? "0"),
+    rolloverLamports: String(round.rollover_lamports ?? "0"),
+    holdPercent,
+    jeetPercent: holdPercent === null ? null : 100 - holdPercent,
+    voterCount: status === "open" ? 0 : Number(round.voter_count ?? 0),
+    openedAt: iso(round.opened_at),
+    settledAt: iso(round.settled_at),
   };
 }
 
@@ -1273,6 +1315,23 @@ app.get("/api/events", async (_req, res, next) => {
     const { data, error } = await supabase.from("protocol_events").select("*").order("occurred_at", { ascending: false }).limit(50);
     if (error) throw error;
     res.json(data ?? []);
+  } catch (error) { next(error); }
+});
+
+app.get("/api/round-history", async (_req, res, next) => {
+  try {
+    if (!supabase) return res.json([]);
+    const { data, error } = await supabase
+      .from("rounds")
+      .select("round_number,status,opened_at,pot_lamports,cooperate_weight,defect_weight,accepted_deals_lamports,rollover_lamports,weighted_hodl_bps,voter_count,settled_at")
+      .order("round_number", { ascending: false })
+      .limit(32);
+    if (error && isMissingSchemaObject(error)) {
+      console.error("round history unavailable until database migration completes", error);
+      return res.json([]);
+    }
+    if (error) throw error;
+    res.json(((data ?? []) as DbRoundHistory[]).map(publicRoundHistory));
   } catch (error) { next(error); }
 });
 

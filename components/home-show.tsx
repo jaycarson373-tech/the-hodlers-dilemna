@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { HomeSpectatorBoard } from "@/components/home-spectator-board";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
+import { RoundHistoryBoard } from "@/components/round-history-board";
 import { ShowBrand } from "@/components/show-brand";
 import { WalletConnect } from "@/components/wallet-connect";
 
@@ -51,6 +52,8 @@ export function HomeShow() {
       <div className="show-ticker" aria-hidden="true">
         <div>HOLD ★ JEET ★ $DILEMMA ★ EVERY 15 MINUTES ★ SIGNAL BLURS AFTER 10 ★ FINAL MINUTE LOCKS ★ HOLD ★ JEET ★ $DILEMMA ★</div>
       </div>
+
+      <RoundHistoryBoard />
 
       <section className="show-live-call" id="choice">
         <span>01 / THE DILEMMA</span>
