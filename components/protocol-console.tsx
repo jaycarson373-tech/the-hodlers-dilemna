@@ -221,7 +221,7 @@ export function ProtocolConsole() {
 
   const decimals = status?.tokenDecimals ?? 6;
   const round = status?.round;
-  const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports ?? "0";
+  const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports;
   const hasPot = positive(pot);
   const decisionWindow = Number(status?.decisionWindowSeconds ?? 900);
   const decisionOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 0 && countdown <= decisionWindow);
@@ -240,10 +240,10 @@ export function ProtocolConsole() {
   const playerWeight = holder ? baseUnitsToTokenAmount(holder.playerWeight, decimals) : "—";
   const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "POT FORMING";
   const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "POT FORMING";
-  const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : "—";
+  const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : status ? "WAITING" : "LOADING";
   const nextCallCountdown = status?.nextRoundAt ? remainingSeconds(status.nextRoundAt) : 0;
   const standbyCountdown = nextCallCountdown ? formatCountdown(nextCallCountdown) : "";
-  const phase = !status?.configured ? "DILEMMA WARMING UP" : !status.roundActive ? "FEE POT FORMING" : finalMinute ? "FINAL SIGNAL LOCK" : decisionOpen ? "HOLD OR JEET" : "POT IS BUILDING";
+  const phase = !status ? "LOADING..." : !status.configured ? "DILEMMA WARMING UP" : !status.roundActive ? "FEE POT FORMING" : finalMinute ? "FINAL SIGNAL LOCK" : decisionOpen ? "HOLD OR JEET" : "POT IS BUILDING";
 
   return (
     <>
@@ -256,10 +256,10 @@ export function ProtocolConsole() {
         <div className="broadcast-grid">
           <article className="broadcast-panel broadcast-box-panel">
             <div className={`broadcast-case ${decisionOpen ? "is-lit" : ""}`} aria-hidden="true"><i /><b>?</b></div>
-            <strong className="broadcast-pot">{hasPot ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</strong>
+            <strong className="broadcast-pot">{pot == null ? "LOADING..." : hasPot ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</strong>
             <span className="broadcast-pot-caption">LIVE FEE POT · $DILEMMA</span>
             <div className="broadcast-wallet-pots">
-              <span><b>ROUND POT</b>{positive(pot) ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</span>
+              <span><b>ROUND POT</b>{pot == null ? "LOADING..." : positive(pot) ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</span>
             </div>
             {status?.potRolloverCount ? <div className="broadcast-rollover">POT HAS ROLLED {status.potRolloverCount}X</div> : null}
 
@@ -285,8 +285,8 @@ export function ProtocolConsole() {
             </div>
 
             <div className="broadcast-choices">
-              <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>HOLD</strong><span>Let the pot roll and stay eligible if HOLD wins.</span></button>
-              <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>JEET</strong><span>Play for the fee pot if JEET wins.</span></button>
+              <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-busy={busy === "cooperate"} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>HOLD</strong><span>Let the pot roll and stay eligible if HOLD wins.</span></button>
+              <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-busy={busy === "defect"} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>JEET</strong><span>Play for the fee pot if JEET wins.</span></button>
             </div>
             <p className="broadcast-lock-note">{sealedChoice ? "DECISION SEALED — LAST VOTE COUNTS." : finalMinute ? "FINAL MINUTE · SIGNAL HIDDEN · VOTES STILL SEALED" : decisionOpen ? "CHOICES ARE OPEN · EVERY DECISION REMAINS SEALED" : `CHOICES OPEN IN ${formatCountdown(callCountdown)}`}</p>
             <p className="broadcast-sell-rule">SELL ONCE = JEET. A SALE OVERRIDES A SEALED HOLD.</p>
@@ -299,11 +299,11 @@ export function ProtocolConsole() {
               {!connected ? (
                 <div className="broadcast-entry"><strong>SEE YOUR POSITION.</strong><p>Connect your wallet to reveal your seat, holding weight, vote status, and projected payout.</p><button type="button" onClick={() => document.getElementById("wallet-access")?.click()}>CONNECT WALLET</button></div>
               ) : !sessionToken ? (
-                <div className="broadcast-entry"><strong>ENTER THE DILEMMA.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
+                <div className="broadcast-entry"><strong>ENTER THE DILEMMA.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} aria-busy={busy === "signin"} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
               ) : holder?.soldThisRound ? (
                 <div className="broadcast-out"><strong>YOU SOLD.</strong><p>Your choice is now JEET. Selling overrides any sealed HOLD vote.</p></div>
               ) : !holder?.position ? (
-                <div className="broadcast-entry"><strong>CLAIM YOUR SEAT.</strong><p>Verify the required $DILEMMA balance and enter the board.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY SEAT"}</button></div>
+                <div className="broadcast-entry"><strong>CLAIM YOUR SEAT.</strong><p>Verify the required $DILEMMA balance and enter the board.</p><button type="button" disabled={Boolean(busy)} aria-busy={busy === "seat"} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY SEAT"}</button></div>
               ) : (
                 <>
                   <dl className="broadcast-stats">
@@ -341,7 +341,7 @@ export function ProtocolConsole() {
           <form onSubmit={submitChat}>
             <input value={chatName} onChange={(event) => setChatName(event.target.value)} maxLength={24} placeholder="Name" aria-label="Chat name" />
             <textarea value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} maxLength={160} placeholder={connected ? "Say something..." : "Connect wallet to chat"} aria-label="Chat message" />
-            <button type="submit" disabled={!connected || !chatDraft.trim() || busy === "chat"}>{busy === "chat" ? "SENDING" : "SEND"}</button>
+            <button type="submit" disabled={!connected || !chatDraft.trim() || busy === "chat"} aria-busy={busy === "chat"}>{busy === "chat" ? "SENDING" : "SEND"}</button>
           </form>
         </aside>
       ) : null}

@@ -84,6 +84,7 @@ export function WalletConnect() {
         className={`wallet-button ${connected ? "connected" : ""}`}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
+        aria-busy={connecting}
         disabled={!isReady || connecting}
         onClick={() => setIsOpen(true)}
       >
@@ -145,6 +146,7 @@ export function WalletConnect() {
                       type="button"
                       className="wallet-option"
                       disabled={connecting}
+                      aria-busy={connecting}
                       key={connector.id}
                       onClick={() => connectWallet(connector.id)}
                     >

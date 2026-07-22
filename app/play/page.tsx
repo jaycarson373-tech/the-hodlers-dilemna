@@ -15,7 +15,7 @@ export default function PlayPage() {
     <main className="broadcast-page">
       <div className="supplied-pill-backdrop" aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/holders-dilemma-pills-bg.jpg" alt="" />
+        <img src="/holders-dilemma-pills-bg.jpg" alt="" decoding="async" fetchPriority="high" />
       </div>
       <div className="broadcast-bulbs" aria-hidden="true" />
       <header className="broadcast-nav">
@@ -25,7 +25,7 @@ export default function PlayPage() {
       <ProtocolConsole />
       <footer className="broadcast-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/holders-dilemma-banner.png" alt="Holders Dilemma" width="1280" height="426" />
+        <img src="/holders-dilemma-banner.png" alt="Holders Dilemma" width="1280" height="426" loading="lazy" decoding="async" />
         <div><ShowBrand /><span>Every 15 minutes, every holder faces the same dilemma.</span><Link href="/rules">Read the Rules</Link><LaunchFooterLinks /></div>
       </footer>
     </main>

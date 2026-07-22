@@ -14,7 +14,7 @@ export function HomeShow() {
     <main className="show-home">
       <div className="supplied-market-backdrop" aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/holders-dilemma-market-bg.jpg" alt="" />
+        <img src="/holders-dilemma-market-bg.jpg" alt="" decoding="async" fetchPriority="high" />
       </div>
       <div className="show-bulbs" aria-hidden="true" />
       <header className="show-nav">

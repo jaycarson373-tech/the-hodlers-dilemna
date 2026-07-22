@@ -21,6 +21,7 @@ export function HomeSpectatorBoard() {
   const [status, setStatus] = useState<ProtocolStatus | null>(null);
   const [signal, setSignal] = useState<AudienceSignal>({ hodl: null, noHodl: null, phase: "waiting" });
   const [now, setNow] = useState(() => Date.now());
+  const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -31,6 +32,8 @@ export function HomeSpectatorBoard() {
       }
     } catch {
       // The public board stays calm while the live feed reconnects.
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
@@ -55,9 +58,9 @@ export function HomeSpectatorBoard() {
   const heavyDrift = Math.round(Math.sin(now / 5_500) * 4);
   const heavyHold = 50 + heavyDrift;
   const nextRoundCountdown = !roundActive && status?.nextRoundAt ? Math.max(0, Math.floor((new Date(status.nextRoundAt).getTime() - now) / 1_000)) : 0;
-  const displayCountdown = roundActive ? formatClock(remaining) : nextRoundCountdown ? formatClock(nextRoundCountdown) : "15:00";
-  const episodeLabel = status?.currentRound ? `ROUND ${Number(status.currentRound)}` : "ROUND 1";
-  const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports ?? "0";
+  const displayCountdown = roundActive ? formatClock(remaining) : nextRoundCountdown ? formatClock(nextRoundCountdown) : loaded ? "WAITING" : "LOADING...";
+  const episodeLabel = status?.currentRound ? `ROUND ${Number(status.currentRound)}` : loaded ? "NO LIVE ROUND" : "LOADING...";
+  const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports;
 
   return (
     <section className="spectator-board home-spectator-board" aria-label="Live spectator dashboard">
@@ -76,12 +79,12 @@ export function HomeSpectatorBoard() {
         <article className="spectator-audience-card">
           <span>{revealing ? "REVEALING FINAL DECISIONS..." : finalSignal ? "FINAL WEIGHTED RESULT" : signalLocked ? "FINAL MINUTE — SIGNAL LOCKED" : heavyObfuscation ? "FINAL FOUR — SIGNAL HEAVILY OBFUSCATED" : roundActive ? "AUDIENCE SIGNAL — LIVE, NOT FINAL" : "DILEMMA SIGNAL FORMING"}</span>
           {revealing ? <strong>THE REVEAL IS UNDERWAY</strong> : finalSignal ? <><div className="spectator-signal"><i style={{ width: `${finalHoldPercent}%` }} /><b style={{ width: `${100 - finalHoldPercent}%` }} /></div><p><b>HOLD {finalHoldPercent}%</b><b>JEET {100 - finalHoldPercent}%</b></p></> : signalLocked ? <div className="spectator-blackout"><strong>{formatClock(remaining)}</strong><small>Final decisions are hidden until the reveal.</small></div> : heavyObfuscation ? <><div className="spectator-signal is-heavy-obfuscated"><i style={{ width: `${heavyHold}%` }} /><b style={{ width: `${100 - heavyHold}%` }} /></div><p><b>HOLD ???</b><b>JEET ???</b></p><small>The room is nearly unreadable.</small></> : showSignal ? <><div className="spectator-signal"><i style={{ width: `${signal.hodl}%` }} /><b style={{ width: `${signal.noHodl}%` }} /></div><p><b>HOLD {signal.hodl}%</b><b>JEET {signal.noHodl}%</b></p></> : <strong>{displayCountdown}</strong>}
-          <dl><div><dt>ACTIVE HOLDERS</dt><dd>{status?.activeHolders ? status.activeHolders.toLocaleString() : "BOARD FORMING"}</dd></div><div><dt>LONGEST STREAK</dt><dd>{status?.longestStreakDays ? `${status.longestStreakDays} DAYS` : "ROUND 1"}</dd></div></dl>
+          <dl><div><dt>ACTIVE HOLDERS</dt><dd>{status?.activeHolders != null ? status.activeHolders.toLocaleString() : loaded ? "UNAVAILABLE" : "LOADING..."}</dd></div><div><dt>LONGEST STREAK</dt><dd>{status?.longestStreakDays != null ? `${status.longestStreakDays} DAYS` : loaded ? "UNAVAILABLE" : "LOADING..."}</dd></div></dl>
         </article>
         <article className="spectator-box-card">
           <span>LIVE FEE POT</span>
           <div className="spectator-mini-box" aria-hidden="true">$</div>
-          <strong>{Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</strong>
+          <strong>{pot == null ? loaded ? "UNAVAILABLE" : "LOADING..." : Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</strong>
           <small>$DILEMMA · CREATOR FEES</small>
           {status?.potRolloverCount ? <div><span>ROLLOVER</span><b>{status.potRolloverCount}X</b></div> : null}
         </article>

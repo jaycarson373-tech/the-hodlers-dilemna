@@ -92,6 +92,12 @@ body { background: var(--stage); color: var(--cream); font-family: var(--termina
   background: #061009;
   box-shadow: 0 0 16px rgba(20, 241, 149, .42), inset 0 1px 0 rgba(255,255,255,.25);
 }
+
+button.launch-ca {
+  appearance: none;
+  background: rgba(255, 255, 255, .025);
+  cursor: pointer;
+}
 .show-brand-mark b { color:var(--gold-hot);font:900 1.2rem/1 var(--display);text-shadow:0 0 12px rgba(20,241,149,.72); }
 .show-brand-mark img { width:100%;height:100%;object-fit:cover;display:block; }
 .launch-ca { padding:7px 10px;border:1px solid rgba(245,183,60,.3);border-radius:999px;color:var(--gold-hot);font:900 .55rem/1 var(--terminal);letter-spacing:.08em;white-space:nowrap; }
@@ -3389,5 +3395,384 @@ html.dilemma-intro-active body {
   .supplied-pill-backdrop img {
     animation: none !important;
     transform: none !important;
+  }
+}
+
+/* Launch polish: one motion, interaction, and spacing system across every route. */
+:root {
+  --ui-ease: cubic-bezier(.22, 1, .36, 1);
+  --ui-ease-press: cubic-bezier(.3, .7, .4, 1);
+  --ui-fast: 160ms;
+  --ui-medium: 260ms;
+  --ui-slow: 700ms;
+  --ui-radius-sm: 10px;
+  --ui-radius-md: 16px;
+  --ui-radius-lg: 22px;
+  --ui-border: rgba(244, 255, 248, .13);
+  --ui-shadow: 0 18px 52px rgba(0, 0, 0, .28);
+  --ui-shadow-raised: 0 24px 64px rgba(0, 0, 0, .38);
+}
+
+body {
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+:where(h1, h2, h3, strong) {
+  text-wrap: balance;
+}
+
+:where(p, li, dd) {
+  text-wrap: pretty;
+}
+
+:where(time, code, .broadcast-pot, .broadcast-phase time b, .spectator-countdown-card b, .broadcast-stats dd) {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(
+  .show-button,
+  .wallet-button,
+  .launch-x,
+  .launch-ca,
+  .show-nav nav > a,
+  .rules-nav nav > a,
+  .broadcast-nav nav > a,
+  .show-footer a,
+  .broadcast-footer a,
+  .launch-footer-links a,
+  .broadcast-entry button,
+  .broadcast-choices button,
+  .broadcast-chat-button,
+  .broadcast-chat-popover button,
+  .wallet-option,
+  .disconnect-button,
+  .wallet-modal-close,
+  .broadcast-reveal button,
+  .dilemma-preloader__skip
+) {
+  transition:
+    transform var(--ui-medium) var(--ui-ease),
+    color var(--ui-fast) var(--ui-ease),
+    background-color var(--ui-medium) var(--ui-ease),
+    border-color var(--ui-medium) var(--ui-ease),
+    box-shadow var(--ui-medium) var(--ui-ease),
+    filter var(--ui-medium) var(--ui-ease),
+    opacity var(--ui-fast) var(--ui-ease);
+}
+
+:where(
+  .show-choice-grid article,
+  .spectator-grid > article,
+  .broadcast-panel,
+  .roulette-spin,
+  .roulette-history-details article,
+  .docs-grid article,
+  .docs-timeline article,
+  .rule-diagram,
+  .rule-ladder,
+  .broadcast-table-wrap tr,
+  .footer-brand-banner
+) {
+  transition:
+    transform var(--ui-medium) var(--ui-ease),
+    border-color var(--ui-medium) var(--ui-ease),
+    box-shadow var(--ui-medium) var(--ui-ease),
+    background-color var(--ui-medium) var(--ui-ease),
+    opacity var(--ui-medium) var(--ui-ease);
+}
+
+:where(
+  .spectator-grid > article,
+  .broadcast-panel,
+  .roulette-history-details article,
+  .docs-grid article,
+  .rule-diagram,
+  .rule-ladder
+) {
+  border-color: var(--ui-border);
+  box-shadow: var(--ui-shadow), inset 0 1px 0 rgba(255, 255, 255, .025);
+}
+
+:where(button, a)[aria-busy="true"] {
+  cursor: progress;
+}
+
+:where(button, a):focus-visible,
+.launch-ca:focus-visible {
+  outline: 2px solid var(--matrix-green-soft) !important;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 5px rgba(20, 241, 149, .12) !important;
+}
+
+:where(button:disabled, button[aria-disabled="true"]) {
+  cursor: not-allowed !important;
+  transform: none !important;
+  filter: saturate(.55) !important;
+}
+
+:where(.show-button, .wallet-button, .broadcast-entry button, .wallet-option, .disconnect-button) {
+  min-inline-size: 9.5rem;
+}
+
+.show-brand-mark {
+  transform: translateZ(0);
+  transition: border-color var(--ui-medium) var(--ui-ease), box-shadow var(--ui-medium) var(--ui-ease), transform var(--ui-medium) var(--ui-ease);
+}
+
+.show-brand-mark img,
+.footer-brand-banner img,
+.broadcast-footer > img {
+  display: block;
+}
+
+.footer-brand-banner,
+.broadcast-footer > img {
+  overflow: hidden;
+  content-visibility: auto;
+}
+
+.broadcast-chat-button {
+  position: fixed !important;
+  bottom: max(20px, env(safe-area-inset-bottom)) !important;
+  right: max(20px, env(safe-area-inset-right)) !important;
+}
+
+.wallet-modal,
+.broadcast-chat-popover {
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(20, 241, 149, .35) transparent;
+}
+
+.connected-wallet-panel code {
+  overflow-wrap: anywhere;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(
+    .show-button,
+    .wallet-button,
+    .launch-x,
+    .show-nav nav > a,
+    .rules-nav nav > a,
+    .broadcast-nav nav > a,
+    .show-footer a,
+    .broadcast-footer a,
+    .launch-footer-links a,
+    .broadcast-entry button,
+    .broadcast-chat-button,
+    .wallet-option,
+    .disconnect-button,
+    .wallet-modal-close,
+    .broadcast-reveal button
+  ):not(:disabled):hover {
+    transform: translateY(-2px);
+    filter: brightness(1.06);
+  }
+
+  .broadcast-choices button:not(:disabled):hover {
+    transform: translateY(-3px);
+  }
+
+  :where(
+    .show-choice-grid article,
+    .spectator-grid > article,
+    .broadcast-panel,
+    .roulette-spin,
+    .roulette-history-details article,
+    .docs-grid article,
+    .rule-diagram,
+    .rule-ladder
+  ):hover {
+    transform: translateY(-3px);
+    border-color: rgba(244, 255, 248, .20);
+    box-shadow: var(--ui-shadow-raised), inset 0 1px 0 rgba(255, 255, 255, .04);
+  }
+
+  .show-brand:hover .show-brand-mark {
+    transform: translateY(-1px) scale(1.025);
+    border-color: rgba(152, 255, 208, .66);
+    box-shadow: 0 0 28px rgba(20, 241, 149, .19), 0 0 28px rgba(255, 52, 72, .10);
+  }
+}
+
+:where(
+  .show-button,
+  .wallet-button,
+  .launch-x,
+  .show-nav nav > a,
+  .rules-nav nav > a,
+  .broadcast-nav nav > a,
+  .show-footer a,
+  .broadcast-footer a,
+  .launch-footer-links a,
+  .broadcast-entry button,
+  .broadcast-choices button,
+  .broadcast-chat-button,
+  .broadcast-chat-popover button,
+  .wallet-option,
+  .disconnect-button,
+  .wallet-modal-close,
+  .broadcast-reveal button,
+  .dilemma-preloader__skip
+):not(:disabled):active {
+  transform: translateY(0) scale(.975) !important;
+  transition-duration: 80ms !important;
+  transition-timing-function: var(--ui-ease-press) !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .show-brand-mark {
+    animation: launchLogoBreathe 7s var(--ui-ease) infinite;
+  }
+
+  .broadcast-room.is-final-minute .broadcast-phase time b {
+    animation: launchFinalMinutePulse 1.4s var(--ui-ease) infinite;
+  }
+}
+
+@keyframes launchLogoBreathe {
+  0%, 100% { box-shadow: 0 0 14px rgba(20, 241, 149, .12), 0 0 12px rgba(255, 52, 72, .05); }
+  50% { box-shadow: 0 0 22px rgba(20, 241, 149, .20), 0 0 18px rgba(255, 52, 72, .09); }
+}
+
+@keyframes launchFinalMinutePulse {
+  0%, 100% { opacity: 1; text-shadow: 0 0 16px rgba(255, 52, 72, .12); }
+  50% { opacity: .76; text-shadow: 0 0 28px rgba(255, 52, 72, .28); }
+}
+
+@media (max-width: 620px) {
+  .show-nav,
+  .rules-nav,
+  .broadcast-nav {
+    padding-inline: max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right)) !important;
+  }
+
+  .show-nav nav,
+  .rules-nav nav,
+  .broadcast-nav nav {
+    min-width: 0;
+  }
+
+  .show-brand {
+    min-width: 32px;
+  }
+
+  .show-hero-actions,
+  .docs-end > div {
+    gap: 12px;
+  }
+
+  :where(.show-button, .wallet-button, .broadcast-entry button, .wallet-option, .disconnect-button) {
+    min-inline-size: 0;
+  }
+
+  .broadcast-phase,
+  .broadcast-panel,
+  .spectator-grid > article,
+  .show-choice-grid article,
+  .docs-grid article,
+  .rule-diagram,
+  .rule-ladder,
+  .roulette-history-details article {
+    padding-inline: clamp(18px, 5vw, 24px) !important;
+  }
+
+  .broadcast-chat-popover {
+    right: max(10px, env(safe-area-inset-right)) !important;
+    left: max(10px, env(safe-area-inset-left)) !important;
+    width: auto !important;
+    max-height: min(72svh, 620px);
+  }
+
+  .show-footer,
+  .broadcast-footer > div {
+    padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .show-nav,
+  .rules-nav,
+  .broadcast-nav {
+    gap: 4px !important;
+  }
+
+  .wallet-button,
+  .launch-ca,
+  .launch-x {
+    min-width: 50px !important;
+    max-width: 72px !important;
+    padding-inline: 6px !important;
+  }
+
+  .broadcast-choices button {
+    min-height: 112px !important;
+  }
+
+  .broadcast-phase time b,
+  .spectator-countdown-card b {
+    letter-spacing: -.045em !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .wallet-button,
+  .launch-ca,
+  .launch-x {
+    min-width: 46px !important;
+    max-width: 62px !important;
+    font-size: .44rem !important;
+  }
+
+  .show-brand-mark {
+    width: 30px !important;
+    height: 30px !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .show-brand {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .show-footer a,
+  .broadcast-footer a,
+  .launch-footer-links a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .broadcast-chat-button {
+    min-width: 76px;
+    min-height: 48px;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 375px) {
+  .docs-intro h1 {
+    max-width: 100%;
+    font-size: clamp(2.85rem, 15vw, 4.6rem) !important;
+    letter-spacing: -.04em !important;
+    line-height: .88 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
   }
 }

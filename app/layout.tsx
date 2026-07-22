@@ -9,7 +9,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://holdersdile
 const title = "Holders Dilemma";
 const description =
   "A red-pill green-pill holder game where every 15-minute round asks the same question: HOLD, or JEET?";
-const brandIcon = "/holders-dilemma-logo.png";
+const brandIcon = "/holders-dilemma-logo-small.jpg";
 const socialImage = `${siteUrl}/holders-dilemma-og.png`;
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: brandIcon, type: "image/png" },
+      { url: brandIcon, type: "image/jpeg" },
     ],
     shortcut: brandIcon,
     apple: brandIcon,
