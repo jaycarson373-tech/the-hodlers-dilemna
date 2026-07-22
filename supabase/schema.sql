@@ -125,6 +125,49 @@ create table if not exists public.round_snapshots (
   primary key (round_number, wallet)
 );
 
+create table if not exists public.sealed_choices (
+  id uuid primary key default gen_random_uuid(),
+  round_number bigint not null references public.rounds(round_number) on delete cascade,
+  wallet text not null,
+  choice text not null check (choice in ('cooperate','defect')),
+  salt text not null,
+  commitment text not null,
+  version integer not null,
+  submitted_at timestamptz not null default now(),
+  superseded_at timestamptz,
+  revealed_at timestamptz,
+  unique (round_number, wallet, version),
+  unique (commitment)
+);
+
+create table if not exists public.commitments (
+  id uuid primary key default gen_random_uuid(),
+  round_number bigint not null references public.rounds(round_number) on delete cascade,
+  wallet text not null,
+  commitment text not null unique,
+  version integer not null,
+  superseded boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.revealed_choices (
+  round_number bigint not null references public.rounds(round_number) on delete cascade,
+  wallet text not null,
+  choice text not null check (choice in ('cooperate','defect')),
+  salt text not null,
+  commitment text not null unique,
+  revealed_at timestamptz not null default now(),
+  primary key (round_number, wallet)
+);
+
+create table if not exists public.audience_signals (
+  round_number bigint not null references public.rounds(round_number) on delete cascade,
+  fingerprint_hash text not null,
+  choice text not null check (choice in ('cooperate','defect')),
+  updated_at timestamptz not null default now(),
+  primary key (round_number, fingerprint_hash)
+);
+
 alter table public.protocol_config
   add column if not exists pot_rollover_count integer not null default 0;
 alter table public.protocol_config
@@ -203,6 +246,10 @@ create index if not exists feed_events_time_idx on public.feed_events (occurred_
 create index if not exists round_votes_round_idx on public.round_votes (round_number, choice);
 create index if not exists wallet_sessions_wallet_idx on public.wallet_sessions (wallet, expires_at desc);
 create index if not exists round_snapshots_round_idx on public.round_snapshots (round_number, wallet);
+create index if not exists sealed_choices_current_idx on public.sealed_choices (round_number, wallet, version desc) where superseded_at is null;
+create index if not exists commitments_round_idx on public.commitments (round_number, created_at desc);
+create index if not exists revealed_choices_round_idx on public.revealed_choices (round_number, wallet);
+create index if not exists audience_signals_round_idx on public.audience_signals (round_number, choice);
 
 alter table public.protocol_config enable row level security;
 alter table public.rounds enable row level security;
@@ -214,6 +261,10 @@ alter table public.feed_events enable row level security;
 alter table public.wallet_auth_nonces enable row level security;
 alter table public.wallet_sessions enable row level security;
 alter table public.round_snapshots enable row level security;
+alter table public.sealed_choices enable row level security;
+alter table public.commitments enable row level security;
+alter table public.revealed_choices enable row level security;
+alter table public.audience_signals enable row level security;
 
 drop policy if exists "public config read" on public.protocol_config;
 create policy "public config read" on public.protocol_config for select using (true);
@@ -222,7 +273,6 @@ create policy "public rounds read" on public.rounds for select using (true);
 drop policy if exists "public holders read" on public.holders;
 create policy "public holders read" on public.holders for select using (true);
 drop policy if exists "public votes read" on public.round_votes;
-create policy "public votes read" on public.round_votes for select using (true);
 drop policy if exists "public claims read" on public.reward_claims;
 create policy "public claims read" on public.reward_claims for select using (true);
 drop policy if exists "public events read" on public.protocol_events;
@@ -237,6 +287,11 @@ grant select on public.public_leaderboard to anon, authenticated;
 drop policy if exists "public snapshots read" on public.round_snapshots;
 create policy "public snapshots read" on public.round_snapshots for select using (true);
 grant select on public.round_snapshots to anon, authenticated;
+drop policy if exists "public commitments read" on public.commitments;
+create policy "public commitments read" on public.commitments for select using (true);
+drop policy if exists "public reveals read" on public.revealed_choices;
+create policy "public reveals read" on public.revealed_choices for select using (true);
+grant select on public.commitments, public.revealed_choices to anon, authenticated;
 
 do $$ begin
   alter publication supabase_realtime add table public.protocol_config;
@@ -252,4 +307,10 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table public.feed_events;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.commitments;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.revealed_choices;
 exception when duplicate_object then null; end $$;
