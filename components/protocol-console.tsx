@@ -54,7 +54,7 @@ export function ProtocolConsole() {
   const [sealedChoice, setSealedChoice] = useState<SealedChoice | null>(null);
   const [audienceSignal, setAudienceSignal] = useState<AudienceSignal | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (authToken = sessionToken) => {
     if (!protocolApiUrl) {
       setSimulationMode(true);
       return;
@@ -74,12 +74,12 @@ export function ProtocolConsole() {
     if (nextStatus.round?.roundNumber) {
       setAudienceSignal(await protocolRequest<AudienceSignal>(`/api/audience-signal/${nextStatus.round.roundNumber}`));
     }
-    if (address) {
-      const nextHolder = await protocolRequest<HolderState>(`/api/holder/${address}`);
+    if (address && authToken) {
+      const nextHolder = await protocolRequest<HolderState>(`/api/holder/${address}`, undefined, authToken);
       setHolder(nextHolder);
       setSealedChoice(nextHolder.participationStatus === "HODL" ? "cooperate" : nextHolder.participationStatus === "NO HODL" ? "defect" : null);
     }
-  }, [address]);
+  }, [address, sessionToken]);
 
   useEffect(() => {
     if (!protocolApiUrl) return;
@@ -166,7 +166,7 @@ export function ProtocolConsole() {
       const suffix = response.signature ? ` ${response.signature}` : "";
       setMessage(response.message ? `${response.message}${suffix}` : `${label} submitted.${suffix}`);
       await new Promise((resolve) => window.setTimeout(resolve, 1200));
-      await refresh();
+      await refresh(token);
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : `${label} failed.`);
     } finally {
@@ -193,7 +193,7 @@ export function ProtocolConsole() {
       }, token);
       setSealedChoice(choice);
       setMessage("DECISION SEALED — WAITING FOR THE REVEAL.");
-      await refresh();
+      await refresh(token);
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "The decision could not be sealed.");
     } finally {
