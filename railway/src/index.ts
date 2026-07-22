@@ -44,7 +44,7 @@ const envSchema = z.object({
   BANKER_WALLET_ADDRESS: z.string().optional(),
   FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
   ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(900),
-  DECISION_WINDOW_SECONDS: z.coerce.number().int().positive().default(300),
+  DECISION_WINDOW_SECONDS: z.coerce.number().int().positive().default(30),
   COOPERATION_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(7_000),
   BOX_ALLOCATION_BPS: z.coerce.number().int().min(1).max(9_999).default(8_000),
   BANKER_ALLOCATION_BPS: z.coerce.number().int().min(1).max(9_999).default(2_000),
@@ -56,6 +56,7 @@ const envSchema = z.object({
 });
 
 const env = envSchema.parse(process.env);
+const decisionWindowSeconds = 30;
 const connection = new Connection(env.SOLANA_RPC_URL, "confirmed");
 const clusterName = "mainnet-beta";
 const sessionKey = env.SESSION_SECRET ? new TextEncoder().encode(env.SESSION_SECRET) : undefined;
@@ -473,7 +474,7 @@ async function ensureGameConfig() {
     if (data.token_mint !== tokenMint.toBase58()) updates.token_mint = tokenMint.toBase58();
     if (data.cluster !== clusterName) updates.cluster = clusterName;
     if (Number(data.round_length_seconds) !== env.ROUND_LENGTH_SECONDS) updates.round_length_seconds = env.ROUND_LENGTH_SECONDS.toString();
-    if (Number(data.decision_window_seconds ?? 0) !== env.DECISION_WINDOW_SECONDS) updates.decision_window_seconds = env.DECISION_WINDOW_SECONDS.toString();
+    if (Number(data.decision_window_seconds ?? 0) !== decisionWindowSeconds) updates.decision_window_seconds = decisionWindowSeconds.toString();
     if (Number(data.cooperation_threshold_bps ?? 0) !== env.COOPERATION_THRESHOLD_BPS) updates.cooperation_threshold_bps = env.COOPERATION_THRESHOLD_BPS;
     if (!data.next_round_at) updates.next_round_at = nowIso();
     if (Object.keys(updates).length) {
@@ -500,7 +501,7 @@ async function ensureGameConfig() {
     pot_rollover_count: 0,
     failed_round_count: 0,
     round_length_seconds: env.ROUND_LENGTH_SECONDS.toString(),
-    decision_window_seconds: env.DECISION_WINDOW_SECONDS.toString(),
+    decision_window_seconds: decisionWindowSeconds.toString(),
     cooperation_threshold_bps: env.COOPERATION_THRESHOLD_BPS,
     claim_window_seconds: "0",
     defect_threshold_bps: 3000,
@@ -1131,7 +1132,7 @@ const readinessResponse = async () => {
     cooperationThresholdBps: env.COOPERATION_THRESHOLD_BPS,
     boxAllocationBps: env.BOX_ALLOCATION_BPS,
     bankerAllocationBps: env.BANKER_ALLOCATION_BPS,
-    decisionWindowSeconds: env.DECISION_WINDOW_SECONDS,
+    decisionWindowSeconds,
     warnings: keypairWarnings,
   };
 };
@@ -1447,7 +1448,7 @@ app.post("/api/vote/commit", async (req, res, next) => {
     if (String(round.round_number) !== body.roundNumber) throw new Error("This decision belongs to a different round.");
     const now = Date.now();
     const closesAt = new Date(round.closes_at).getTime();
-    if (now < closesAt - env.DECISION_WINDOW_SECONDS * 1_000 || now >= closesAt) throw new Error("Choices unlock when the Banker calls.");
+    if (now < closesAt - decisionWindowSeconds * 1_000 || now >= closesAt) throw new Error("Choices unlock when the Banker calls.");
 
     const holder = await syncHolder(new PublicKey(body.wallet));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens to vote.`);
