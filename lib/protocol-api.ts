@@ -5,8 +5,8 @@ export type ProtocolRound = {
   claimDeadline: string | null;
   potLamports: string;
   remainingLamports: string;
-  cooperatePercent: number;
-  defectPercent: number;
+  cooperatePercent: number | null;
+  defectPercent: number | null;
   voterCount: number;
   status: "open" | "settled" | "rolled_over" | "closed";
 };

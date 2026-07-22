@@ -262,7 +262,7 @@ async function playerRoundSummary(wallet: string, liveBalance: bigint, streakSta
   const [{ data: snapshot, error: snapshotError }, { data: snapshots, error: snapshotsError }, { data: vote, error: voteError }] = await Promise.all([
     db.from("round_snapshots").select("snapshot_balance,multiplier_bps,payout_weight").eq("round_number", roundNumber).eq("wallet", wallet).maybeSingle<{ snapshot_balance: string; multiplier_bps: number; payout_weight: string }>(),
     db.from("round_snapshots").select("payout_weight").eq("round_number", roundNumber),
-    db.from("round_votes").select("choice").eq("round_number", roundNumber).eq("wallet", wallet).maybeSingle<{ choice: "cooperate" | "defect" }>(),
+    db.from("sealed_choices").select("choice").eq("round_number", roundNumber).eq("wallet", wallet).is("superseded_at", null).maybeSingle<{ choice: "cooperate" | "defect" }>(),
   ]);
   if (snapshotError || snapshotsError || voteError) throw snapshotError ?? snapshotsError ?? voteError;
 
@@ -359,7 +359,8 @@ function publicRound(round: DbRound | null) {
   const cooperate = bigintValue(round.cooperate_weight);
   const defect = bigintValue(round.defect_weight);
   const total = cooperate + defect;
-  const cooperatePercent = total === 0n ? 50 : Number((cooperate * 10_000n) / total) / 100;
+  const choicesArePublic = round.status !== "open";
+  const cooperatePercent = choicesArePublic ? (total === 0n ? 0 : Number((cooperate * 10_000n) / total) / 100) : null;
   return {
     roundNumber: String(round.round_number),
     openedAt: iso(round.opened_at),
@@ -370,8 +371,8 @@ function publicRound(round: DbRound | null) {
     cooperateWeight: cooperate.toString(),
     defectWeight: defect.toString(),
     cooperatePercent,
-    defectPercent: 100 - cooperatePercent,
-    voterCount: round.voter_count,
+    defectPercent: cooperatePercent === null ? null : 100 - cooperatePercent,
+    voterCount: choicesArePublic ? round.voter_count : 0,
     status: round.status,
   };
 }
@@ -715,6 +716,60 @@ app.get("/api/events", async (_req, res, next) => {
   } catch (error) { next(error); }
 });
 
+app.get("/api/rounds/:roundNumber/commitments", async (req, res, next) => {
+  try {
+    const db = requireDb();
+    const roundNumber = z.string().regex(/^\d+$/).parse(req.params.roundNumber);
+    const { data, error } = await db.from("commitments").select("round_number,wallet,commitment,version,superseded,created_at").eq("round_number", roundNumber).order("created_at", { ascending: true });
+    if (error) throw error;
+    res.json(data ?? []);
+  } catch (error) { next(error); }
+});
+
+app.get("/api/rounds/:roundNumber/reveals", async (req, res, next) => {
+  try {
+    const db = requireDb();
+    const roundNumber = z.string().regex(/^\d+$/).parse(req.params.roundNumber);
+    const { data: round, error: roundError } = await db.from("rounds").select("status").eq("round_number", roundNumber).single<{ status: string }>();
+    if (roundError) throw roundError;
+    if (round.status === "open") return res.status(423).json({ error: "Choices remain sealed until the reveal." });
+    const { data, error } = await db.from("revealed_choices").select("round_number,wallet,choice,salt,commitment,revealed_at").eq("round_number", roundNumber).order("wallet", { ascending: true });
+    if (error) throw error;
+    res.json(data ?? []);
+  } catch (error) { next(error); }
+});
+
+app.get("/api/audience-signal/:roundNumber", async (req, res, next) => {
+  try {
+    const db = requireDb();
+    const roundNumber = z.string().regex(/^\d+$/).parse(req.params.roundNumber);
+    const { data, error } = await db.from("audience_signals").select("choice").eq("round_number", roundNumber);
+    if (error) throw error;
+    const total = data?.length ?? 0;
+    const cooperate = data?.filter((row) => row.choice === "cooperate").length ?? 0;
+    const raw = total ? (cooperate / total) * 100 : 50;
+    const jitterSeed = Number.parseInt(sha256(`${env.SESSION_SECRET ?? "signal"}:${roundNumber}`).slice(0, 8), 16);
+    const jitter = ((jitterSeed % 1001) - 500) / 100;
+    const hodl = Math.min(95, Math.max(5, Math.round(raw + jitter)));
+    res.json({ hodl, noHodl: 100 - hodl, sampleSize: total, label: "AUDIENCE SIGNAL — ESTIMATED SENTIMENT — NOT FINAL VOTES" });
+  } catch (error) { next(error); }
+});
+
+app.post("/api/audience-signal", async (req, res, next) => {
+  try {
+    const db = requireDb();
+    const body = z.object({ roundNumber: z.string().regex(/^\d+$/), choice: z.enum(["cooperate", "defect"]), signalId: z.string().uuid() }).parse(req.body);
+    const { error } = await db.from("audience_signals").upsert({
+      round_number: body.roundNumber,
+      fingerprint_hash: sha256(`${env.SESSION_SECRET ?? "signal"}:${body.signalId}`),
+      choice: body.choice,
+      updated_at: nowIso(),
+    });
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (error) { next(error); }
+});
+
 app.get("/api/auth/challenge", async (req, res, next) => {
   try {
     const db = requireDb();
@@ -830,70 +885,57 @@ app.post("/api/tx/withdraw", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-app.post("/api/tx/vote", async (req, res, next) => {
+app.post("/api/vote/commit", async (req, res, next) => {
   try {
     const db = requireDb();
-    const body = walletBody.extend({ choice: z.enum(["cooperate", "defect"]) }).parse(req.body);
+    const body = walletBody.extend({
+      roundNumber: z.string().regex(/^\d+$/),
+      choice: z.enum(["cooperate", "defect"]),
+      salt: z.string().regex(/^[a-f0-9]{64}$/i),
+      commitment: z.string().regex(/^[a-f0-9]{64}$/i),
+    }).parse(req.body);
     await requireSameWallet(req, body.wallet);
     const config = await ensureGameConfig();
     if (!config.round_active) throw new Error("No round is currently open.");
     const round = await fetchCurrentRound(config);
     if (!round || round.status !== "open") throw new Error("No round is currently open.");
+    if (String(round.round_number) !== body.roundNumber) throw new Error("This decision belongs to a different round.");
+    const now = Date.now();
+    const closesAt = new Date(round.closes_at).getTime();
+    if (now < closesAt - 3_600_000 || now >= closesAt) throw new Error("Choices unlock during the final hour.");
 
     const holder = await syncHolder(new PublicKey(body.wallet));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens to vote.`);
+    const wallet = new PublicKey(body.wallet).toBase58();
+    const commitment = body.commitment.toLowerCase();
+    const expected = sha256(`${body.choice}${body.salt.toLowerCase()}${wallet}${body.roundNumber}`);
+    if (expected !== commitment) throw new Error("The sealed decision hash is invalid.");
 
-    const baseBalance = bigintValue(holder.position.amount);
-    const holderMultiplier = multiplierBps(holder.position.streakStartedAt);
-    const voteMultiplier = body.choice === "defect"
-      ? Math.floor((holderMultiplier * config.defector_bonus_bps) / 10_000)
-      : holderMultiplier;
-    const weight = (baseBalance * BigInt(voteMultiplier)) / 10_000n;
-    if (weight <= 0n) throw new Error("This wallet has no vote weight.");
+    const { data: current, error: currentError } = await db.from("sealed_choices").select("id,commitment,version").eq("round_number", body.roundNumber).eq("wallet", wallet).is("superseded_at", null).order("version", { ascending: false }).limit(1).maybeSingle<{ id: string; commitment: string; version: number }>();
+    if (currentError) throw currentError;
+    if (current?.commitment === commitment) return res.json({ ok: true, message: "DECISION SEALED", commitment, version: current.version });
+    if (current) {
+      const supersededAt = nowIso();
+      const [{ error: sealedUpdateError }, { error: publicUpdateError }] = await Promise.all([
+        db.from("sealed_choices").update({ superseded_at: supersededAt }).eq("id", current.id),
+        db.from("commitments").update({ superseded: true }).eq("commitment", current.commitment),
+      ]);
+      if (sealedUpdateError || publicUpdateError) throw sealedUpdateError ?? publicUpdateError;
+    }
 
-    const vote = {
-      round_number: String(round.round_number),
-      wallet: new PublicKey(body.wallet).toBase58(),
-      choice: body.choice,
-      weight: weight.toString(),
-      multiplier_bps: voteMultiplier,
-      voted_at: nowIso(),
-    };
-    const { error: voteError } = await db.from("round_votes").insert(vote);
-    if (voteError) throw voteError;
-
-    const nextCooperate = bigintValue(round.cooperate_weight) + (body.choice === "cooperate" ? weight : 0n);
-    const nextDefect = bigintValue(round.defect_weight) + (body.choice === "defect" ? weight : 0n);
-    const { error: roundError } = await db.from("rounds").update({
-      cooperate_weight: nextCooperate.toString(),
-      defect_weight: nextDefect.toString(),
-      distribution_weight: (nextCooperate + nextDefect).toString(),
-      voter_count: (round.voter_count ?? 0) + 1,
-      updated_at: nowIso(),
-    }).eq("round_number", String(round.round_number));
-    if (roundError) throw roundError;
-
-    const voteColumn = body.choice === "cooperate" ? "cooperate_votes" : "defect_votes";
-    const { data: holderStats } = await db
-      .from("holders")
-      .select("cooperate_votes,defect_votes")
-      .eq("wallet", vote.wallet)
-      .maybeSingle<{ cooperate_votes: number; defect_votes: number }>();
-    const nextVoteCount = ((body.choice === "cooperate" ? holderStats?.cooperate_votes : holderStats?.defect_votes) ?? 0) + 1;
-    const { error: holderError } = await db
-      .from("holders")
-      .update({ [voteColumn]: nextVoteCount, updated_at: nowIso() })
-      .eq("wallet", vote.wallet);
-    if (holderError) console.error("holder vote stat update failed", holderError);
-
-    await db.from("protocol_events").insert({
-      event_type: body.choice === "cooperate" ? "VOTE_COOPERATE" : "VOTE_DEFECT",
-      round_number: String(round.round_number),
-      wallet: vote.wallet,
-      detail: `${vote.wallet.slice(0, 4)}...${vote.wallet.slice(-4)} chose ${body.choice}.`,
-    });
-    res.json({ ok: true, message: body.choice === "cooperate" ? "HODL locked in." : "NO HODL locked in.", weight: weight.toString() });
+    const version = (current?.version ?? 0) + 1;
+    const [{ error: sealedError }, { error: commitmentError }] = await Promise.all([
+      db.from("sealed_choices").insert({ round_number: body.roundNumber, wallet, choice: body.choice, salt: body.salt.toLowerCase(), commitment, version }),
+      db.from("commitments").insert({ round_number: body.roundNumber, wallet, commitment, version }),
+    ]);
+    if (sealedError || commitmentError) throw sealedError ?? commitmentError;
+    await db.from("protocol_events").insert({ event_type: "DECISION_SEALED", round_number: body.roundNumber, wallet, detail: `${wallet.slice(0, 4)}...${wallet.slice(-4)} sealed a decision.` });
+    res.json({ ok: true, message: "DECISION SEALED", commitment, version });
   } catch (error) { next(error); }
+});
+
+app.post("/api/tx/vote", (_req, res) => {
+  res.status(410).json({ error: "Use the sealed decision flow." });
 });
 
 app.post("/api/tx/claim", async (req, res, next) => {

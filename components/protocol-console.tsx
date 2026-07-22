@@ -18,6 +18,8 @@ const base64FromBytes = (value: Uint8Array) => {
   value.forEach((byte) => { binary += String.fromCharCode(byte); });
   return window.btoa(binary);
 };
+const hexFromBytes = (value: Uint8Array) => Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
+const sha256Hex = async (value: string) => hexFromBytes(new Uint8Array(await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
 const remainingSeconds = (iso?: string | null) => iso ? Math.max(0, Math.floor((new Date(iso).getTime() - Date.now()) / 1000)) : 0;
 const formatCountdown = (seconds: number) => {
   const hours = Math.floor(seconds / 3600).toString().padStart(2, "0");
@@ -27,6 +29,8 @@ const formatCountdown = (seconds: number) => {
 };
 
 type GameResponse = { ok?: boolean; message?: string; signature?: string; amountLamports?: string };
+type AudienceSignal = { hodl: number; noHodl: number; sampleSize: number; label: string };
+type SealedChoice = "cooperate" | "defect";
 
 const hasPositiveLamports = (value?: string) => {
   try {
@@ -47,6 +51,8 @@ export function ProtocolConsole() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [sealedChoice, setSealedChoice] = useState<SealedChoice | null>(null);
+  const [audienceSignal, setAudienceSignal] = useState<AudienceSignal | null>(null);
 
   const refresh = useCallback(async () => {
     if (!protocolApiUrl) {
@@ -65,7 +71,14 @@ export function ProtocolConsole() {
     setStatus(nextStatus);
     const target = nextStatus.roundActive ? nextStatus.round?.closesAt : nextStatus.nextRoundAt;
     setCountdown(remainingSeconds(target));
-    if (address) setHolder(await protocolRequest<HolderState>(`/api/holder/${address}`));
+    if (nextStatus.round?.roundNumber) {
+      setAudienceSignal(await protocolRequest<AudienceSignal>(`/api/audience-signal/${nextStatus.round.roundNumber}`));
+    }
+    if (address) {
+      const nextHolder = await protocolRequest<HolderState>(`/api/holder/${address}`);
+      setHolder(nextHolder);
+      setSealedChoice(nextHolder.participationStatus === "HODL" ? "cooperate" : nextHolder.participationStatus === "NO HODL" ? "defect" : null);
+    }
   }, [address]);
 
   useEffect(() => {
@@ -96,6 +109,7 @@ export function ProtocolConsole() {
   useEffect(() => {
     queueMicrotask(async () => {
       setHolder(null);
+      setSealedChoice(null);
       setMessage("");
       setError("");
       if (!address || !protocolApiUrl) {
@@ -160,13 +174,55 @@ export function ProtocolConsole() {
     }
   }, [address, refresh, sessionToken, signIn, wallet]);
 
+  const activeRoundNumber = status?.round?.roundNumber;
+
+  const submitSealedDecision = useCallback(async (choice: SealedChoice) => {
+    if (!wallet || !address || !activeRoundNumber) throw new Error("Connect and enter the live episode first.");
+    if (sealedChoice && sealedChoice !== choice && !window.confirm("UNSEAL AND CHANGE? Your previous commitment will be superseded.")) return;
+    setBusy(choice);
+    setError("");
+    setMessage("");
+    try {
+      const token = sessionToken || await signIn();
+      const salt = hexFromBytes(window.crypto.getRandomValues(new Uint8Array(32)));
+      const roundNumber = activeRoundNumber;
+      const commitment = await sha256Hex(`${choice}${salt}${address}${roundNumber}`);
+      await protocolRequest<GameResponse>("/api/vote/commit", {
+        method: "POST",
+        body: JSON.stringify({ wallet: address, roundNumber, choice, salt, commitment }),
+      }, token);
+      setSealedChoice(choice);
+      setMessage("DECISION SEALED — WAITING FOR THE REVEAL.");
+      await refresh();
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : "The decision could not be sealed.");
+    } finally {
+      setBusy("");
+    }
+  }, [activeRoundNumber, address, refresh, sealedChoice, sessionToken, signIn, wallet]);
+
+  const sendAudienceSignal = useCallback(async (choice: SealedChoice) => {
+    const roundNumber = activeRoundNumber;
+    if (!roundNumber) return;
+    let signalId = window.localStorage.getItem("hodl-audience-signal-id");
+    if (!signalId) {
+      signalId = window.crypto.randomUUID();
+      window.localStorage.setItem("hodl-audience-signal-id", signalId);
+    }
+    await protocolRequest("/api/audience-signal", {
+      method: "POST",
+      body: JSON.stringify({ roundNumber, choice, signalId }),
+    });
+    setAudienceSignal(await protocolRequest<AudienceSignal>(`/api/audience-signal/${roundNumber}`));
+  }, [activeRoundNumber]);
+
   const displayStatus = simulationMode ? simulationStatus : status;
   const decimals = displayStatus?.tokenDecimals ?? 6;
   const positionAmount = holder?.position ? baseUnitsToTokenAmount(holder.position.amount, decimals) : "0";
   const round = displayStatus?.round;
   const hasPosition = Boolean(holder?.position && BigInt(holder.position.amount) > 0n);
-  const canVote = Boolean(connected && sessionToken && hasPosition && status?.roundActive && round?.status === "open");
-  const canClaim = Boolean(connected && sessionToken && round?.status === "settled");
+  const decisionWindowOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 0 && countdown <= 3_600);
+  const canVote = Boolean(connected && sessionToken && hasPosition && decisionWindowOpen && !holder?.soldThisRound);
   const protocolReady = Boolean(!simulationMode && protocolApiUrl && status?.configured);
   const hasLiveRound = Boolean(displayStatus?.roundActive && round);
   const currentPot = round?.potLamports ?? displayStatus?.availablePoolLamports;
@@ -209,7 +265,7 @@ export function ProtocolConsole() {
         <div className="protocol-stats">
           <div><span>ROUND</span><strong>{hasLiveRound ? displayStatus?.currentRound : "Offer incoming"}</strong></div>
           <div><span>CURRENT POT</span><strong>{hasFundedPot ? `${lamportsToSol(currentPot)} SOL` : "Awaiting funded pot"}</strong></div>
-          <div><span>AUDIENCE SIGNAL</span><strong>{simulationMode ? "62% HODL / 38% NO HODL" : "ESTIMATED SENTIMENT PENDING"}</strong><small>NON-BINDING / NOT FINAL VOTES</small></div>
+          <div><span>AUDIENCE SIGNAL</span><strong>{simulationMode ? "62% HODL / 38% NO HODL" : audienceSignal ? `${audienceSignal.hodl}% HODL / ${audienceSignal.noHodl}% NO HODL` : "ESTIMATED SENTIMENT PENDING"}</strong><small>ESTIMATED SENTIMENT — NOT FINAL VOTES</small></div>
           <div className="projected-share-stat"><span>PROJECTED SHARE</span><strong>{simulationMode ? "DEMO" : projectedShare}</strong></div>
           <div><span>CONTESTANTS</span><strong>{displayStatus?.activeHolders ? displayStatus.activeHolders.toLocaleString() : "Waiting for holders"}</strong></div>
           <div><span>YOUR SEAT</span><strong>{simulationMode ? "DEMO BOX" : holder ? `${baseUnitsToTokenAmount(holder.walletTokenBalance, decimals)} / ${positionAmount}` : connected ? "Claim seat" : "Connect wallet"}</strong></div>
@@ -251,18 +307,28 @@ export function ProtocolConsole() {
           {!holder?.position ? <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/open-position", {}, "SEAT CLAIM")}>CLAIM YOUR SEAT</button> : (
             <>
               <button type="button" disabled={Boolean(busy)} onClick={() => void sendGameAction("/api/tx/deposit", {}, "SEAT REFRESH")}>REFRESH SEAT</button>
-              <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "cooperate" }, "HODL VOTE")}>HODL</button>
-              <button className="defect-action" type="button" disabled={Boolean(busy) || !canVote} onClick={() => void sendGameAction("/api/tx/vote", { choice: "defect" }, "NO HODL VOTE")}>NO HODL</button>
-              <button type="button" disabled={Boolean(busy) || !canClaim} onClick={() => void sendGameAction("/api/tx/claim", { roundNumber: status?.currentRound ?? "0" }, "OFFER CLAIM")}>CLAIM OFFER</button>
+              <button className="cooperate-action" type="button" disabled={Boolean(busy) || !canVote} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitSealedDecision("cooperate")}>HODL</button>
+              <button className="defect-action" type="button" disabled={Boolean(busy) || !canVote} aria-pressed={sealedChoice === "defect"} onClick={() => void submitSealedDecision("defect")}>NO HODL</button>
             </>
           )}
         </div>
       ) : null}
 
+      {protocolReady && round?.status === "open" ? (
+        <div className="audience-poll" aria-label="Audience signal poll">
+          <span>AUDIENCE SIGNAL — ESTIMATED SENTIMENT — NOT FINAL VOTES</span>
+          <button type="button" onClick={() => void sendAudienceSignal("cooperate")}>SIGNAL HODL</button>
+          <button type="button" onClick={() => void sendAudienceSignal("defect")}>SIGNAL NO HODL</button>
+        </div>
+      ) : null}
+
+      {holder?.position && !decisionWindowOpen && round?.status === "open" ? <p className="decision-locked">CHOICES UNLOCK IN {formatCountdown(Math.max(0, countdown - 3_600))}</p> : null}
+      {sealedChoice ? <p className="decision-sealed">DECISION SEALED — WAITING FOR THE REVEAL. {decisionWindowOpen ? "UNSEAL AND CHANGE? Choose again above." : ""}</p> : null}
+
       {holder?.position ? <div className="protocol-position-line"><span>TIER <b>{tierNames[holder.position.tier] ?? holder.position.tierName}</b></span><span>STREAK <b>{Math.floor(Number(holder.position.streakSeconds) / 86_400)} DAYS</b></span><span>HELD <b>{positionAmount}</b></span></div> : null}
       {message ? <p className="protocol-success" role="status">{message}</p> : null}
       {error && !simulationMode ? <p className="protocol-error" role="alert">{error}</p> : null}
-      <p className="protocol-console-foot">Connect wallet → sign in → view your box → wait for the final-hour call → choose HODL or NO HODL.</p>
+      <p className="protocol-console-foot">Connect wallet → sign in → view your box → wait for the Banker&apos;s call → choose HODL or NO HODL.</p>
     </section>
   );
 }
