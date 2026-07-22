@@ -2725,3 +2725,79 @@ body {
     opacity: .18 !important;
   }
 }
+
+/* Hero typography redesign: AAA title card, solid steel-white */
+.show-hero h1 {
+  display: inline-block !important;
+  max-width: min(96vw, 1040px) !important;
+  margin: clamp(10px, 1.4vw, 18px) auto clamp(8px, 1vw, 14px) !important;
+  color: #f5f8f5 !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  font-family: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif !important;
+  font-size: clamp(3.2rem, 11.2vw, 9.8rem) !important;
+  font-style: normal !important;
+  font-weight: 800 !important;
+  letter-spacing: .035em !important;
+  line-height: .78 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  text-wrap: balance;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  filter: none !important;
+  text-shadow:
+    -1px 0 0 rgba(78, 219, 154, .28),
+    1px 0 0 rgba(255, 92, 108, .24),
+    0 1px 0 rgba(255, 255, 255, .34),
+    0 2px 0 rgba(121, 132, 126, .22),
+    0 5px 12px rgba(0, 0, 0, .74),
+    0 18px 48px rgba(0, 0, 0, .72),
+    -22px 0 54px rgba(78, 219, 154, .10),
+    22px 0 54px rgba(255, 92, 108, .095) !important;
+  -webkit-text-stroke: .7px rgba(255, 255, 255, .16);
+}
+
+.show-hero h1 em {
+  color: inherit !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  font-family: inherit !important;
+  font-style: normal !important;
+  font-weight: inherit !important;
+}
+
+.show-hero h1::before,
+.show-hero h1::after,
+.show-hero h1 em::before,
+.show-hero h1 em::after {
+  content: none !important;
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .show-hero h1 {
+    max-width: min(94vw, 620px) !important;
+    font-size: clamp(3.05rem, 16vw, 5.4rem) !important;
+    letter-spacing: .018em !important;
+    line-height: .82 !important;
+    -webkit-text-stroke: .45px rgba(255, 255, 255, .14);
+    text-shadow:
+      -1px 0 0 rgba(78, 219, 154, .22),
+      1px 0 0 rgba(255, 92, 108, .20),
+      0 1px 0 rgba(255, 255, 255, .24),
+      0 4px 12px rgba(0, 0, 0, .78),
+      0 14px 36px rgba(0, 0, 0, .70) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .show-hero h1 {
+    max-width: 94vw !important;
+    font-size: clamp(2.8rem, 14.5vw, 4.25rem) !important;
+    letter-spacing: .012em !important;
+    line-height: .84 !important;
+  }
+}
