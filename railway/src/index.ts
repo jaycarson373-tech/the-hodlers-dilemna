@@ -1238,6 +1238,42 @@ app.get("/api/events", async (_req, res, next) => {
   } catch (error) { next(error); }
 });
 
+app.get("/api/chat", async (_req, res, next) => {
+  try {
+    if (!supabase) return res.json([]);
+    const { data, error } = await supabase
+      .from("feed_events")
+      .select("id,title,detail,occurred_at")
+      .eq("event_type", "CHAT_MESSAGE")
+      .order("occurred_at", { ascending: false })
+      .limit(40);
+    if (error && isMissingSchemaObject(error)) return res.json([]);
+    if (error) throw error;
+    res.json((data ?? []).reverse());
+  } catch (error) { next(error); }
+});
+
+app.post("/api/chat", async (req, res, next) => {
+  try {
+    const db = requireDb();
+    const body = z.object({
+      wallet: z.string(),
+      name: z.string().trim().min(1).max(24),
+      message: z.string().trim().min(1).max(160),
+    }).parse(req.body);
+    await requireSameWallet(req, body.wallet);
+    const name = body.name.replace(/[^\w .!?-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24) || "Contestant";
+    const detail = body.message.replace(/[^\w .,!?'\"$%:;()-]/g, "").replace(/\s+/g, " ").trim().slice(0, 160);
+    const { data, error } = await db
+      .from("feed_events")
+      .insert({ event_type: "CHAT_MESSAGE", title: name, detail, tone: "neutral" })
+      .select("id,title,detail,occurred_at")
+      .single();
+    if (error) throw error;
+    res.json({ ok: true, message: data });
+  } catch (error) { next(error); }
+});
+
 app.get("/api/rounds/:roundNumber/commitments", async (req, res, next) => {
   try {
     const db = requireDb();
@@ -1460,6 +1496,7 @@ app.post("/api/vote/commit", async (req, res, next) => {
     const { data: current, error: currentError } = await db.from("sealed_choices").select("id,commitment,version").eq("round_number", body.roundNumber).eq("wallet", wallet).is("superseded_at", null).order("version", { ascending: false }).limit(1).maybeSingle<{ id: string; commitment: string; version: number }>();
     if (currentError) throw currentError;
     if (current?.commitment === commitment) return res.json({ ok: true, message: "DECISION SEALED", commitment, version: current.version });
+    if (current && current.version >= 2) throw new Error("Decision already locked. One switch is allowed per round.");
     if (current) {
       const supersededAt = nowIso();
       const [{ error: sealedUpdateError }, { error: publicUpdateError }] = await Promise.all([

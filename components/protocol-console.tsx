@@ -2,7 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { useWalletConnection } from "@solana/react-hooks";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBankerFeed } from "@/components/use-banker-feed";
 import {
   baseUnitsToTokenAmount,
@@ -16,6 +16,7 @@ import {
 
 type SealedChoice = "cooperate" | "defect";
 type GameResponse = { ok?: boolean; message?: string };
+type ChatMessage = { id: string; title: string | null; detail: string; occurred_at: string };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const supabaseKey = (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)?.trim();
@@ -52,6 +53,10 @@ export function ProtocolConsole() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [revealRound, setRevealRound] = useState<ProtocolRound | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatName, setChatName] = useState("Contestant");
+  const [chatDraft, setChatDraft] = useState("");
   const previousRound = useRef<ProtocolRound | null>(null);
   const { events } = useBankerFeed(8);
 
@@ -92,6 +97,19 @@ export function ProtocolConsole() {
       .subscribe();
     return () => { void realtime.removeChannel(channel); };
   }, [realtime, refresh]);
+
+  const refreshChat = useCallback(async () => {
+    if (!protocolApiUrl) return;
+    const nextMessages = await protocolRequest<ChatMessage[]>("/api/chat");
+    setChatMessages(nextMessages);
+  }, []);
+
+  useEffect(() => {
+    if (!protocolApiUrl) return;
+    const initial = window.setTimeout(() => void refreshChat().catch(() => undefined), 0);
+    const interval = window.setInterval(() => void refreshChat().catch(() => undefined), 8_000);
+    return () => { window.clearTimeout(initial); window.clearInterval(interval); };
+  }, [refreshChat]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCountdown((current) => Math.max(0, current - 1)), 1_000);
@@ -152,7 +170,7 @@ export function ProtocolConsole() {
   const activeRoundNumber = status?.round?.roundNumber;
   const submitDecision = useCallback(async (choice: SealedChoice) => {
     if (!wallet || !address || !activeRoundNumber) return;
-    if (sealedChoice && sealedChoice !== choice && !window.confirm("UNSEAL AND CHANGE? Your earlier sealed choice will be replaced.")) return;
+    if (sealedChoice && sealedChoice !== choice && !window.confirm("FINAL SWITCH? You only get one switch this round.")) return;
     setBusy(choice); setError(""); setMessage("");
     try {
       const token = sessionToken || await signIn();
@@ -169,6 +187,25 @@ export function ProtocolConsole() {
       setError(decisionError instanceof Error ? decisionError.message : "The decision could not be sealed.");
     } finally { setBusy(""); }
   }, [activeRoundNumber, address, refresh, sealedChoice, sessionToken, signIn, wallet]);
+
+  const submitChat = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!wallet || !address) { setChatOpen(true); setError("Connect wallet to chat."); return; }
+    const draft = chatDraft.trim();
+    if (!draft) return;
+    setBusy("chat"); setError("");
+    try {
+      const token = sessionToken || await signIn();
+      await protocolRequest("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ wallet: address, name: chatName || "Contestant", message: draft }),
+      }, token);
+      setChatDraft("");
+      await refreshChat();
+    } catch (chatError) {
+      setError(chatError instanceof Error ? chatError.message : "Chat could not be sent.");
+    } finally { setBusy(""); }
+  }, [address, chatDraft, chatName, refreshChat, sessionToken, signIn, wallet]);
 
   const decimals = status?.tokenDecimals ?? 6;
   const round = status?.round;
@@ -258,6 +295,20 @@ export function ProtocolConsole() {
       </section>
 
       {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>EPISODE {String(revealRound.roundNumber).padStart(3, "0")} · THE REVEAL</span><h2>{revealRound.status === "settled" ? "THE BOX OPENS." : "THE BOX STAYS CLOSED."}</h2><strong>{revealRound.weightedHodlBps == null ? "CHOICES REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% WEIGHTED HODL`}</strong><p>{revealRound.status === "settled" ? "HODL players split The Box. Accepted deals were paid separately by the Banker." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next episode.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE STUDIO</button></article></div> : null}
+      <button type="button" className="broadcast-chat-button" onClick={() => setChatOpen((open) => !open)}>CHAT</button>
+      {chatOpen ? (
+        <aside className="broadcast-chat-popover" aria-label="Live chat">
+          <header><span>LIVE CHAT</span><button type="button" onClick={() => setChatOpen(false)}>×</button></header>
+          <div className="broadcast-chat-log">
+            {chatMessages.length ? chatMessages.map((item) => <p key={item.id}><b>{item.title || "Contestant"}</b><span>{item.detail}</span></p>) : <p><b>Studio</b><span>Be first in the room.</span></p>}
+          </div>
+          <form onSubmit={submitChat}>
+            <input value={chatName} onChange={(event) => setChatName(event.target.value)} maxLength={24} placeholder="Name" aria-label="Chat name" />
+            <textarea value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} maxLength={160} placeholder={connected ? "Say something..." : "Connect wallet to chat"} aria-label="Chat message" />
+            <button type="submit" disabled={!connected || !chatDraft.trim() || busy === "chat"}>{busy === "chat" ? "SENDING" : "SEND"}</button>
+          </form>
+        </aside>
+      ) : null}
     </>
   );
 }
