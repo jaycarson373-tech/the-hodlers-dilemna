@@ -11,7 +11,10 @@ create table if not exists public.protocol_config (
   current_round bigint not null default 0,
   available_pool_lamports bigint not null default 0,
   pot_rollover_count integer not null default 0,
-  round_length_seconds bigint not null default 21600,
+  round_length_seconds bigint not null default 900,
+  decision_window_seconds bigint not null default 300,
+  cooperation_threshold_bps integer not null default 7000,
+  failed_round_count integer not null default 0,
   claim_window_seconds bigint not null default 604800,
   defect_threshold_bps integer not null default 5000,
   defector_bonus_bps integer not null default 15000,
@@ -33,6 +36,13 @@ create table if not exists public.rounds (
   defect_weight numeric(40,0) not null default 0,
   distribution_weight numeric(40,0) not null default 0,
   voter_count integer not null default 0,
+  deal_budget_lamports bigint not null default 0,
+  accepted_deals_lamports bigint not null default 0,
+  hodl_pool_lamports bigint not null default 0,
+  rollover_lamports bigint not null default 0,
+  weighted_hodl_bps integer,
+  force_open boolean not null default false,
+  settled_at timestamptz,
   transaction_signature text,
   updated_at timestamptz not null default now()
 );
@@ -121,6 +131,11 @@ create table if not exists public.round_snapshots (
   snapshot_balance numeric(40,0) not null,
   multiplier_bps integer not null default 10000,
   payout_weight numeric(40,0) not null,
+  banker_offer_lamports bigint not null default 0,
+  live_balance numeric(40,0),
+  forced_no_hodl boolean not null default false,
+  final_choice text check (final_choice in ('cooperate','defect')),
+  payout_lamports bigint not null default 0,
   created_at timestamptz not null default now(),
   primary key (round_number, wallet)
 );
@@ -168,10 +183,77 @@ create table if not exists public.audience_signals (
   primary key (round_number, fingerprint_hash)
 );
 
+create table if not exists public.audit_log (
+  id uuid primary key default gen_random_uuid(),
+  idempotency_key text not null unique,
+  action text not null,
+  round_number bigint,
+  wallet text,
+  amount_lamports bigint,
+  payload jsonb not null default '{}'::jsonb,
+  status text not null check (status in ('planned','dry_run','broadcast','confirmed','failed')),
+  transaction_signature text,
+  error_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.worker_state (
+  id boolean primary key default true check (id),
+  last_processed_round bigint not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create or replace function public.apply_confirmed_sweep(p_idempotency_key text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  sweep public.audit_log%rowtype;
+begin
+  select * into sweep from public.audit_log where idempotency_key = p_idempotency_key for update;
+  if sweep.id is null or sweep.status <> 'confirmed' then
+    raise exception 'sweep is not confirmed';
+  end if;
+  if coalesce((sweep.payload ->> 'credited')::boolean, false) then
+    return false;
+  end if;
+  update public.protocol_config
+  set available_pool_lamports = available_pool_lamports + sweep.amount_lamports,
+      updated_at = now()
+  where id = true;
+  update public.audit_log
+  set payload = payload || jsonb_build_object('credited', true), updated_at = now()
+  where id = sweep.id;
+  insert into public.protocol_events (event_type, detail, transaction_signature)
+  values ('PUMP_FEES_COLLECTED', sweep.amount_lamports || ' lamports entered the next Box.', sweep.transaction_signature);
+  return true;
+end;
+$$;
+
 alter table public.protocol_config
-  add column if not exists pot_rollover_count integer not null default 0;
+  add column if not exists pot_rollover_count integer not null default 0,
+  add column if not exists decision_window_seconds bigint not null default 300,
+  add column if not exists cooperation_threshold_bps integer not null default 7000,
+  add column if not exists failed_round_count integer not null default 0;
 alter table public.protocol_config
-  alter column round_length_seconds set default 21600;
+  alter column round_length_seconds set default 900;
+alter table public.rounds
+  add column if not exists deal_budget_lamports bigint not null default 0,
+  add column if not exists accepted_deals_lamports bigint not null default 0,
+  add column if not exists hodl_pool_lamports bigint not null default 0,
+  add column if not exists rollover_lamports bigint not null default 0,
+  add column if not exists weighted_hodl_bps integer,
+  add column if not exists force_open boolean not null default false,
+  add column if not exists settled_at timestamptz;
+alter table public.round_snapshots
+  add column if not exists banker_offer_lamports bigint not null default 0,
+  add column if not exists live_balance numeric(40,0),
+  add column if not exists forced_no_hodl boolean not null default false,
+  add column if not exists final_choice text,
+  add column if not exists payout_lamports bigint not null default 0;
 alter table public.holders
   add column if not exists leaderboard_score numeric(40,0) not null default 0,
   add column if not exists wins integer not null default 0,
@@ -250,6 +332,7 @@ create index if not exists sealed_choices_current_idx on public.sealed_choices (
 create index if not exists commitments_round_idx on public.commitments (round_number, created_at desc);
 create index if not exists revealed_choices_round_idx on public.revealed_choices (round_number, wallet);
 create index if not exists audience_signals_round_idx on public.audience_signals (round_number, choice);
+create index if not exists audit_log_round_idx on public.audit_log (round_number, action, status);
 
 alter table public.protocol_config enable row level security;
 alter table public.rounds enable row level security;
@@ -265,6 +348,8 @@ alter table public.sealed_choices enable row level security;
 alter table public.commitments enable row level security;
 alter table public.revealed_choices enable row level security;
 alter table public.audience_signals enable row level security;
+alter table public.audit_log enable row level security;
+alter table public.worker_state enable row level security;
 
 drop policy if exists "public config read" on public.protocol_config;
 create policy "public config read" on public.protocol_config for select using (true);

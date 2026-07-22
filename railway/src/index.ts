@@ -29,7 +29,7 @@ const { OnlinePumpSdk } = nodeRequire("@pump-fun/pump-sdk") as {
 const envSchema = z.object({
   PORT: z.coerce.number().default(3001),
   SITE_ORIGIN: z.string().url().default("http://localhost:3000"),
-  SOLANA_RPC_URL: z.string().url().default("https://api.mainnet-beta.solana.com"),
+  SOLANA_RPC_URL: z.string().url(),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SECRET_KEY: z.string().optional(),
   SESSION_SECRET: z.string().min(32).optional(),
@@ -37,13 +37,13 @@ const envSchema = z.object({
   KEEPER_KEYPAIR_BASE64: z.string().optional(),
   PUMP_CREATOR_PRIVATE_KEY: z.string().optional(),
   PUMP_CREATOR_KEYPAIR_BASE64: z.string().optional(),
-  BANKER_RESERVE_PRIVATE_KEY: z.string().optional(),
-  BANKER_RESERVE_KEYPAIR_BASE64: z.string().optional(),
   FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
-  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(21_600),
-  CLAIM_WINDOW_SECONDS: z.coerce.number().int().positive().default(604_800),
-  DEFECT_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
-  DEFECTOR_BONUS_BPS: z.coerce.number().int().min(10_000).max(100_000).default(15_000),
+  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(900),
+  DECISION_WINDOW_SECONDS: z.coerce.number().int().positive().default(300),
+  COOPERATION_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(7_000),
+  DEAL_BUDGET_BPS: z.coerce.number().int().min(1).max(10_000).default(3_000),
+  SWEEP_ENABLED: z.string().optional().transform((value) => value === "true").default(false),
+  PAYOUT_ENABLED: z.string().optional().transform((value) => value === "true").default(false),
   MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("1000000"),
   TOKEN_MINT: z.string().optional(),
   INITIAL_ADMIN: z.string().optional(),
@@ -105,10 +105,8 @@ function optionalKeypair(name: string, value?: string) {
 
 const keeperPrivateKey = env.KEEPER_PRIVATE_KEY ?? env.KEEPER_KEYPAIR_BASE64;
 const pumpCreatorPrivateKey = env.PUMP_CREATOR_PRIVATE_KEY ?? env.PUMP_CREATOR_KEYPAIR_BASE64;
-const bankerReservePrivateKey = env.BANKER_RESERVE_PRIVATE_KEY ?? env.BANKER_RESERVE_KEYPAIR_BASE64;
 const keeper = optionalKeypair("KEEPER_PRIVATE_KEY", keeperPrivateKey);
 const pumpCreator = optionalKeypair("PUMP_CREATOR_PRIVATE_KEY", pumpCreatorPrivateKey);
-const bankerReserve = optionalKeypair("BANKER_RESERVE_PRIVATE_KEY", bankerReservePrivateKey);
 const payoutWallet = pumpCreator ?? keeper;
 const pumpSdk = new OnlinePumpSdk(connection);
 
@@ -119,10 +117,13 @@ type DbConfig = {
   current_round: number | string;
   available_pool_lamports: number | string;
   pot_rollover_count?: number;
+  failed_round_count?: number;
   round_length_seconds: number | string;
-  claim_window_seconds: number | string;
-  defect_threshold_bps: number;
-  defector_bonus_bps: number;
+  decision_window_seconds?: number | string;
+  cooperation_threshold_bps?: number;
+  claim_window_seconds?: number | string;
+  defect_threshold_bps?: number;
+  defector_bonus_bps?: number;
   next_round_at: string | null;
   round_active: boolean;
   paused: boolean;
@@ -140,6 +141,21 @@ type DbRound = {
   defect_weight: number | string;
   distribution_weight: number | string;
   voter_count: number;
+  deal_budget_lamports?: number | string;
+  accepted_deals_lamports?: number | string;
+  hodl_pool_lamports?: number | string;
+  rollover_lamports?: number | string;
+  weighted_hodl_bps?: number | null;
+  force_open?: boolean;
+  settled_at?: string | null;
+};
+
+type RoundSnapshot = {
+  wallet: string;
+  snapshot_balance: number | string;
+  multiplier_bps: number;
+  payout_weight: number | string;
+  banker_offer_lamports: number | string;
 };
 
 type DbHolder = {
@@ -223,6 +239,89 @@ function minimumHoldingBaseUnits(decimals: number) {
   return tokenAmountStringToBaseUnits(env.MIN_HOLDING_TOKENS, decimals);
 }
 
+async function fetchMintHolders() {
+  if (!tokenMint) return new Map<string, bigint>();
+  const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, {
+    commitment: "confirmed",
+    filters: [{ dataSize: 165 }, { memcmp: { offset: 0, bytes: tokenMint.toBase58() } }],
+    dataSlice: { offset: 32, length: 40 },
+  });
+  const balances = new Map<string, bigint>();
+  for (const { account } of accounts) {
+    const data = Buffer.from(account.data);
+    if (data.length < 40) continue;
+    const owner = new PublicKey(data.subarray(0, 32)).toBase58();
+    const amount = data.readBigUInt64LE(32);
+    if (amount > 0n) balances.set(owner, (balances.get(owner) ?? 0n) + amount);
+  }
+  return balances;
+}
+
+async function writeAudit(input: {
+  idempotencyKey: string;
+  action: string;
+  status: "planned" | "dry_run" | "broadcast" | "confirmed" | "failed";
+  roundNumber?: string;
+  wallet?: string;
+  amountLamports?: bigint;
+  payload?: Record<string, unknown>;
+  signature?: string;
+  errorMessage?: string;
+}) {
+  const db = requireDb();
+  const { data: existing, error: existingError } = await db.from("audit_log").select("*").eq("idempotency_key", input.idempotencyKey).maybeSingle();
+  if (existingError) throw existingError;
+  if (existing) return existing;
+  const row = {
+    idempotency_key: input.idempotencyKey,
+    action: input.action,
+    status: input.status,
+    round_number: input.roundNumber ?? null,
+    wallet: input.wallet ?? null,
+    amount_lamports: input.amountLamports?.toString() ?? null,
+    payload: input.payload ?? {},
+    transaction_signature: input.signature ?? null,
+    error_message: input.errorMessage ?? null,
+    updated_at: nowIso(),
+  };
+  const { data, error } = await db.from("audit_log").insert(row).select("*").single();
+  if (error) throw error;
+  return data;
+}
+
+async function sendDirectPayout(roundNumber: string, wallet: string, amount: bigint, kind: "banker_deal" | "hodl_payout") {
+  if (amount <= 0n) return null;
+  const db = requireDb();
+  const idempotencyKey = `${roundNumber}:${wallet}`;
+  await writeAudit({ idempotencyKey, action: kind, status: "dry_run", roundNumber, wallet, amountLamports: amount, payload: { directPayout: true } });
+  if (!env.PAYOUT_ENABLED) return null;
+  if (!payoutWallet) throw new Error("Payout wallet is not configured.");
+
+  const { data: existing, error: existingError } = await db.from("audit_log").select("status,transaction_signature").eq("idempotency_key", idempotencyKey).maybeSingle<{ status: string; transaction_signature: string | null }>();
+  if (existingError) throw existingError;
+  if (existing?.status === "confirmed") return existing.transaction_signature;
+  if (existing?.status === "failed") await db.from("audit_log").update({ status: "dry_run", error_message: null, updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
+  if (!existing || !["dry_run", "failed"].includes(existing.status)) throw new Error(`Payout ${idempotencyKey} requires reconciliation before retry.`);
+
+  await db.from("audit_log").update({ status: "broadcast", updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
+  try {
+    const latest = await connection.getLatestBlockhash("confirmed");
+    const transaction = new Transaction({
+      feePayer: payoutWallet.publicKey,
+      blockhash: latest.blockhash,
+      lastValidBlockHeight: latest.lastValidBlockHeight,
+    }).add(SystemProgram.transfer({ fromPubkey: payoutWallet.publicKey, toPubkey: new PublicKey(wallet), lamports: amount }));
+    const signature = await connection.sendTransaction(transaction, [payoutWallet], { preflightCommitment: "confirmed", maxRetries: 3 });
+    await connection.confirmTransaction(signature, "confirmed");
+    await db.from("audit_log").update({ status: "confirmed", transaction_signature: signature, updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
+    await db.from("reward_claims").upsert({ round_number: roundNumber, wallet, amount_lamports: amount.toString(), claimed_at: nowIso(), transaction_signature: signature });
+    return signature;
+  } catch (error) {
+    await db.from("audit_log").update({ status: "failed", error_message: error instanceof Error ? error.message : "Broadcast failed", updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
+    throw error;
+  }
+}
+
 function multiplierBps(streakStartedAt: string | null) {
   if (!streakStartedAt) return 10_000;
   const heldMs = Math.max(0, Date.now() - new Date(streakStartedAt).getTime());
@@ -252,6 +351,8 @@ async function playerRoundSummary(wallet: string, liveBalance: bigint, streakSta
     return {
       snapshotBalance: liveBalance.toString(),
       multiplierBps: multiplierBps(streakStartedAt),
+      playerWeight: ((liveBalance * BigInt(multiplierBps(streakStartedAt))) / 10_000n).toString(),
+      bankerOfferLamports: "0",
       projectedShareLamports: "0",
       participationStatus: "between-rounds",
       soldThisRound: false,
@@ -260,7 +361,7 @@ async function playerRoundSummary(wallet: string, liveBalance: bigint, streakSta
   const roundNumber = String(round.round_number);
 
   const [{ data: snapshot, error: snapshotError }, { data: snapshots, error: snapshotsError }, { data: vote, error: voteError }] = await Promise.all([
-    db.from("round_snapshots").select("snapshot_balance,multiplier_bps,payout_weight").eq("round_number", roundNumber).eq("wallet", wallet).maybeSingle<{ snapshot_balance: string; multiplier_bps: number; payout_weight: string }>(),
+    db.from("round_snapshots").select("snapshot_balance,multiplier_bps,payout_weight,banker_offer_lamports").eq("round_number", roundNumber).eq("wallet", wallet).maybeSingle<{ snapshot_balance: string; multiplier_bps: number; payout_weight: string; banker_offer_lamports: string }>(),
     db.from("round_snapshots").select("payout_weight").eq("round_number", roundNumber),
     db.from("sealed_choices").select("choice").eq("round_number", roundNumber).eq("wallet", wallet).is("superseded_at", null).maybeSingle<{ choice: "cooperate" | "defect" }>(),
   ]);
@@ -271,11 +372,13 @@ async function playerRoundSummary(wallet: string, liveBalance: bigint, streakSta
   const payoutWeight = bigintValue(snapshot?.payout_weight ?? ((snapshotBalance * BigInt(currentMultiplier)) / 10_000n));
   const totalWeight = (snapshots ?? []).reduce((sum, item) => sum + bigintValue(item.payout_weight), 0n) || payoutWeight;
   const pot = bigintValue(round.pot_lamports) + bigintValue(config.available_pool_lamports);
-  const projectedShare = totalWeight > 0n ? (((pot * 8n) / 10n) * payoutWeight) / totalWeight : 0n;
+  const projectedShare = totalWeight > 0n ? (((pot * 7n) / 10n) * payoutWeight) / totalWeight : 0n;
 
   return {
     snapshotBalance: snapshotBalance.toString(),
     multiplierBps: currentMultiplier,
+    playerWeight: payoutWeight.toString(),
+    bankerOfferLamports: String(snapshot?.banker_offer_lamports ?? "0"),
     projectedShareLamports: projectedShare.toString(),
     participationStatus: vote?.choice === "cooperate" ? "HODL" : vote?.choice === "defect" ? "NO HODL" : "SILENT / HODL",
     soldThisRound: Boolean(snapshot && liveBalance < snapshotBalance),
@@ -293,10 +396,9 @@ async function ensureGameConfig() {
     if (data.program_id !== "supabase-mainnet-game") updates.program_id = "supabase-mainnet-game";
     if (data.token_mint !== tokenMint.toBase58()) updates.token_mint = tokenMint.toBase58();
     if (data.cluster !== clusterName) updates.cluster = clusterName;
-    if (!data.round_length_seconds) updates.round_length_seconds = env.ROUND_LENGTH_SECONDS.toString();
-    if (!data.claim_window_seconds) updates.claim_window_seconds = env.CLAIM_WINDOW_SECONDS.toString();
-    if (!data.defect_threshold_bps) updates.defect_threshold_bps = env.DEFECT_THRESHOLD_BPS;
-    if (!data.defector_bonus_bps) updates.defector_bonus_bps = env.DEFECTOR_BONUS_BPS;
+    if (Number(data.round_length_seconds) !== env.ROUND_LENGTH_SECONDS) updates.round_length_seconds = env.ROUND_LENGTH_SECONDS.toString();
+    if (Number(data.decision_window_seconds ?? 0) !== env.DECISION_WINDOW_SECONDS) updates.decision_window_seconds = env.DECISION_WINDOW_SECONDS.toString();
+    if (Number(data.cooperation_threshold_bps ?? 0) !== env.COOPERATION_THRESHOLD_BPS) updates.cooperation_threshold_bps = env.COOPERATION_THRESHOLD_BPS;
     if (!data.next_round_at) updates.next_round_at = nowIso();
     if (Object.keys(updates).length) {
       updates.updated_at = nowIso();
@@ -319,10 +421,14 @@ async function ensureGameConfig() {
     cluster: clusterName,
     current_round: "0",
     available_pool_lamports: "0",
+    pot_rollover_count: 0,
+    failed_round_count: 0,
     round_length_seconds: env.ROUND_LENGTH_SECONDS.toString(),
-    claim_window_seconds: env.CLAIM_WINDOW_SECONDS.toString(),
-    defect_threshold_bps: env.DEFECT_THRESHOLD_BPS,
-    defector_bonus_bps: env.DEFECTOR_BONUS_BPS,
+    decision_window_seconds: env.DECISION_WINDOW_SECONDS.toString(),
+    cooperation_threshold_bps: env.COOPERATION_THRESHOLD_BPS,
+    claim_window_seconds: "0",
+    defect_threshold_bps: 3000,
+    defector_bonus_bps: 10000,
     next_round_at: nowIso(),
     round_active: false,
     paused: false,
@@ -373,6 +479,13 @@ function publicRound(round: DbRound | null) {
     cooperatePercent,
     defectPercent: cooperatePercent === null ? null : 100 - cooperatePercent,
     voterCount: choicesArePublic ? round.voter_count : 0,
+    dealBudgetLamports: String(round.deal_budget_lamports ?? "0"),
+    acceptedDealsLamports: String(round.accepted_deals_lamports ?? "0"),
+    hodlPoolLamports: String(round.hodl_pool_lamports ?? "0"),
+    rolloverLamports: String(round.rollover_lamports ?? "0"),
+    weightedHodlBps: choicesArePublic ? round.weighted_hodl_bps ?? null : null,
+    forceOpen: Boolean(round.force_open),
+    settledAt: iso(round.settled_at),
     status: round.status,
   };
 }
@@ -465,25 +578,67 @@ async function openRound(config: DbConfig) {
   const next = current + 1n;
   const openedAt = new Date();
   const closesAt = addSeconds(openedAt, Number(config.round_length_seconds));
-  const claimDeadline = addSeconds(new Date(closesAt), Number(config.claim_window_seconds));
   const pot = bigintValue(config.available_pool_lamports);
+  const forceOpen = Number(config.failed_round_count ?? 0) >= 3;
+  const onChainBalances = await fetchMintHolders();
+  const decimals = await tokenSupplyDecimals();
+  const minimum = minimumHoldingBaseUnits(decimals);
+  const { data: holderRows, error: holderError } = await db.from("holders").select("wallet,streak_started_at");
+  if (holderError) throw holderError;
+  const holderByWallet = new Map((holderRows ?? []).map((holder) => [holder.wallet, holder]));
+  const eligible = Array.from(onChainBalances.entries()).filter(([, balance]) => balance >= minimum);
+  const weighted = eligible.map(([wallet, balance]) => {
+    const streakStartedAt = holderByWallet.get(wallet)?.streak_started_at ?? openedAt.toISOString();
+    const multiplier = multiplierBps(streakStartedAt);
+    return { wallet, balance, streakStartedAt, multiplier, weight: (balance * BigInt(multiplier)) / 10_000n };
+  });
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0n);
+  const dealBudget = (pot * BigInt(env.DEAL_BUDGET_BPS)) / 10_000n;
 
   const round = {
     round_number: next.toString(),
     status: "open",
     opened_at: openedAt.toISOString(),
     closes_at: closesAt,
-    claim_deadline: claimDeadline,
+    claim_deadline: null,
     pot_lamports: pot.toString(),
     remaining_lamports: pot.toString(),
     cooperate_weight: "0",
     defect_weight: "0",
     distribution_weight: "0",
     voter_count: 0,
+    deal_budget_lamports: dealBudget.toString(),
+    accepted_deals_lamports: "0",
+    hodl_pool_lamports: "0",
+    rollover_lamports: "0",
+    weighted_hodl_bps: null,
+    force_open: forceOpen,
+    settled_at: null,
     updated_at: nowIso(),
   };
   const { error: roundError } = await db.from("rounds").upsert(round);
   if (roundError) throw roundError;
+  if (weighted.length) {
+    const snapshotRows = weighted.map((item) => ({
+      round_number: next.toString(),
+      wallet: item.wallet,
+      snapshot_balance: item.balance.toString(),
+      multiplier_bps: item.multiplier,
+      payout_weight: item.weight.toString(),
+      banker_offer_lamports: totalWeight > 0n ? ((dealBudget * item.weight) / totalWeight).toString() : "0",
+    }));
+    const { error: snapshotError } = await db.from("round_snapshots").upsert(snapshotRows);
+    if (snapshotError) throw snapshotError;
+    const { error: holdersError } = await db.from("holders").upsert(weighted.map((item) => ({
+      wallet: item.wallet,
+      position_amount: item.balance.toString(),
+      streak_started_at: item.streakStartedAt,
+      bonus_bps: Math.max(0, item.multiplier - 10_000),
+      tier: tierFor(item.streakStartedAt),
+      updated_at: nowIso(),
+    })));
+    if (holdersError) throw holdersError;
+  }
   const { error: configError } = await db.from("protocol_config").update({
     current_round: next.toString(),
     available_pool_lamports: "0",
@@ -495,33 +650,135 @@ async function openRound(config: DbConfig) {
   await db.from("protocol_events").insert({
     event_type: "ROUND_OPENED",
     round_number: next.toString(),
-    detail: `Round ${next.toString()} opened for ${Math.floor(Number(config.round_length_seconds) / 60)} minutes.`,
+    detail: `Episode ${next.toString()} opened. The Box is live for ${Math.floor(Number(config.round_length_seconds) / 60)} minutes.`,
   });
 }
 
 async function settleRound(config: DbConfig, round: DbRound) {
   const db = requireDb();
-  const cooperate = bigintValue(round.cooperate_weight);
-  const defect = bigintValue(round.defect_weight);
-  const total = cooperate + defect;
+  const roundNumber = String(round.round_number);
+  const { data: workerState, error: workerError } = await db.from("worker_state").select("last_processed_round").eq("id", true).maybeSingle<{ last_processed_round: string }>();
+  if (workerError) throw workerError;
+  if (bigintValue(workerState?.last_processed_round) >= bigintValue(roundNumber)) return;
+
+  const [{ data: snapshots, error: snapshotError }, { data: choices, error: choiceError }] = await Promise.all([
+    db.from("round_snapshots").select("wallet,snapshot_balance,multiplier_bps,payout_weight,banker_offer_lamports").eq("round_number", roundNumber),
+    db.from("sealed_choices").select("wallet,choice,salt,commitment").eq("round_number", roundNumber).is("superseded_at", null),
+  ]);
+  if (snapshotError || choiceError) throw snapshotError ?? choiceError;
+  const currentBalances = await fetchMintHolders();
+  const choiceByWallet = new Map((choices ?? []).map((choice) => [choice.wallet, choice]));
+  const results = ((snapshots ?? []) as RoundSnapshot[]).map((snapshot) => {
+    const snapshotBalance = bigintValue(snapshot.snapshot_balance);
+    const liveBalance = currentBalances.get(snapshot.wallet) ?? 0n;
+    const sold = liveBalance < snapshotBalance;
+    const signed = choiceByWallet.get(snapshot.wallet);
+    const choice: "cooperate" | "defect" = sold || signed?.choice === "defect" ? "defect" : "cooperate";
+    return {
+      ...snapshot,
+      liveBalance,
+      sold,
+      choice,
+      signed,
+      weight: bigintValue(snapshot.payout_weight),
+      offer: bigintValue(snapshot.banker_offer_lamports),
+    };
+  });
+  const total = results.reduce((sum, item) => sum + item.weight, 0n);
+  const cooperate = results.filter((item) => item.choice === "cooperate").reduce((sum, item) => sum + item.weight, 0n);
+  const defect = total - cooperate;
   const pot = bigintValue(round.pot_lamports);
-  const defectBps = total === 0n ? 10_000n : (defect * 10_000n) / total;
-  const rollsOver = total === 0n || defectBps >= BigInt(config.defect_threshold_bps);
+  const weightedHodlBps = total === 0n ? 0 : Number((cooperate * 10_000n) / total);
+  const boxOpens = Boolean(round.force_open) || weightedHodlBps >= Number(config.cooperation_threshold_bps ?? env.COOPERATION_THRESHOLD_BPS);
+  const acceptedDeals = results.filter((item) => item.choice === "defect");
+  const acceptedDealsTotal = acceptedDeals.reduce((sum, item) => sum + item.offer, 0n);
+  const dealBudget = (pot * BigInt(env.DEAL_BUDGET_BPS)) / 10_000n;
+  if (acceptedDealsTotal > dealBudget) throw new Error("Posted Banker offers exceed the funded Deal Budget.");
+  const remainingBox = pot - acceptedDealsTotal;
+  const hodlWeight = cooperate;
+  const payouts = results.map((item) => ({
+    ...item,
+    payout: item.choice === "defect"
+      ? item.offer
+      : boxOpens && hodlWeight > 0n
+        ? (remainingBox * item.weight) / hodlWeight
+        : 0n,
+  }));
+  const payoutPlan = payouts.filter((item) => item.payout > 0n).map((item) => ({ wallet: item.wallet, choice: item.choice, amountLamports: item.payout.toString() }));
+  const totalPayouts = payouts.reduce((sum, item) => sum + item.payout, 0n);
+  const unpaidBalance = pot - totalPayouts;
+
+  if (choices?.length) {
+    const { error: revealError } = await db.from("revealed_choices").upsert(choices.map((choice) => ({ round_number: roundNumber, wallet: choice.wallet, choice: choice.choice, salt: choice.salt, commitment: choice.commitment, revealed_at: nowIso() })));
+    if (revealError) throw revealError;
+    await db.from("sealed_choices").update({ revealed_at: nowIso() }).eq("round_number", roundNumber).is("superseded_at", null);
+  }
+  const { error: snapshotUpdateError } = await Promise.all(payouts.map((item) => db.from("round_snapshots").update({
+    live_balance: item.liveBalance.toString(),
+    forced_no_hodl: item.sold,
+    final_choice: item.choice,
+    payout_lamports: item.payout.toString(),
+  }).eq("round_number", roundNumber).eq("wallet", item.wallet))).then((updates) => ({ error: updates.find((update) => update.error)?.error }));
+  if (snapshotUpdateError) throw snapshotUpdateError;
+
+  await writeAudit({
+    idempotencyKey: `settlement:${roundNumber}:dry-run`,
+    action: "settlement_plan",
+    status: "dry_run",
+    roundNumber,
+    amountLamports: pot,
+    payload: { weightedHodlBps, boxOpens, forceOpen: Boolean(round.force_open), dealBudgetLamports: dealBudget.toString(), acceptedDealsLamports: acceptedDealsTotal.toString(), remainingBoxLamports: remainingBox.toString(), payouts: payoutPlan },
+  });
+  if (!env.PAYOUT_ENABLED || !env.SWEEP_ENABLED) return;
+
+  for (const payout of payouts) {
+    if (payout.payout > 0n) await sendDirectPayout(roundNumber, payout.wallet, payout.payout, payout.choice === "defect" ? "banker_deal" : "hodl_payout");
+  }
+
+  for (const result of payouts) {
+    const reset = result.choice === "defect";
+    const holderUpdate: Record<string, unknown> = {
+      position_amount: result.liveBalance.toString(),
+      updated_at: nowIso(),
+      ...(reset ? { streak_started_at: nowIso(), bonus_bps: 0, tier: 0, defect_votes: 1 } : { cooperate_votes: 1 }),
+    };
+    const { data: currentHolder } = await db.from("holders").select("wins,losses,total_airdropped_lamports,cooperate_votes,defect_votes").eq("wallet", result.wallet).maybeSingle<{ wins: number; losses: number; total_airdropped_lamports: string; cooperate_votes: number; defect_votes: number }>();
+    holderUpdate.wins = (currentHolder?.wins ?? 0) + (boxOpens && result.choice === "cooperate" ? 1 : 0);
+    holderUpdate.losses = (currentHolder?.losses ?? 0) + (!boxOpens && result.choice === "cooperate" ? 1 : 0);
+    holderUpdate.total_airdropped_lamports = (bigintValue(currentHolder?.total_airdropped_lamports) + result.payout).toString();
+    holderUpdate.cooperate_votes = (currentHolder?.cooperate_votes ?? 0) + (result.choice === "cooperate" ? 1 : 0);
+    holderUpdate.defect_votes = (currentHolder?.defect_votes ?? 0) + (result.choice === "defect" ? 1 : 0);
+    await db.from("holders").update(holderUpdate).eq("wallet", result.wallet);
+  }
+
+  const rollsOver = !boxOpens;
+  const rollover = rollsOver ? remainingBox : 0n;
   const status = rollsOver ? "rolled_over" : "settled";
   const detail = rollsOver
-    ? `Round ${round.round_number} rolled over. Too many holders defected.`
-    : `Round ${round.round_number} settled. Majority cooperated. Rewards are claimable.`;
+    ? `The Box stayed closed. ${remainingBox.toString()} lamports roll into the next episode after Banker deals.`
+    : `The Box opened. Banker deals were paid first and HODL players split the remainder.`;
 
   const { error: roundError } = await db.from("rounds").update({
     status,
-    remaining_lamports: pot.toString(),
+    cooperate_weight: cooperate.toString(),
+    defect_weight: defect.toString(),
+    distribution_weight: hodlWeight.toString(),
+    voter_count: results.length,
+    accepted_deals_lamports: acceptedDealsTotal.toString(),
+    hodl_pool_lamports: boxOpens ? remainingBox.toString() : "0",
+    rollover_lamports: rollover.toString(),
+    weighted_hodl_bps: weightedHodlBps,
+    remaining_lamports: "0",
+    settled_at: nowIso(),
     updated_at: nowIso(),
-  }).eq("round_number", String(round.round_number));
+  }).eq("round_number", roundNumber);
   if (roundError) throw roundError;
 
-  const availablePool = rollsOver ? bigintValue(config.available_pool_lamports) + pot : bigintValue(config.available_pool_lamports);
+  const availablePool = bigintValue(config.available_pool_lamports) + unpaidBalance;
   const { error: configError } = await db.from("protocol_config").update({
     available_pool_lamports: availablePool.toString(),
+    pot_rollover_count: rollsOver ? Number(config.pot_rollover_count ?? 0) + 1 : 0,
+    failed_round_count: rollsOver ? Number(config.failed_round_count ?? 0) + 1 : 0,
     round_active: false,
     next_round_at: nowIso(),
     updated_at: nowIso(),
@@ -533,6 +790,16 @@ async function settleRound(config: DbConfig, round: DbRound) {
     round_number: String(round.round_number),
     detail,
   });
+  if (acceptedDeals.length) {
+    const biggest = acceptedDeals.reduce((largest, item) => item.offer > largest.offer ? item : largest, acceptedDeals[0]);
+    await db.from("protocol_events").insert({
+      event_type: "BANKER_DEALS_PAID",
+      round_number: roundNumber,
+      wallet: biggest.wallet,
+      detail: `${acceptedDeals.length} Banker deal${acceptedDeals.length === 1 ? "" : "s"} paid. Biggest deal: ${biggest.offer.toString()} lamports.`,
+    });
+  }
+  await db.from("worker_state").upsert({ id: true, last_processed_round: roundNumber, updated_at: nowIso() });
 }
 
 async function keeperTick() {
@@ -550,9 +817,18 @@ async function keeperTick() {
       await settleRound(config, round);
     }
 
+    if (config.round_active && round?.status === "open") {
+      const decisionAt = new Date(round.closes_at).getTime() - Number(config.decision_window_seconds ?? env.DECISION_WINDOW_SECONDS) * 1_000;
+      if (now >= decisionAt && now < new Date(round.closes_at).getTime()) {
+        const db = requireDb();
+        const { count } = await db.from("protocol_events").select("id", { count: "exact", head: true }).eq("event_type", "DECISION_WINDOW_OPENED").eq("round_number", String(round.round_number));
+        if (!count) await db.from("protocol_events").insert({ event_type: "DECISION_WINDOW_OPENED", round_number: String(round.round_number), detail: "The Banker has called. Sealed choices are open." });
+      }
+    }
+
     const freshConfig = await ensureGameConfig();
     const freshNextAt = freshConfig.next_round_at ? new Date(freshConfig.next_round_at).getTime() : 0;
-    if (!freshConfig.round_active && now >= freshNextAt) {
+    if (!freshConfig.round_active && now >= freshNextAt && bigintValue(freshConfig.available_pool_lamports) > 0n) {
       await openRound(freshConfig);
     }
   } catch (error) {
@@ -562,29 +838,37 @@ async function keeperTick() {
   }
 }
 
-async function addCollectedFeesToPot(amount: bigint, signature: string) {
+async function addCollectedFeesToPot(idempotencyKey: string) {
   const db = requireDb();
-  const config = await ensureGameConfig();
-  const nextPool = bigintValue(config.available_pool_lamports) + amount;
-  const { error } = await db.from("protocol_config").update({
-    available_pool_lamports: nextPool.toString(),
-    updated_at: nowIso(),
-  }).eq("id", true);
+  const { error } = await db.rpc("apply_confirmed_sweep", { p_idempotency_key: idempotencyKey });
   if (error) throw error;
-  await db.from("protocol_events").insert({
-    event_type: "PUMP_FEES_COLLECTED",
-    detail: `${amount.toString()} lamports collected from Pump creator fees and added to the next game pot.`,
-    transaction_signature: signature,
-  });
 }
 
 async function collectPumpCreatorFees() {
-  if (!pumpCreator || feeCollectorBusy) return;
+  if (!pumpCreator || !supabase || !tokenMint || feeCollectorBusy) return;
   feeCollectorBusy = true;
+  let chainConfirmed = false;
+  let idempotencyKey = "";
   try {
+    const db = requireDb();
+    const sweepWindow = Math.floor(Date.now() / env.FEE_COLLECTION_INTERVAL_MS);
+    idempotencyKey = `sweep:${sweepWindow}`;
+    const { data: previous, error: previousError } = await db.from("audit_log").select("status,transaction_signature").eq("idempotency_key", idempotencyKey).maybeSingle<{ status: string; transaction_signature: string | null }>();
+    if (previousError) throw previousError;
+    if (previous?.status === "confirmed") {
+      await addCollectedFeesToPot(idempotencyKey);
+      return;
+    }
+    if (previous?.status === "broadcast") throw new Error(`Sweep ${idempotencyKey} requires transaction reconciliation.`);
     const available = await pumpSdk.getCreatorVaultBalanceBothPrograms(pumpCreator.publicKey);
     const amount = BigInt(available.toString());
     if (amount <= 0n) return;
+    await writeAudit({ idempotencyKey, action: "creator_fee_sweep", status: "dry_run", amountLamports: amount, payload: { creator: pumpCreator.publicKey.toBase58(), window: sweepWindow } });
+    if (!env.SWEEP_ENABLED) return;
+    const { data: existing, error: auditError } = await db.from("audit_log").select("status,transaction_signature").eq("idempotency_key", idempotencyKey).single<{ status: string; transaction_signature: string | null }>();
+    if (auditError) throw auditError;
+    if (existing.status === "confirmed") return;
+    await db.from("audit_log").update({ status: "broadcast", updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
 
     const collectInstructions = await pumpSdk.collectCoinCreatorFeeInstructions(
       pumpCreator.publicKey,
@@ -601,8 +885,11 @@ async function collectPumpCreatorFees() {
       maxRetries: 3,
     });
     await connection.confirmTransaction(signature, "confirmed");
-    if (supabase && tokenMint) await addCollectedFeesToPot(amount, signature);
+    chainConfirmed = true;
+    await db.from("audit_log").update({ status: "confirmed", transaction_signature: signature, updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
+    await addCollectedFeesToPot(idempotencyKey);
   } catch (error) {
+    if (!chainConfirmed && idempotencyKey && supabase) await supabase.from("audit_log").update({ status: "failed", error_message: error instanceof Error ? error.message : "Sweep failed", updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
     console.error("pump creator fee collection failed", error);
   } finally {
     feeCollectorBusy = false;
@@ -635,12 +922,15 @@ const healthResponse = () => ({
   database: Boolean(supabase),
   keeper: Boolean(keeper),
   pumpCreator: Boolean(pumpCreator),
-  bankerReserve: Boolean(bankerReserve),
-  bankerReserveWallet: bankerReserve?.publicKey.toBase58() ?? null,
   payoutWallet: payoutWallet?.publicKey.toBase58() ?? null,
   feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
   roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
   minHoldingTokens: env.MIN_HOLDING_TOKENS,
+  sweepEnabled: env.SWEEP_ENABLED,
+  payoutEnabled: env.PAYOUT_ENABLED,
+  cooperationThresholdBps: env.COOPERATION_THRESHOLD_BPS,
+  dealBudgetBps: env.DEAL_BUDGET_BPS,
+  decisionWindowSeconds: env.DECISION_WINDOW_SECONDS,
   warnings: keypairWarnings,
 });
 
@@ -684,10 +974,11 @@ app.get("/api/status", async (_req, res, next) => {
       currentRound: String(config.current_round),
       availablePoolLamports: String(config.available_pool_lamports),
       potRolloverCount: config.pot_rollover_count ?? 0,
+      failedRoundCount: config.failed_round_count ?? 0,
       roundLengthSeconds: String(config.round_length_seconds),
-      claimWindowSeconds: String(config.claim_window_seconds),
-      defectThresholdBps: config.defect_threshold_bps,
-      defectorBonusBps: config.defector_bonus_bps,
+      decisionWindowSeconds: String(config.decision_window_seconds ?? env.DECISION_WINDOW_SECONDS),
+      cooperationThresholdBps: config.cooperation_threshold_bps ?? env.COOPERATION_THRESHOLD_BPS,
+      dealBudgetBps: env.DEAL_BUDGET_BPS,
       nextRoundAt: iso(config.next_round_at),
       roundActive: config.round_active,
       paused: config.paused,
@@ -837,6 +1128,7 @@ app.get("/api/holder/:wallet", async (req, res, next) => {
         position: null,
       });
     }
+    await requireSameWallet(req, wallet.toBase58());
     await ensureGameConfig();
     res.json(await syncHolder(wallet));
   } catch (error) { next(error); }
@@ -902,7 +1194,7 @@ app.post("/api/vote/commit", async (req, res, next) => {
     if (String(round.round_number) !== body.roundNumber) throw new Error("This decision belongs to a different round.");
     const now = Date.now();
     const closesAt = new Date(round.closes_at).getTime();
-    if (now < closesAt - 3_600_000 || now >= closesAt) throw new Error("Choices unlock during the final hour.");
+    if (now < closesAt - env.DECISION_WINDOW_SECONDS * 1_000 || now >= closesAt) throw new Error("Choices unlock when the Banker calls.");
 
     const holder = await syncHolder(new PublicKey(body.wallet));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens to vote.`);
@@ -938,70 +1230,8 @@ app.post("/api/tx/vote", (_req, res) => {
   res.status(410).json({ error: "Use the sealed decision flow." });
 });
 
-app.post("/api/tx/claim", async (req, res, next) => {
-  try {
-    const db = requireDb();
-    if (!payoutWallet) throw new Error("Payout wallet is not configured.");
-    const body = walletBody.extend({ roundNumber: z.string().regex(/^\d+$/) }).parse(req.body);
-    await requireSameWallet(req, body.wallet);
-    const wallet = new PublicKey(body.wallet);
-    const { data: round, error: roundError } = await db.from("rounds").select("*").eq("round_number", body.roundNumber).single<DbRound>();
-    if (roundError) throw roundError;
-    if (round.status !== "settled") throw new Error("This round is not claimable.");
-    const { data: vote, error: voteError } = await db
-      .from("round_votes")
-      .select("weight")
-      .eq("round_number", body.roundNumber)
-      .eq("wallet", wallet.toBase58())
-      .maybeSingle<{ weight: number | string }>();
-    if (voteError) throw voteError;
-    if (!vote) throw new Error("This wallet did not vote in the round.");
-
-    const amount = (bigintValue(round.pot_lamports) * bigintValue(vote.weight)) / bigintValue(round.distribution_weight);
-    if (amount <= 0n) throw new Error("No reward is claimable for this wallet.");
-
-    const claimRow = {
-      round_number: body.roundNumber,
-      wallet: wallet.toBase58(),
-      amount_lamports: amount.toString(),
-      claimed_at: nowIso(),
-      transaction_signature: null as string | null,
-    };
-    const { error: claimInsertError } = await db.from("reward_claims").insert(claimRow);
-    if (claimInsertError) throw new Error("Reward was already claimed or could not be reserved.");
-
-    try {
-      const latest = await connection.getLatestBlockhash("confirmed");
-      const transaction = new Transaction({
-        feePayer: payoutWallet.publicKey,
-        blockhash: latest.blockhash,
-        lastValidBlockHeight: latest.lastValidBlockHeight,
-      }).add(SystemProgram.transfer({
-        fromPubkey: payoutWallet.publicKey,
-        toPubkey: wallet,
-        lamports: Number(amount),
-      }));
-      const signature = await connection.sendTransaction(transaction, [payoutWallet], {
-        preflightCommitment: "confirmed",
-        maxRetries: 3,
-      });
-      await connection.confirmTransaction(signature, "confirmed");
-      const remaining = bigintValue(round.remaining_lamports) > amount ? bigintValue(round.remaining_lamports) - amount : 0n;
-      await db.from("reward_claims").update({ transaction_signature: signature }).eq("round_number", body.roundNumber).eq("wallet", wallet.toBase58());
-      await db.from("rounds").update({ remaining_lamports: remaining.toString(), updated_at: nowIso() }).eq("round_number", body.roundNumber);
-      await db.from("protocol_events").insert({
-        event_type: "REWARD_CLAIMED",
-        round_number: body.roundNumber,
-        wallet: wallet.toBase58(),
-        detail: `${amount.toString()} lamports claimed from round ${body.roundNumber}.`,
-        transaction_signature: signature,
-      });
-      res.json({ ok: true, message: "Offer paid.", signature, amountLamports: amount.toString() });
-    } catch (sendError) {
-      await db.from("reward_claims").delete().eq("round_number", body.roundNumber).eq("wallet", wallet.toBase58());
-      throw sendError;
-    }
-  } catch (error) { next(error); }
+app.post("/api/tx/claim", (_req, res) => {
+  res.status(410).json({ error: "Payouts are sent directly. No claim is required." });
 });
 
 app.post("/api/tx/fund", async (_req, res, next) => {
@@ -1029,8 +1259,10 @@ listenPorts.forEach((port) => {
 console.log(`Hodl or No Hodl primary API port ${env.PORT}`);
 {
   console.log(`Mainnet game mode: rounds=${env.ROUND_LENGTH_SECONDS}s feeCollection=${env.FEE_COLLECTION_INTERVAL_MS}ms`);
-  void keeperTick();
-  void collectPumpCreatorFees();
+  void (async () => {
+    await collectPumpCreatorFees();
+    await keeperTick();
+  })();
   setInterval(() => void keeperTick(), 15_000).unref();
   setInterval(() => void collectPumpCreatorFees(), env.FEE_COLLECTION_INTERVAL_MS).unref();
 }

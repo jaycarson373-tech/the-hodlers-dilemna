@@ -4,19 +4,18 @@ HODL or NO HODL is a Solana holder game about conviction, cooperation, and betra
 
 Live website: [hodlornohodl.fun](https://hodlornohodl.fun/)
 
-## Upgrade status
+## Game economy
 
-The full upgrade is being delivered in five ordered pull requests. Phase 1 covers the public game explanation and live-panel read surface only:
-
-- seeded simulation fallback when live configuration is unavailable
-- exact 70% cooperation rules and streak ladder
-- 1,000,000-token minimum box eligibility
-- 80% episode pot / 20% Banker reserve model and reserve safety rules
-- pot rollover display
-- Supabase Realtime Banker Feed with a scripted simulation fallback
-- six-hour episode, final-hour decision, and 15-minute fee-sweep copy
-
-Authentication, sealed voting, settlement, payouts, and the final player-room redesign are intentionally reserved for later phases.
+- Episodes and creator-fee sweeps run every 15 minutes.
+- Eligible wallets hold at least 1,000,000 tokens.
+- Weight is snapshot balance × uninterrupted-hold multiplier.
+- The Banker posts a fully funded wallet-specific offer before choices open.
+- All accepted deals together can use at most 30% of The Box.
+- Silence is HODL. Selling or transferring out is NO HODL and resets the streak.
+- At 70% weighted HODL, HODL players split The Box after accepted deals.
+- Below 70%, accepted deals are still paid and only the unpaid balance rolls over.
+- After three failures, the next episode force-opens for HODL players.
+- Payouts go directly to wallets; there is no claim step.
 
 ## Website
 
@@ -42,7 +41,7 @@ The Supabase publishable key and token mint are public identifiers. Never expose
 
 ## Database
 
-Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. The Phase 1 schema adds the public `feed_events` stream, its Realtime publication, and the rollover counter used by the site.
+Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates the game state, sealed-choice, snapshot, audit, payout, leaderboard, and Realtime feed tables.
 
 ## Railway keeper/API
 
@@ -56,12 +55,12 @@ pnpm build
 pnpm start
 ```
 
-Phase 1 accepts a separate `BANKER_RESERVE_KEYPAIR_BASE64` Railway setting but does not use it to move funds. The later worker phase adds feature-flagged, audited, idempotent 80/20 sweep, Banker-offer, and payout execution.
+`SWEEP_ENABLED` and `PAYOUT_ENABLED` both default to `false`. Every sweep and payout is audited before broadcast, and every transfer has a persistent idempotency key. The Pump creator wallet can also act as the payout wallet, so a second treasury key is not required.
 
 ## Structure
 
 - `app/`, `components/`, `lib/` — website and game console
-- `programs/holders_dilemna/` — optional Anchor program source
+- `programs/holders_dilemna/` — archived optional Anchor prototype; the production game uses the audited Railway/Supabase engine
 - `railway/` — wallet authentication, holder verification, keeper, fee collection, and payout API
 - `supabase/schema.sql` — read-model schema and RLS policies
 - `public/official-mark.jpg`, `public/official-wordmark.jpg` — supplied official branding used unchanged
