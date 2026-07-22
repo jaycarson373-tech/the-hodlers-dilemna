@@ -212,6 +212,9 @@ const bigintValue = (value: unknown) => BigInt(String(value ?? "0"));
 const iso = (value?: string | null) => value ?? null;
 const tierName = (tier: number) => ["Paper Hands", "Iron Hands", "Diamond Hands", "Obsidian Hands"][tier] ?? "Paper Hands";
 const publicErrorMessage = (message: string) => {
+  if (/token supply|could not find account|mint/i.test(message)) {
+    return "Error: not enough tokens.";
+  }
   if (/supabase|token_mint|database|configured|configuration|column|relation|schema|railway|api|rpc|keypair|private|secret/i.test(message)) {
     return "The Banker's call could not be completed. Try again.";
   }
@@ -271,8 +274,13 @@ async function requireSameWallet(req: Request, expected: string) {
 
 async function tokenSupplyDecimals() {
   if (!tokenMint) return 6;
-  const supply = await connection.getTokenSupply(tokenMint, "confirmed");
-  return supply.value.decimals;
+  try {
+    const supply = await connection.getTokenSupply(tokenMint, "confirmed");
+    return supply.value.decimals;
+  } catch (error) {
+    console.error("token decimals unavailable; using default decimals", error);
+    return 6;
+  }
 }
 
 async function walletTokenBalance(wallet: PublicKey) {
