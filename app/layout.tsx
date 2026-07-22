@@ -7,7 +7,7 @@ const siteUrl = "https://hodlornohodl.fun";
 const title = "Hodl or No Hodl.fun";
 const description =
   "A live holder game where every round ends with one question: HODL, or NO HODL?";
-const brandIcon = `${siteUrl}/hodl-no-hodl-icon-v2.jpg`;
+const brandIcon = "/hodl-no-hodl-logo-v2.jpg";
 const socialImage = `${siteUrl}/hodl-no-hodl-og-v2.jpg`;
 
 export const metadata: Metadata = {
@@ -18,9 +18,12 @@ export const metadata: Metadata = {
     canonical: siteUrl,
   },
   icons: {
-    icon: brandIcon,
-    shortcut: brandIcon,
-    apple: brandIcon,
+    icon: [
+      { url: "/icon.jpg", type: "image/jpeg" },
+      { url: brandIcon, type: "image/jpeg" },
+    ],
+    shortcut: "/icon.jpg",
+    apple: "/apple-icon.jpg",
   },
   openGraph: {
     type: "website",
