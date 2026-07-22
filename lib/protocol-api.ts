@@ -29,7 +29,12 @@ export type ProtocolStatus = {
   roundLengthSeconds?: string;
   decisionWindowSeconds?: string;
   cooperationThresholdBps?: number;
-  dealBudgetBps?: number;
+  boxAllocationBps?: number;
+  bankerAllocationBps?: number;
+  boxWallet?: string | null;
+  bankerWallet?: string | null;
+  boxWalletBalanceLamports?: string;
+  bankerWalletBalanceLamports?: string;
   nextRoundAt?: string | null;
   roundActive?: boolean;
   paused?: boolean;

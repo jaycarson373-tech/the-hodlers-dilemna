@@ -3,7 +3,7 @@ import { SolanaWalletProvider } from "@/components/solana-wallet-provider";
 import "./globals.css";
 import "./broadcast.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://hodlornohodl.fun";
+const siteUrl = "https://hodlornohodl.fun";
 const title = "Hodl or No Hodl.fun";
 const description =
   "A live holder game where every round ends with one question: HODL, or NO HODL?";

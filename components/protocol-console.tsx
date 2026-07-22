@@ -15,7 +15,13 @@ import {
   type ProtocolStatus,
 } from "@/lib/protocol-api";
 
-type AudienceSignal = { hodl: number; noHodl: number; sampleSize: number; label: string };
+type AudienceSignal = {
+  hodl: number | null;
+  noHodl: number | null;
+  sampleSize: number;
+  label: string;
+  phase?: "waiting" | "live" | "locked" | "revealing" | "final";
+};
 type SealedChoice = "cooperate" | "defect";
 type GameResponse = { ok?: boolean; message?: string };
 
@@ -187,7 +193,8 @@ export function ProtocolConsole() {
 
   const decimals = status?.tokenDecimals ?? 6;
   const round = status?.round;
-  const pot = round?.potLamports ?? status?.availablePoolLamports ?? "0";
+  const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports ?? "0";
+  const bankerPot = status?.bankerWalletBalanceLamports ?? "0";
   const hasPot = positive(pot);
   const decisionWindow = Number(status?.decisionWindowSeconds ?? 300);
   const decisionOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 0 && countdown <= decisionWindow);
@@ -202,7 +209,12 @@ export function ProtocolConsole() {
   const playerWeight = holder ? baseUnitsToTokenAmount(holder.playerWeight, decimals) : "—";
   const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "AWAITING OFFER";
   const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "AWAITING BOX";
-  const signalHodl = audience?.hodl ?? 50;
+  const signalHodl = audience?.hodl;
+  const signalNoHodl = audience?.noHodl;
+  const revealingSignal = Boolean(status?.roundActive && round?.closesAt && countdown === 0);
+  const finalSignal = Boolean(revealRound && revealRound.roundNumber === round?.roundNumber && round?.status !== "open" && round?.cooperatePercent !== null && round?.cooperatePercent !== undefined);
+  const settledHodl = round?.cooperatePercent ?? 0;
+  const settledNoHodl = round?.defectPercent ?? 100 - settledHodl;
   const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : "—";
   const phase = !status?.configured ? "WAITING FOR THE BANKER" : !status.roundActive ? "AWAITING FUNDED BOX" : decisionOpen ? "THE BANKER IS CALLING" : "THE BOX IS FILLING";
 
@@ -214,20 +226,43 @@ export function ProtocolConsole() {
           <time>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : "WAITING FOR THE BANKER"}</time>
         </div>
 
+        <section className="spectator-board" aria-label="Live episode spectator dashboard">
+          <header>
+            <span>LIVE EPISODE / SPECTATOR BOARD</span>
+            <h2>{decisionOpen ? "DECISION WINDOW OPEN." : status?.roundActive ? "THE BOX IS GROWING." : "AWAITING THE BANKER."}</h2>
+            <p>Watch the live Box, the crowd signal, and the Banker&apos;s reserve. Connect only when you are ready to take a seat.</p>
+          </header>
+          <div className="spectator-grid">
+            <article>
+              <span>CURRENT EPISODE</span>
+              <strong>{status?.currentRound ? episode : "AWAITING FIRST EPISODE"}</strong>
+              <small>{status?.roundActive ? `${decisionOpen ? "DECISIONS LOCK IN" : "BANKER CALLS IN"} ${formatCountdown(callCountdown)}` : "WAITING FOR A FUNDED BOX"}</small>
+            </article>
+            <article className="spectator-audience-card">
+              <span>{revealingSignal ? "REVEALING FINAL DECISIONS..." : finalSignal ? "FINAL WEIGHTED RESULT" : finalMinute ? "FINAL MINUTE — SIGNAL LOCKED" : decisionOpen ? "AUDIENCE SIGNAL — LIVE, NOT FINAL" : "WAITING FOR THE BANKER"}</span>
+              {revealingSignal ? <strong>THE REVEAL IS UNDERWAY</strong> : finalSignal ? <><div className="spectator-signal"><i style={{ width: `${settledHodl}%` }} /><b style={{ width: `${settledNoHodl}%` }} /></div><p><b>HODL {settledHodl}%</b><b>NO HODL {settledNoHodl}%</b></p></> : decisionOpen && signalHodl !== null && signalHodl !== undefined && signalNoHodl !== null && signalNoHodl !== undefined ? <><div className="spectator-signal"><i style={{ width: `${signalHodl}%` }} /><b style={{ width: `${signalNoHodl}%` }} /></div><p><b>HODL {signalHodl}%</b><b>NO HODL {signalNoHodl}%</b></p>{finalMinute ? <small>Players may still change their decision. Final choices remain hidden until the reveal.</small> : null}</> : <strong>{decisionOpen ? "AUDIENCE FORMING" : "THE SIGNAL APPEARS WHEN THE OFFER OPENS"}</strong>}
+              <dl><div><dt>ACTIVE HOLDERS</dt><dd>{status?.activeHolders ? status.activeHolders.toLocaleString() : "AWAITING PLAYERS"}</dd></div><div><dt>LONGEST STREAK</dt><dd>{status?.longestStreakDays ? `${status.longestStreakDays} DAYS` : "FIRST STREAK FORMING"}</dd></div></dl>
+              {decisionOpen ? <nav><button type="button" onClick={() => void sendSignal("cooperate")}>SIGNAL HODL</button><button type="button" onClick={() => void sendSignal("defect")}>SIGNAL NO HODL</button></nav> : null}
+            </article>
+            <article className="spectator-box-card">
+              <span>LIVE TREASURY</span>
+              <strong>{hasPot ? `${lamportsToSol(pot)} SOL` : "AWAITING FUNDED BOX"}</strong>
+              <small>THE BOX · 80% OF CREATOR FEES</small>
+              <div><span>BANKER RESERVE · 20%</span><b>{positive(bankerPot) ? `${lamportsToSol(bankerPot)} SOL` : "AWAITING FEES"}</b></div>
+            </article>
+          </div>
+        </section>
+
         <div className="broadcast-grid">
           <article className="broadcast-panel broadcast-box-panel">
             <div className={`broadcast-case ${decisionOpen ? "is-lit" : ""}`} aria-hidden="true"><i /><b>?</b></div>
             <strong className="broadcast-pot">{hasPot ? `${lamportsToSol(pot)} SOL` : "AWAITING FUNDED BOX"}</strong>
             <span className="broadcast-pot-caption">WHAT&apos;S IN THE BOX · LIVE CREATOR FEES</span>
-            {status?.potRolloverCount ? <div className="broadcast-rollover">POT HAS ROLLED {status.potRolloverCount}X</div> : null}
-
-            <div className="broadcast-signal">
-              <span>AUDIENCE SIGNAL</span>
-              <div><i style={{ width: `${signalHodl}%` }} /><b style={{ width: `${100 - signalHodl}%` }} /></div>
-              <p><strong>HODL — {signalHodl}%</strong><strong>NO HODL — {100 - signalHodl}%</strong></p>
-              <small>ESTIMATED SENTIMENT · NOT FINAL VOTES · IS THE CROWD BLUFFING?</small>
-              {round?.status === "open" ? <nav><button type="button" onClick={() => void sendSignal("cooperate")}>SIGNAL HODL</button><button type="button" onClick={() => void sendSignal("defect")}>SIGNAL NO HODL</button></nav> : null}
+            <div className="broadcast-wallet-pots">
+              <span><b>THE BOX · 80%</b>{positive(pot) ? `${lamportsToSol(pot)} SOL` : "AWAITING FEES"}</span>
+              <span><b>BANKER RESERVE · 20%</b>{positive(bankerPot) ? `${lamportsToSol(bankerPot)} SOL` : "AWAITING FEES"}</span>
             </div>
+            {status?.potRolloverCount ? <div className="broadcast-rollover">POT HAS ROLLED {status.potRolloverCount}X</div> : null}
 
             <div className="broadcast-choices">
               <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>HODL</strong><span>Reject the guaranteed offer and play for the Box.</span></button>
@@ -279,7 +314,7 @@ export function ProtocolConsole() {
         {entries.length ? <div className="broadcast-table-wrap"><table><thead><tr><th>#</th><th>Wallet</th><th>Score</th><th>Tier</th><th>SOL Paid</th><th>W / L</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.wallet}><td>{String(entry.rank).padStart(2, "0")}</td><td>{shortWallet(entry.wallet)}</td><td>{entry.score}</td><td>{entry.tier}</td><td>{entry.totalSolAirdropped}</td><td>{entry.wins} / {entry.losses}</td></tr>)}</tbody></table></div> : <p className="broadcast-no-ranking">THE BOARD LIGHTS UP AFTER THE FIRST SETTLEMENT.</p>}
       </section>
 
-      {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>EPISODE {String(revealRound.roundNumber).padStart(3, "0")} · THE REVEAL</span><h2>{revealRound.status === "settled" ? "THE BOX OPENS." : "THE BOX STAYS CLOSED."}</h2><strong>{revealRound.weightedHodlBps == null ? "CHOICES REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% WEIGHTED HODL`}</strong><p>{revealRound.status === "settled" ? "Banker deals were paid first. HODL players split the remaining Box." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next episode after Banker deals.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE STUDIO</button></article></div> : null}
+      {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>EPISODE {String(revealRound.roundNumber).padStart(3, "0")} · THE REVEAL</span><h2>{revealRound.status === "settled" ? "THE BOX OPENS." : "THE BOX STAYS CLOSED."}</h2><strong>{revealRound.weightedHodlBps == null ? "CHOICES REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% WEIGHTED HODL`}</strong><p>{revealRound.status === "settled" ? "HODL players split The Box. Accepted deals were paid separately by the Banker." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next episode.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE STUDIO</button></article></div> : null}
     </>
   );
 }
