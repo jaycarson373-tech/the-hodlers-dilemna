@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Space_Grotesk } from "next/font/google";
 import { SolanaWalletProvider } from "@/components/solana-wallet-provider";
 import "./globals.css";
 import "./broadcast.css";
@@ -9,6 +10,11 @@ const description =
   "A red-pill green-pill holder game where every 15-minute round asks the same question: HOLD, or JEET?";
 const brandIcon = "/holders-dilemma-logo.png";
 const socialImage = `${siteUrl}/holders-dilemma-og.png`;
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-space-grotesk",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -47,7 +53,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className={spaceGrotesk.variable}>
         <SolanaWalletProvider>{children}</SolanaWalletProvider>
       </body>
     </html>

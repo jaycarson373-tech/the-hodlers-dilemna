@@ -289,6 +289,7 @@ export function ProtocolConsole() {
               <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>JEET</strong><span>Play for the fee pot if JEET wins.</span></button>
             </div>
             <p className="broadcast-lock-note">{sealedChoice ? "DECISION SEALED — LAST VOTE COUNTS." : finalMinute ? "FINAL MINUTE · SIGNAL HIDDEN · VOTES STILL SEALED" : decisionOpen ? "CHOICES ARE OPEN · EVERY DECISION REMAINS SEALED" : `CHOICES OPEN IN ${formatCountdown(callCountdown)}`}</p>
+            <p className="broadcast-sell-rule">SELL ONCE = JEET. A SALE OVERRIDES A SEALED HOLD.</p>
             <p className="broadcast-rule-line">IF HOLD WINS, THE POT ROLLS. IF JEET WINS, JEETERS SPLIT FEES.</p>
           </article>
 
@@ -300,7 +301,7 @@ export function ProtocolConsole() {
               ) : !sessionToken ? (
                 <div className="broadcast-entry"><strong>ENTER THE DILEMMA.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
               ) : holder?.soldThisRound ? (
-                <div className="broadcast-out"><strong>YOU SOLD.</strong><p>Your position left the HOLD side. You can still watch the Reveal.</p></div>
+                <div className="broadcast-out"><strong>YOU SOLD.</strong><p>Your choice is now JEET. Selling overrides any sealed HOLD vote.</p></div>
               ) : !holder?.position ? (
                 <div className="broadcast-entry"><strong>CLAIM YOUR SEAT.</strong><p>Verify the required $DILEMMA balance and enter the board.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY SEAT"}</button></div>
               ) : (
