@@ -1016,7 +1016,9 @@ const readinessResponse = async () => {
       return [table, !error] as const;
     }));
     tableChecks = Object.fromEntries(tableResults);
-    databaseSchema = Object.values(tableChecks).every(Boolean);
+    databaseSchema = Object.entries(tableChecks).every(([table, ready]) => (
+      ready || (table === "audit_log" && !env.SWEEP_ENABLED && !env.PAYOUT_ENABLED)
+    ));
     const nextRoundAt = data?.next_round_at ? new Date(data.next_round_at).getTime() : 0;
     const hasFundedPot = bigintValue(data?.available_pool_lamports) > 0n;
     schedulerCurrent = Boolean(
