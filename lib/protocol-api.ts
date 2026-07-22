@@ -8,6 +8,13 @@ export type ProtocolRound = {
   cooperatePercent: number | null;
   defectPercent: number | null;
   voterCount: number;
+  dealBudgetLamports?: string;
+  acceptedDealsLamports?: string;
+  hodlPoolLamports?: string;
+  rolloverLamports?: string;
+  weightedHodlBps?: number | null;
+  forceOpen?: boolean;
+  settledAt?: string | null;
   status: "open" | "settled" | "rolled_over" | "closed";
 };
 
@@ -20,6 +27,9 @@ export type ProtocolStatus = {
   currentRound?: string;
   availablePoolLamports?: string;
   roundLengthSeconds?: string;
+  decisionWindowSeconds?: string;
+  cooperationThresholdBps?: number;
+  dealBudgetBps?: number;
   nextRoundAt?: string | null;
   roundActive?: boolean;
   paused?: boolean;
@@ -27,6 +37,7 @@ export type ProtocolStatus = {
   longestStreakDays?: number;
   minHoldingTokens?: string;
   potRolloverCount?: number;
+  failedRoundCount?: number;
   round?: ProtocolRound | null;
 };
 
@@ -35,6 +46,8 @@ export type HolderState = {
   walletTokenBalance: string;
   snapshotBalance: string;
   multiplierBps: number;
+  playerWeight: string;
+  bankerOfferLamports: string;
   projectedShareLamports: string;
   participationStatus: string;
   soldThisRound: boolean;

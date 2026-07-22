@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SolanaWalletProvider } from "@/components/solana-wallet-provider";
 import "./globals.css";
+import "./broadcast.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://hodlornohodl.fun";
 const title = "Hodl or No Hodl.fun";
