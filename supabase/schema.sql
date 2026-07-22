@@ -399,3 +399,6 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table public.revealed_choices;
 exception when duplicate_object then null; end $$;
+
+-- Make newly added tables and columns immediately visible to PostgREST.
+notify pgrst, 'reload schema';
