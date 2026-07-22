@@ -1,4 +1,4 @@
--- Hodl or No Hodl.fun mainnet game model.
+-- Holders Dilemma mainnet game model.
 -- Railway is the only writer; the public site reads this state.
 
 create extension if not exists pgcrypto;
@@ -11,9 +11,9 @@ create table if not exists public.protocol_config (
   current_round bigint not null default 0,
   available_pool_lamports bigint not null default 0,
   pot_rollover_count integer not null default 0,
-  round_length_seconds bigint not null default 900,
-  decision_window_seconds bigint not null default 300,
-  cooperation_threshold_bps integer not null default 7000,
+  round_length_seconds bigint not null default 1800,
+  decision_window_seconds bigint not null default 600,
+  cooperation_threshold_bps integer not null default 5000,
   failed_round_count integer not null default 0,
   claim_window_seconds bigint not null default 604800,
   defect_threshold_bps integer not null default 5000,
@@ -94,7 +94,7 @@ create table if not exists public.protocol_events (
   occurred_at timestamptz not null default now()
 );
 
--- Public, presentation-safe event stream for the Banker Feed. The worker may
+-- Public, presentation-safe event stream for the Dilemma Feed. The worker may
 -- continue writing protocol_events; the trigger below mirrors only display
 -- fields and keeps infrastructure details out of the browser-facing table.
 create table if not exists public.feed_events (
@@ -213,7 +213,7 @@ alter table public.protocol_config
   add column if not exists cluster text default 'mainnet-beta',
   add column if not exists current_round bigint default 0,
   add column if not exists available_pool_lamports bigint default 0,
-  add column if not exists round_length_seconds bigint default 900,
+  add column if not exists round_length_seconds bigint default 1800,
   add column if not exists next_round_at timestamptz,
   add column if not exists round_active boolean default false,
   add column if not exists paused boolean default false,
@@ -444,18 +444,18 @@ begin
   set payload = payload || jsonb_build_object('credited', true), updated_at = now()
   where id = sweep.id;
   insert into public.protocol_events (event_type, detail, transaction_signature)
-  values ('PUMP_FEES_COLLECTED', coalesce(sweep.payload ->> 'boxAmountLamports', sweep.amount_lamports::text) || ' lamports entered the next Box.', sweep.transaction_signature);
+  values ('PUMP_FEES_COLLECTED', coalesce(sweep.payload ->> 'boxAmountLamports', sweep.amount_lamports::text) || ' lamports entered the live pot.', sweep.transaction_signature);
   return true;
 end;
 $$;
 
 alter table public.protocol_config
   add column if not exists pot_rollover_count integer not null default 0,
-  add column if not exists decision_window_seconds bigint not null default 300,
-  add column if not exists cooperation_threshold_bps integer not null default 7000,
+  add column if not exists decision_window_seconds bigint not null default 600,
+  add column if not exists cooperation_threshold_bps integer not null default 5000,
   add column if not exists failed_round_count integer not null default 0;
 alter table public.protocol_config
-  alter column round_length_seconds set default 900;
+  alter column round_length_seconds set default 1800;
 alter table public.rounds
   add column if not exists deal_budget_lamports bigint not null default 0,
   add column if not exists accepted_deals_lamports bigint not null default 0,

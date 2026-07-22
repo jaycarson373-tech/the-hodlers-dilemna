@@ -42,12 +42,12 @@ const envSchema = z.object({
   BANKER_KEYPAIR_BASE64: z.string().optional(),
   BOX_WALLET_ADDRESS: z.string().optional(),
   BANKER_WALLET_ADDRESS: z.string().optional(),
-  FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
-  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(900),
-  DECISION_WINDOW_SECONDS: z.coerce.number().int().positive().default(30),
-  COOPERATION_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(7_000),
-  BOX_ALLOCATION_BPS: z.coerce.number().int().min(1).max(9_999).default(8_000),
-  BANKER_ALLOCATION_BPS: z.coerce.number().int().min(1).max(9_999).default(2_000),
+  FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(1_800_000),
+  ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(1_800),
+  DECISION_WINDOW_SECONDS: z.coerce.number().int().positive().default(600),
+  COOPERATION_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
+  BOX_ALLOCATION_BPS: z.coerce.number().int().min(1).max(10_000).default(10_000),
+  BANKER_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).default(0),
   SWEEP_ENABLED: z.string().optional().transform((value) => value === "true").default(false),
   PAYOUT_ENABLED: z.string().optional().transform((value) => value === "true").default(false),
   MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("1000000"),
@@ -56,7 +56,7 @@ const envSchema = z.object({
 });
 
 const env = envSchema.parse(process.env);
-const decisionWindowSeconds = 30;
+const decisionWindowSeconds = env.DECISION_WINDOW_SECONDS;
 const connection = new Connection(env.SOLANA_RPC_URL, "confirmed");
 const clusterName = "mainnet-beta";
 const sessionKey = env.SESSION_SECRET ? new TextEncoder().encode(env.SESSION_SECRET) : undefined;
@@ -110,7 +110,7 @@ if (bankerSigner && bankerWalletAddress && !bankerSigner.publicKey.equals(banker
   keypairWarnings.push("BANKER_PRIVATE_KEY does not match BANKER_WALLET_ADDRESS.");
 }
 if (boxPayoutWallet && boxWalletAddress && !boxPayoutWallet.publicKey.equals(boxWalletAddress)) {
-  keypairWarnings.push("The Box payout key does not match BOX_WALLET_ADDRESS.");
+  keypairWarnings.push("The pot payout key does not match BOX_WALLET_ADDRESS.");
 }
 const pumpSdk = new OnlinePumpSdk(connection);
 
@@ -216,7 +216,7 @@ const publicErrorMessage = (message: string) => {
     return "Error: not enough tokens.";
   }
   if (/supabase|token_mint|database|configured|configuration|column|relation|schema|railway|api|rpc|keypair|private|secret/i.test(message)) {
-    return "The Banker's call could not be completed. Try again.";
+    return "The live dilemma could not be completed. Try again.";
   }
   return message;
 };
@@ -232,7 +232,7 @@ const isMissingSchemaObject = (error: unknown) => {
 };
 
 const validStatelessChallenge = (message: string, wallet: string) => {
-  const match = message.match(/^Hodl or No Hodl\.fun\nSign in to play\.\nWallet: ([1-9A-HJ-NP-Za-km-z]+)\nNonce: ([0-9a-f-]{36})\nExpires: ([^\n]+)$/i);
+  const match = message.match(/^Holders Dilemma\nSign in to play\.\nWallet: ([1-9A-HJ-NP-Za-km-z]+)\nNonce: ([0-9a-f-]{36})\nExpires: ([^\n]+)$/i);
   if (!match || match[1] !== wallet) return false;
   const expiresAt = new Date(match[3]).getTime();
   return Number.isFinite(expiresAt) && expiresAt >= Date.now() && expiresAt <= Date.now() + 5 * 60_000;
@@ -247,7 +247,7 @@ async function authenticate(req: Request) {
   if (!sessionKey) throw new Error("Wallet authentication is not configured.");
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (!token) throw new Error("Wallet sign-in is required.");
-  const { payload } = await jwtVerify(token, sessionKey, { issuer: "hodlornohodl.fun", audience: "game" });
+  const { payload } = await jwtVerify(token, sessionKey, { issuer: "holders-dilemma", audience: "game" });
   if (typeof payload.sub !== "string") throw new Error("Invalid wallet session.");
   const db = requireDb();
   const { data: session, error } = await db
@@ -350,14 +350,14 @@ async function writeAudit(input: {
   return data;
 }
 
-async function sendDirectPayout(roundNumber: string, wallet: string, amount: bigint, kind: "banker_deal" | "hodl_payout") {
+async function sendDirectPayout(roundNumber: string, wallet: string, amount: bigint, kind: "banker_deal" | "hodl_payout" | "sell_payout") {
   if (amount <= 0n) return null;
   const db = requireDb();
   const idempotencyKey = `${roundNumber}:${kind}:${wallet}`;
   await writeAudit({ idempotencyKey, action: kind, status: "dry_run", roundNumber, wallet, amountLamports: amount, payload: { directPayout: true } });
   if (!env.PAYOUT_ENABLED) return null;
   const payoutSigner = kind === "banker_deal" ? bankerSigner : boxPayoutWallet;
-  if (!payoutSigner) throw new Error(`${kind === "banker_deal" ? "Banker" : "Box"} payout wallet is not configured.`);
+  if (!payoutSigner) throw new Error(`${kind === "banker_deal" ? "Reserve" : "Pot"} payout wallet is not configured.`);
 
   const { data: existing, error: existingError } = await db.from("audit_log").select("status,transaction_signature").eq("idempotency_key", idempotencyKey).maybeSingle<{ status: string; transaction_signature: string | null }>();
   if (existingError) throw existingError;
@@ -442,7 +442,7 @@ async function playerRoundSummary(wallet: string, liveBalance: bigint, streakSta
     playerWeight: payoutWeight.toString(),
     bankerOfferLamports: String(snapshot?.banker_offer_lamports ?? "0"),
     projectedShareLamports: projectedShare.toString(),
-    participationStatus: vote?.choice === "cooperate" ? "HODL" : vote?.choice === "defect" ? "NO HODL" : "SILENT / HODL",
+    participationStatus: vote?.choice === "cooperate" ? "HOLD" : vote?.choice === "defect" ? "SELL" : "SILENT / HOLD",
     soldThisRound: Boolean(snapshot && liveBalance < snapshotBalance),
   };
 }
@@ -675,15 +675,27 @@ async function openRound(config: DbConfig) {
   const { data: holderRows, error: holderError } = await db.from("holders").select("wallet,streak_started_at");
   if (holderError) throw holderError;
   const holderByWallet = new Map((holderRows ?? []).map((holder) => [holder.wallet, holder]));
-  const eligible = Array.from(onChainBalances.entries()).filter(([, balance]) => balance >= minimum);
+  let survivorSet: Set<string> | null = null;
+  if (Number(config.failed_round_count ?? 0) > 0 && current > 0n) {
+    const { data: previousSnapshots, error: previousSnapshotsError } = await db
+      .from("round_snapshots")
+      .select("wallet,final_choice,forced_no_hodl")
+      .eq("round_number", current.toString());
+    if (previousSnapshotsError && !isMissingSchemaObject(previousSnapshotsError)) throw previousSnapshotsError;
+    if (previousSnapshots?.length) {
+      survivorSet = new Set(previousSnapshots
+        .filter((row: { wallet: string; final_choice?: string | null; forced_no_hodl?: boolean | null }) => row.final_choice === "cooperate" && !row.forced_no_hodl)
+        .map((row: { wallet: string }) => row.wallet));
+    }
+  }
+  const eligible = Array.from(onChainBalances.entries()).filter(([wallet, balance]) => balance >= minimum && (!survivorSet || survivorSet.has(wallet)));
   const weighted = eligible.map(([wallet, balance]) => {
     const streakStartedAt = holderByWallet.get(wallet)?.streak_started_at ?? openedAt.toISOString();
     const multiplier = multiplierBps(streakStartedAt);
     return { wallet, balance, streakStartedAt, multiplier, weight: (balance * BigInt(multiplier)) / 10_000n };
   });
   const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0n);
-  const bankerBalance = bankerWalletAddress ? BigInt(await connection.getBalance(bankerWalletAddress, "confirmed")) : 0n;
-  const dealBudget = bankerBalance > 5_000_000n ? bankerBalance - 5_000_000n : 0n;
+  const dealBudget = pot;
 
   const roundBase = {
     round_number: next.toString(),
@@ -731,7 +743,7 @@ async function openRound(config: DbConfig) {
       snapshot_balance: item.balance.toString(),
       multiplier_bps: item.multiplier,
       payout_weight: item.weight.toString(),
-      banker_offer_lamports: totalWeight > 0n ? ((dealBudget * item.weight) / totalWeight).toString() : "0",
+      banker_offer_lamports: totalWeight > 0n ? ((pot * item.weight) / totalWeight).toString() : "0",
     }));
     const { error: snapshotError } = await db.from("round_snapshots").upsert(snapshotRows);
     if (snapshotError) throw snapshotError;
@@ -763,7 +775,7 @@ async function openRound(config: DbConfig) {
   await db.from("protocol_events").insert({
     event_type: "ROUND_OPENED",
     round_number: next.toString(),
-    detail: `Episode ${next.toString()} opened. The Box is live for ${Math.floor(Number(config.round_length_seconds) / 60)} minutes.`,
+    detail: `Round ${next.toString()} opened. The dilemma is live for ${Math.floor(Number(config.round_length_seconds) / 60)} minutes.`,
   });
 }
 
@@ -802,24 +814,21 @@ async function settleRound(config: DbConfig, round: DbRound) {
   const defect = total - cooperate;
   const pot = bigintValue(round.pot_lamports);
   const weightedHodlBps = total === 0n ? 0 : Number((cooperate * 10_000n) / total);
-  const boxOpens = Boolean(round.force_open) || weightedHodlBps >= Number(config.cooperation_threshold_bps ?? env.COOPERATION_THRESHOLD_BPS);
+  const sellWins = defect > cooperate;
+  const holdWins = !sellWins;
   const acceptedDeals = results.filter((item) => item.choice === "defect");
-  const acceptedDealsTotal = acceptedDeals.reduce((sum, item) => sum + item.offer, 0n);
-  const dealBudget = bigintValue(round.deal_budget_lamports);
-  if (acceptedDealsTotal > dealBudget) throw new Error("Posted Banker offers exceed the funded Deal Budget.");
+  const sellWeight = defect;
+  const dealBudget = pot;
   const remainingBox = pot;
-  const hodlWeight = cooperate;
   const payouts = results.map((item) => ({
     ...item,
-    payout: item.choice === "defect"
-      ? item.offer
-      : boxOpens && hodlWeight > 0n
-        ? (remainingBox * item.weight) / hodlWeight
-        : 0n,
+    payout: sellWins && item.choice === "defect" && sellWeight > 0n
+      ? (pot * item.weight) / sellWeight
+      : 0n,
   }));
+  const acceptedDealsTotal = payouts.filter((item) => item.choice === "defect").reduce((sum, item) => sum + item.payout, 0n);
   const payoutPlan = payouts.filter((item) => item.payout > 0n).map((item) => ({ wallet: item.wallet, choice: item.choice, amountLamports: item.payout.toString() }));
-  const boxPayouts = payouts.filter((item) => item.choice === "cooperate").reduce((sum, item) => sum + item.payout, 0n);
-  const unpaidBalance = pot - boxPayouts;
+  const unpaidBalance = holdWins ? pot : 0n;
 
   if (choices?.length) {
     const { error: revealError } = await db.from("revealed_choices").upsert(choices.map((choice) => ({ round_number: roundNumber, wallet: choice.wallet, choice: choice.choice, salt: choice.salt, commitment: choice.commitment, revealed_at: nowIso() })));
@@ -840,12 +849,13 @@ async function settleRound(config: DbConfig, round: DbRound) {
     status: "dry_run",
     roundNumber,
     amountLamports: pot,
-    payload: { weightedHodlBps, boxOpens, forceOpen: Boolean(round.force_open), bankerReserveBudgetLamports: dealBudget.toString(), acceptedDealsLamports: acceptedDealsTotal.toString(), boxLamports: remainingBox.toString(), payouts: payoutPlan },
+    payload: { weightedHodlBps, sellWins, holdWins, forceOpen: Boolean(round.force_open), sellPayoutBudgetLamports: dealBudget.toString(), sellPayoutsLamports: acceptedDealsTotal.toString(), potLamports: remainingBox.toString(), payouts: payoutPlan },
   });
-  if (!env.PAYOUT_ENABLED || !env.SWEEP_ENABLED) return;
 
-  for (const payout of payouts) {
-    if (payout.payout > 0n) await sendDirectPayout(roundNumber, payout.wallet, payout.payout, payout.choice === "defect" ? "banker_deal" : "hodl_payout");
+  if (env.PAYOUT_ENABLED && env.SWEEP_ENABLED) {
+    for (const payout of payouts) {
+      if (payout.payout > 0n) await sendDirectPayout(roundNumber, payout.wallet, payout.payout, "sell_payout");
+    }
   }
 
   for (const result of payouts) {
@@ -856,29 +866,29 @@ async function settleRound(config: DbConfig, round: DbRound) {
       ...(reset ? { streak_started_at: nowIso(), bonus_bps: 0, tier: 0, defect_votes: 1 } : { cooperate_votes: 1 }),
     };
     const { data: currentHolder } = await db.from("holders").select("wins,losses,total_airdropped_lamports,cooperate_votes,defect_votes").eq("wallet", result.wallet).maybeSingle<{ wins: number; losses: number; total_airdropped_lamports: string; cooperate_votes: number; defect_votes: number }>();
-    holderUpdate.wins = (currentHolder?.wins ?? 0) + (boxOpens && result.choice === "cooperate" ? 1 : 0);
-    holderUpdate.losses = (currentHolder?.losses ?? 0) + (!boxOpens && result.choice === "cooperate" ? 1 : 0);
+    holderUpdate.wins = (currentHolder?.wins ?? 0) + ((sellWins && result.choice === "defect") || (holdWins && result.choice === "cooperate") ? 1 : 0);
+    holderUpdate.losses = (currentHolder?.losses ?? 0) + ((sellWins && result.choice === "cooperate") || (holdWins && result.choice === "defect") ? 1 : 0);
     holderUpdate.total_airdropped_lamports = (bigintValue(currentHolder?.total_airdropped_lamports) + result.payout).toString();
     holderUpdate.cooperate_votes = (currentHolder?.cooperate_votes ?? 0) + (result.choice === "cooperate" ? 1 : 0);
     holderUpdate.defect_votes = (currentHolder?.defect_votes ?? 0) + (result.choice === "defect" ? 1 : 0);
     await db.from("holders").update(holderUpdate).eq("wallet", result.wallet);
   }
 
-  const rollsOver = !boxOpens;
+  const rollsOver = holdWins;
   const rollover = rollsOver ? remainingBox : 0n;
   const status = rollsOver ? "rolled_over" : "settled";
   const detail = rollsOver
-    ? `The Box stayed closed. ${remainingBox.toString()} lamports roll into the next episode.`
-    : `The Box opened. HODL players split The Box while accepted deals came from the Banker Reserve.`;
+    ? `HOLD won. ${remainingBox.toString()} lamports roll into the next round.`
+    : `SELL won. SELL players split ${acceptedDealsTotal.toString()} lamports.`;
 
   const { error: roundError } = await db.from("rounds").update({
     status,
     cooperate_weight: cooperate.toString(),
     defect_weight: defect.toString(),
-    distribution_weight: hodlWeight.toString(),
+    distribution_weight: sellWeight.toString(),
     voter_count: results.length,
     accepted_deals_lamports: acceptedDealsTotal.toString(),
-    hodl_pool_lamports: boxOpens ? remainingBox.toString() : "0",
+    hodl_pool_lamports: "0",
     rollover_lamports: rollover.toString(),
     weighted_hodl_bps: weightedHodlBps,
     remaining_lamports: "0",
@@ -899,17 +909,17 @@ async function settleRound(config: DbConfig, round: DbRound) {
   if (configError) throw configError;
 
   await db.from("protocol_events").insert({
-    event_type: rollsOver ? "ROUND_ROLLED_OVER" : "ROUND_SETTLED",
+    event_type: rollsOver ? "HOLD_WON_ROLLOVER" : "SELL_WON_PAID",
     round_number: String(round.round_number),
     detail,
   });
-  if (acceptedDeals.length) {
-    const biggest = acceptedDeals.reduce((largest, item) => item.offer > largest.offer ? item : largest, acceptedDeals[0]);
+  if (sellWins && acceptedDeals.length) {
+    const biggest = payouts.filter((item) => item.choice === "defect").reduce((largest, item) => item.payout > largest.payout ? item : largest, payouts.find((item) => item.choice === "defect")!);
     await db.from("protocol_events").insert({
-      event_type: "BANKER_DEALS_PAID",
+      event_type: "SELL_FEES_PAID",
       round_number: roundNumber,
       wallet: biggest.wallet,
-      detail: `${acceptedDeals.length} Banker deal${acceptedDeals.length === 1 ? "" : "s"} paid. Biggest deal: ${biggest.offer.toString()} lamports.`,
+      detail: `${acceptedDeals.length} SELL player${acceptedDeals.length === 1 ? "" : "s"} paid. Biggest payout: ${biggest.payout.toString()} lamports.`,
     });
   }
   await db.from("worker_state").upsert({ id: true, last_processed_round: roundNumber, updated_at: nowIso() });
@@ -935,7 +945,7 @@ async function keeperTick() {
       if (now >= decisionAt && now < new Date(round.closes_at).getTime()) {
         const db = requireDb();
         const { count } = await db.from("protocol_events").select("id", { count: "exact", head: true }).eq("event_type", "DECISION_WINDOW_OPENED").eq("round_number", String(round.round_number));
-        if (!count) await db.from("protocol_events").insert({ event_type: "DECISION_WINDOW_OPENED", round_number: String(round.round_number), detail: "The Banker has called. Sealed choices are open." });
+        if (!count) await db.from("protocol_events").insert({ event_type: "DECISION_WINDOW_OPENED", round_number: String(round.round_number), detail: "The dilemma is open. Sealed choices are live." });
       }
     }
 
@@ -976,13 +986,13 @@ async function collectPumpCreatorFees() {
     const available = await pumpSdk.getCreatorVaultBalanceBothPrograms(pumpCreator.publicKey);
     const amount = BigInt(available.toString());
     if (amount <= 0n) return;
-    if (!bankerWalletAddress) throw new Error("Banker wallet is not configured.");
     const bankerAmount = (amount * BigInt(env.BANKER_ALLOCATION_BPS)) / 10_000n;
+    if (bankerAmount > 0n && !bankerWalletAddress) throw new Error("Reserve wallet is not configured.");
     const boxAmount = amount - bankerAmount;
     await writeAudit({ idempotencyKey, action: "creator_fee_sweep", status: "dry_run", amountLamports: amount, payload: {
       creator: pumpCreator.publicKey.toBase58(),
       boxWallet: boxWalletAddress?.toBase58(),
-      bankerWallet: bankerWalletAddress.toBase58(),
+      bankerWallet: bankerWalletAddress?.toBase58() ?? null,
       boxAmountLamports: boxAmount.toString(),
       bankerAmountLamports: bankerAmount.toString(),
       boxAllocationBps: env.BOX_ALLOCATION_BPS,
@@ -1006,7 +1016,7 @@ async function collectPumpCreatorFees() {
       lastValidBlockHeight: latest.lastValidBlockHeight,
     }).add(
       ...collectInstructions,
-      ...(bankerAmount > 0n && !pumpCreator.publicKey.equals(bankerWalletAddress)
+      ...(bankerAmount > 0n && bankerWalletAddress && !pumpCreator.publicKey.equals(bankerWalletAddress)
         ? [SystemProgram.transfer({ fromPubkey: pumpCreator.publicKey, toPubkey: bankerWalletAddress, lamports: bankerAmount })]
         : []),
     );
@@ -1032,6 +1042,8 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = new Set([
     env.SITE_ORIGIN,
+    "https://holdersdilemma.fun",
+    "https://www.holdersdilemma.fun",
     "https://hodlornohodl.fun",
     "https://www.hodlornohodl.fun",
   ]);
@@ -1051,8 +1063,8 @@ const readinessChecks = () => ({
   sessionSecret: Boolean(sessionKey),
   boxPayoutWallet: Boolean(boxPayoutWallet),
   boxWalletAddress: Boolean(boxWalletAddress),
-  bankerWalletAddress: Boolean(bankerWalletAddress),
-  bankerPayoutSigner: !env.PAYOUT_ENABLED || Boolean(bankerSigner),
+  bankerWalletAddress: env.BANKER_ALLOCATION_BPS === 0 || Boolean(bankerWalletAddress),
+  bankerPayoutSigner: env.BANKER_ALLOCATION_BPS === 0 || !env.PAYOUT_ENABLED || Boolean(bankerSigner),
   pumpCreator: Boolean(pumpCreator),
   keypairsValid: keypairWarnings.length === 0,
 });
@@ -1125,7 +1137,7 @@ const readinessResponse = async () => {
   const ok = Object.values(deepChecks).every(Boolean);
   return {
     ok,
-    service: "hodl-or-no-hodl-api",
+    service: "holders-dilemma-api",
     cluster: clusterName,
     tokenMint: tokenMint?.toBase58() ?? null,
     checks: deepChecks,
@@ -1146,7 +1158,7 @@ const readinessResponse = async () => {
 };
 
 app.get("/", (_req, res) => {
-  res.json({ ok: true, service: "hodl-or-no-hodl-api", live: "/health/live", ready: "/health/ready", status: "/api/status" });
+  res.json({ ok: true, service: "holders-dilemma-api", live: "/health/live", ready: "/health/ready", status: "/api/status" });
 });
 
 app.get("/health", async (_req, res) => {
@@ -1155,7 +1167,7 @@ app.get("/health", async (_req, res) => {
 });
 
 app.get("/health/live", (_req, res) => {
-  res.json({ ok: true, service: "hodl-or-no-hodl-api" });
+  res.json({ ok: true, service: "holders-dilemma-api" });
 });
 
 app.get("/health/ready", async (_req, res) => {
@@ -1311,7 +1323,7 @@ app.get("/api/audience-signal/:roundNumber", async (req, res, next) => {
     const roundNumber = z.string().regex(/^\d+$/).parse(req.params.roundNumber);
     const { data: round, error: roundError } = await db.from("rounds").select("status,closes_at,cooperate_weight,defect_weight").eq("round_number", roundNumber).maybeSingle<Pick<DbRound, "status" | "closes_at" | "cooperate_weight" | "defect_weight">>();
     if (roundError) throw roundError;
-    if (!round) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "WAITING FOR THE BANKER" });
+    if (!round) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "WAITING FOR THE DILEMMA" });
     if (!isOpenRoundStatus(round.status)) {
       audienceSignalLocks.delete(roundNumber);
       const cooperateWeight = bigintValue(round.cooperate_weight);
@@ -1322,7 +1334,7 @@ app.get("/api/audience-signal/:roundNumber", async (req, res, next) => {
     }
     const secondsRemaining = round.closes_at ? Math.max(0, Math.floor((new Date(round.closes_at).getTime() - Date.now()) / 1_000)) : 0;
     if (secondsRemaining === 0) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "revealing", label: "REVEALING FINAL DECISIONS..." });
-    if (secondsRemaining > env.DECISION_WINDOW_SECONDS) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "WAITING FOR THE BANKER" });
+    if (secondsRemaining > env.DECISION_WINDOW_SECONDS) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "WAITING FOR THE DILEMMA" });
     const { data, error } = await db.from("audience_signals").select("choice").eq("round_number", roundNumber);
     if (error) throw error;
     const total = data?.length ?? 0;
@@ -1336,6 +1348,12 @@ app.get("/api/audience-signal/:roundNumber", async (req, res, next) => {
       const locked = audienceSignalLocks.get(roundNumber) ?? visible;
       audienceSignalLocks.set(roundNumber, locked);
       return res.json({ ...locked, phase: "locked", label: "FINAL MINUTE — SIGNAL LOCKED" });
+    }
+    if (secondsRemaining <= 300) {
+      return res.json({ ...visible, phase: "heavy", label: "FINAL FIVE — SIGNAL HEAVILY OBFUSCATED" });
+    }
+    if (secondsRemaining <= 600) {
+      return res.json({ ...visible, phase: "soft", label: "FINAL TEN — SIGNAL OBFUSCATED" });
     }
     audienceSignalLocks.delete(roundNumber);
     res.json({ ...visible, phase: "live", label: "AUDIENCE SIGNAL — LIVE, NOT FINAL" });
@@ -1364,7 +1382,7 @@ app.get("/api/auth/challenge", async (req, res, next) => {
     const nonce = randomUUID();
     const expiresAt = Date.now() + 5 * 60_000;
     nonces.set(wallet, { nonce, expiresAt });
-    const message = `Hodl or No Hodl.fun\nSign in to play.\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
+    const message = `Holders Dilemma\nSign in to play.\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
     const { error } = await db.from("wallet_auth_nonces").upsert({
       wallet,
       message,
@@ -1402,7 +1420,7 @@ app.post("/api/auth/verify", async (req, res, next) => {
     const { error: consumeError } = await db.from("wallet_auth_nonces").update({ consumed_at: nowIso() }).eq("wallet", wallet);
     if (consumeError && !isMissingSchemaObject(consumeError)) throw consumeError;
     const expiresAt = addSeconds(new Date(), 43_200);
-    const token = await new SignJWT({ wallet }).setProtectedHeader({ alg: "HS256" }).setSubject(wallet).setIssuer("hodlornohodl.fun").setAudience("game").setIssuedAt().setExpirationTime("12h").sign(sessionKey);
+    const token = await new SignJWT({ wallet }).setProtectedHeader({ alg: "HS256" }).setSubject(wallet).setIssuer("holders-dilemma").setAudience("game").setIssuedAt().setExpirationTime("12h").sign(sessionKey);
     const { error: sessionError } = await db.from("wallet_sessions").insert({ wallet, token_hash: sha256(token), expires_at: expiresAt });
     if (sessionError && !isMissingSchemaObject(sessionError)) throw sessionError;
     res.json({ token, wallet, expiresIn: 43_200 });
@@ -1442,7 +1460,7 @@ app.post("/api/tx/initialize", async (req, res, next) => {
       throw new Error("Only the configured admin can initialize the game.");
     }
     await ensureGameConfig();
-    res.json({ ok: true, message: "The Banker is preparing the first offer." });
+    res.json({ ok: true, message: "The first dilemma is preparing." });
   } catch (error) { next(error); }
 });
 
@@ -1452,7 +1470,7 @@ app.post("/api/tx/open-position", async (req, res, next) => {
     await requireSameWallet(req, raw);
     const holder = await syncHolder(new PublicKey(raw));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens.`);
-    res.json({ ok: true, message: "Seat claimed. The Banker has your wallet on the board.", holder });
+    res.json({ ok: true, message: "Seat claimed. Your wallet is on the board.", holder });
   } catch (error) { next(error); }
 });
 
@@ -1462,7 +1480,7 @@ app.post("/api/tx/deposit", async (req, res, next) => {
     await requireSameWallet(req, raw);
     const holder = await syncHolder(new PublicKey(raw));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens.`);
-    res.json({ ok: true, message: "Seat refreshed. Keep the box closed.", holder });
+    res.json({ ok: true, message: "Seat refreshed. Stay on the board.", holder });
   } catch (error) { next(error); }
 });
 
@@ -1492,7 +1510,8 @@ app.post("/api/vote/commit", async (req, res, next) => {
     if (String(round.round_number) !== body.roundNumber) throw new Error("This decision belongs to a different round.");
     const now = Date.now();
     const closesAt = new Date(round.closes_at).getTime();
-    if (now < closesAt - decisionWindowSeconds * 1_000 || now >= closesAt) throw new Error("Choices unlock when the Banker calls.");
+    if (now < closesAt - decisionWindowSeconds * 1_000) throw new Error("Choices unlock in the final ten minutes.");
+    if (now >= closesAt - 60_000 || now >= closesAt) throw new Error("Choices are locked for the reveal.");
 
     const holder = await syncHolder(new PublicKey(body.wallet));
     if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens to vote.`);
@@ -1535,7 +1554,7 @@ app.post("/api/tx/claim", (_req, res) => {
 
 app.post("/api/tx/fund", async (_req, res, next) => {
   try {
-    throw new Error("Manual wallet funding is disabled in Supabase game mode. Pump creator fees fund the game pot every 15 minutes.");
+    throw new Error("Manual wallet funding is disabled in Supabase game mode. Pump creator fees fund the game pot every 30 minutes.");
   } catch (error) { next(error); }
 });
 
@@ -1548,7 +1567,7 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 app.listen(env.PORT, "0.0.0.0", () => {
-  console.log(`Hodl or No Hodl keeper/API listening on ${env.PORT}`);
+  console.log(`Holders Dilemma keeper/API listening on ${env.PORT}`);
   console.log(`Mainnet game mode: rounds=${env.ROUND_LENGTH_SECONDS}s feeCollection=${env.FEE_COLLECTION_INTERVAL_MS}ms`);
   void (async () => {
     await collectPumpCreatorFees();

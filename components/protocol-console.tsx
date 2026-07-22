@@ -3,7 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { useWalletConnection } from "@solana/react-hooks";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useBankerFeed } from "@/components/use-banker-feed";
+import { useDilemmaFeed } from "@/components/use-dilemma-feed";
 import {
   baseUnitsToTokenAmount,
   lamportsToSol,
@@ -58,7 +58,7 @@ export function ProtocolConsole() {
   const [chatName, setChatName] = useState("Contestant");
   const [chatDraft, setChatDraft] = useState("");
   const previousRound = useRef<ProtocolRound | null>(null);
-  const { events } = useBankerFeed(8);
+  const { events } = useDilemmaFeed(8);
 
   const realtime = useMemo(() => {
     if (!supabaseUrl || !supabaseKey) return null;
@@ -78,7 +78,7 @@ export function ProtocolConsole() {
     if (address && authToken && nextStatus.configured) {
       const nextHolder = await protocolRequest<HolderState>(`/api/holder/${address}`, undefined, authToken);
       setHolder(nextHolder);
-      setSealedChoice(nextHolder.participationStatus === "HODL" ? "cooperate" : nextHolder.participationStatus === "NO HODL" ? "defect" : null);
+      setSealedChoice(nextHolder.participationStatus === "HOLD" ? "cooperate" : nextHolder.participationStatus === "SELL" ? "defect" : null);
     }
   }, [address, sessionToken]);
 
@@ -123,13 +123,13 @@ export function ProtocolConsole() {
       setMessage("");
       setError("");
       if (!address || !protocolApiUrl) { setSessionToken(""); return; }
-      const stored = window.sessionStorage.getItem(`hodl-session:${address}`) ?? "";
+      const stored = window.sessionStorage.getItem(`holders-dilemma-session:${address}`) ?? "";
       if (!stored) { setSessionToken(""); return; }
       try {
         await protocolRequest("/api/auth/session", undefined, stored);
         setSessionToken(stored);
       } catch {
-        window.sessionStorage.removeItem(`hodl-session:${address}`);
+        window.sessionStorage.removeItem(`holders-dilemma-session:${address}`);
         setSessionToken("");
       }
     });
@@ -137,7 +137,7 @@ export function ProtocolConsole() {
 
   const signIn = useCallback(async () => {
     if (!wallet || !address) throw new Error("Connect a Solana wallet first.");
-    if (!wallet.signMessage) throw new Error("This wallet cannot sign the Banker's message.");
+    if (!wallet.signMessage) throw new Error("This wallet cannot sign the Holders Dilemma message.");
     setBusy("signin"); setError("");
     try {
       const challenge = await protocolRequest<{ message: string }>(`/api/auth/challenge?wallet=${encodeURIComponent(address)}`);
@@ -147,8 +147,8 @@ export function ProtocolConsole() {
         body: JSON.stringify({ wallet: address, message: challenge.message, signature: base64FromBytes(signature) }),
       });
       setSessionToken(verified.token);
-      window.sessionStorage.setItem(`hodl-session:${address}`, verified.token);
-      setMessage("SEAT VERIFIED — YOUR BOX IS READY.");
+      window.sessionStorage.setItem(`holders-dilemma-session:${address}`, verified.token);
+      setMessage("SEAT VERIFIED — YOUR POSITION IS READY.");
       await refresh(verified.token);
       return verified.token;
     } finally { setBusy(""); }
@@ -160,10 +160,10 @@ export function ProtocolConsole() {
     try {
       const token = sessionToken || await signIn();
       const response = await protocolRequest<GameResponse>("/api/tx/open-position", { method: "POST", body: JSON.stringify({ wallet: address }) }, token);
-      setMessage(response.message ?? "YOUR BOX IS ON THE BOARD.");
+      setMessage(response.message ?? "YOUR SEAT IS ON THE BOARD.");
       await refresh(token);
     } catch (seatError) {
-      setError(seatError instanceof Error ? seatError.message : "The Banker could not verify this seat.");
+      setError(seatError instanceof Error ? seatError.message : "This seat could not be verified.");
     } finally { setBusy(""); }
   }, [address, refresh, sessionToken, signIn, wallet]);
 
@@ -210,12 +210,11 @@ export function ProtocolConsole() {
   const decimals = status?.tokenDecimals ?? 6;
   const round = status?.round;
   const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports ?? "0";
-  const bankerPot = status?.bankerWalletBalanceLamports ?? "0";
   const hasPot = positive(pot);
-  const decisionWindow = Number(status?.decisionWindowSeconds ?? 300);
-  const decisionOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 0 && countdown <= decisionWindow);
+  const decisionWindow = Number(status?.decisionWindowSeconds ?? 600);
+  const decisionOpen = Boolean(status?.roundActive && round?.status === "open" && countdown > 60 && countdown <= decisionWindow);
   const callCountdown = decisionOpen ? countdown : Math.max(0, countdown - decisionWindow);
-  const finalMinute = decisionOpen && countdown <= 60;
+  const finalMinute = Boolean(status?.roundActive && round?.status === "open" && countdown > 0 && countdown <= 60);
   const hasPosition = Boolean(holder?.position && positive(holder.position.amount));
   const canChoose = Boolean(connected && sessionToken && hasPosition && decisionOpen && !holder?.soldThisRound);
   const balance = holder ? baseUnitsToTokenAmount(holder.walletTokenBalance, decimals) : "—";
@@ -223,63 +222,62 @@ export function ProtocolConsole() {
   const streak = streakSeconds >= 86_400 ? `${Math.floor(streakSeconds / 86_400)} DAYS` : `${Math.floor(streakSeconds / 3_600)} HOURS`;
   const multiplier = holder ? `${(holder.multiplierBps / 10_000).toFixed(1)}×` : "—";
   const playerWeight = holder ? baseUnitsToTokenAmount(holder.playerWeight, decimals) : "—";
-  const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "AWAITING OFFER";
-  const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "AWAITING BOX";
+  const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "AWAITING FEES";
+  const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "AWAITING POT";
   const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : "—";
   const nextCallCountdown = status?.nextRoundAt ? remainingSeconds(status.nextRoundAt) : 0;
   const standbyCountdown = nextCallCountdown ? formatCountdown(nextCallCountdown) : "";
-  const phase = !status?.configured ? "WAITING FOR THE BANKER" : !status.roundActive ? "AWAITING FUNDED BOX" : decisionOpen ? "THE BANKER IS CALLING" : "THE BOX IS FILLING";
+  const phase = !status?.configured ? "DILEMMA WARMING UP" : !status.roundActive ? "AWAITING FEE POT" : finalMinute ? "FINAL SIGNAL LOCK" : decisionOpen ? "DILEMMA OPEN" : "POT IS BUILDING";
 
   return (
     <>
       <section className={`broadcast-room ${finalMinute ? "is-final-minute" : ""} ${holder?.soldThisRound ? "is-out" : ""}`} id="game-console">
         <div className="broadcast-phase">
-          <div><span>EPISODE {episode} · {status?.roundActive ? decisionOpen ? "DECISION" : "ACCUMULATING" : "STANDBY"}</span><strong>{phase}</strong></div>
-          <time><span>{status?.roundActive ? (decisionOpen ? "DECISIONS LOCK IN" : "THE BANKER CALLS IN") : standbyCountdown ? "NEXT 15-MINUTE CALL" : "WAITING FOR"}</span><b>{status?.roundActive ? formatCountdown(callCountdown) : standbyCountdown || "THE BANKER"}</b></time>
+          <div><span>ROUND {episode} · {status?.roundActive ? decisionOpen ? "CHOOSE" : "LIVE" : "STANDBY"}</span><strong>{phase}</strong></div>
+          <time><span>{status?.roundActive ? (decisionOpen ? "DECISIONS LOCK IN" : "CHOICES OPEN IN") : standbyCountdown ? "NEXT 30-MINUTE ROUND" : "WAITING FOR"}</span><b>{status?.roundActive ? formatCountdown(decisionOpen ? countdown : callCountdown) : standbyCountdown || "THE DILEMMA"}</b></time>
         </div>
 
         <div className="broadcast-grid">
           <article className="broadcast-panel broadcast-box-panel">
             <div className={`broadcast-case ${decisionOpen ? "is-lit" : ""}`} aria-hidden="true"><i /><b>?</b></div>
-            <strong className="broadcast-pot">{hasPot ? `${lamportsToSol(pot)} SOL` : "AWAITING FUNDED BOX"}</strong>
-            <span className="broadcast-pot-caption">WHAT&apos;S IN THE BOX · LIVE CREATOR FEES</span>
+            <strong className="broadcast-pot">{hasPot ? `${lamportsToSol(pot)} SOL` : "AWAITING FEE POT"}</strong>
+            <span className="broadcast-pot-caption">LIVE FEE POT · $DILEMMA</span>
             <div className="broadcast-wallet-pots">
-              <span><b>THE BOX · 80%</b>{positive(pot) ? `${lamportsToSol(pot)} SOL` : "AWAITING FEES"}</span>
-              <span><b>BANKER RESERVE · 20%</b>{positive(bankerPot) ? `${lamportsToSol(bankerPot)} SOL` : "AWAITING FEES"}</span>
+              <span><b>ROUND POT</b>{positive(pot) ? `${lamportsToSol(pot)} SOL` : "AWAITING FEES"}</span>
             </div>
             {status?.potRolloverCount ? <div className="broadcast-rollover">POT HAS ROLLED {status.potRolloverCount}X</div> : null}
 
             <div className="broadcast-choices">
-              <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>HODL</strong><span>Reject the guaranteed offer and play for the Box.</span></button>
-              <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>NO HODL</strong><span>Take {offer} guaranteed.</span></button>
+              <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>HOLD</strong><span>Let the pot roll and stay eligible if HOLD wins.</span></button>
+              <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>SELL</strong><span>Play for the fee pot if SELL wins.</span></button>
             </div>
-            <p className="broadcast-lock-note">{sealedChoice ? "DECISION SEALED — WAITING FOR THE REVEAL." : decisionOpen ? "CHOICES ARE OPEN · EVERY DECISION REMAINS SEALED" : `CHOICES UNLOCK WHEN THE BANKER CALLS${callCountdown ? ` · ${formatCountdown(callCountdown)}` : ""}`}</p>
-            <p className="broadcast-rule-line">SILENCE COUNTS AS HODL. SELLING COUNTS AS NO HODL.</p>
+            <p className="broadcast-lock-note">{sealedChoice ? "DECISION SEALED — WAITING FOR THE REVEAL." : finalMinute ? "FINAL MINUTE LOCK · NO NEW SWITCHES" : decisionOpen ? "CHOICES ARE OPEN · EVERY DECISION REMAINS SEALED" : `CHOICES OPEN IN ${formatCountdown(callCountdown)}`}</p>
+            <p className="broadcast-rule-line">IF HOLD WINS, THE POT ROLLS. IF SELL WINS, SELLERS SPLIT FEES.</p>
           </article>
 
           <aside className="broadcast-sidebar">
             <article className={`broadcast-panel broadcast-player ${holder?.soldThisRound ? "player-sold" : ""}`}>
-              <span>YOUR BOX · CONTESTANT {shortWallet(address)}</span>
+              <span>YOUR POSITION · HOLDER {shortWallet(address)}</span>
               {!connected ? (
-                <div className="broadcast-entry"><strong>SEE YOUR BOX.</strong><p>Connect your wallet to reveal your seat, multiplier, offer, and projected payout.</p><button type="button" onClick={() => document.getElementById("wallet-access")?.click()}>CONNECT — SEE YOUR BOX</button></div>
+                <div className="broadcast-entry"><strong>SEE YOUR POSITION.</strong><p>Connect your wallet to reveal your seat, multiplier, vote status, and projected payout.</p><button type="button" onClick={() => document.getElementById("wallet-access")?.click()}>CONNECT WALLET</button></div>
               ) : !sessionToken ? (
-                <div className="broadcast-entry"><strong>ANSWER THE CALL.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
+                <div className="broadcast-entry"><strong>ENTER THE DILEMMA.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
               ) : holder?.soldThisRound ? (
-                <div className="broadcast-out"><strong>YOU&apos;RE OUT.</strong><p>SELLING IS NO HODL. Your streak reset, but you can still watch the Reveal.</p></div>
+                <div className="broadcast-out"><strong>YOU SOLD.</strong><p>Your position left the HOLD side. You can still watch the Reveal.</p></div>
               ) : !holder?.position ? (
-                <div className="broadcast-entry"><strong>GET A BOX.</strong><p>Claim your seat to verify the required token balance.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY SEAT"}</button></div>
+                <div className="broadcast-entry"><strong>CLAIM YOUR SEAT.</strong><p>Verify the required $DILEMMA balance and enter the board.</p><button type="button" disabled={Boolean(busy)} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY SEAT"}</button></div>
               ) : (
                 <>
                   <dl className="broadcast-stats">
                     <div><dt>BALANCE</dt><dd>{balance}</dd></div>
-                    <div><dt>HOLD STREAK</dt><dd>{streak}</dd></div>
+                    <div><dt>HOLDER STREAK</dt><dd>{streak}</dd></div>
                     <div><dt>TIER</dt><dd>{tierNames[holder.position.tier] ?? holder.position.tierName}</dd></div>
                     <div><dt>MULTIPLIER</dt><dd>{multiplier}</dd></div>
                     <div><dt>PLAYER WEIGHT</dt><dd>{playerWeight}</dd></div>
-                    <div><dt>BANKER OFFER</dt><dd>{offer}</dd></div>
-                    <div><dt>DECISION</dt><dd>{sealedChoice === "cooperate" ? "HODL · SEALED" : sealedChoice === "defect" ? "NO HODL · SEALED" : "NOT SUBMITTED"}</dd></div>
+                    <div><dt>SELL-SIDE EST.</dt><dd>{offer}</dd></div>
+                    <div><dt>DECISION</dt><dd>{sealedChoice === "cooperate" ? "HOLD · SEALED" : sealedChoice === "defect" ? "SELL · SEALED" : "NOT SUBMITTED"}</dd></div>
                   </dl>
-                  <div className="broadcast-projection"><span>PROJECTED HODL PAYOUT · ESTIMATE</span><strong>{projected}</strong><small>BALANCE × MULTIPLIER ÷ HODL WEIGHT × REMAINING BOX</small></div>
+                  <div className="broadcast-projection"><span>PROJECTED SELL PAYOUT · ESTIMATE</span><strong>{projected}</strong><small>BALANCE × MULTIPLIER ÷ SELL WEIGHT × CURRENT POT</small></div>
                 </>
               )}
               {message ? <p className="broadcast-message">{message}</p> : null}
@@ -287,18 +285,18 @@ export function ProtocolConsole() {
             </article>
 
             <article className="broadcast-panel broadcast-feed">
-              <span>STUDIO FEED</span>
-              <div>{events.length ? events.map((event) => <p key={event.id}><time>{event.time}</time><span><b>{event.event}</b>{event.detail}</span></p>) : <p><time>LIVE</time><span><b>AWAITING FIRST UPDATE</b>The studio feed begins with the next funded Box.</span></p>}</div>
+              <span>LIVE FEED</span>
+              <div>{events.length ? events.map((event) => <p key={event.id}><time>{event.time}</time><span><b>{event.event}</b>{event.detail}</span></p>) : <p><time>LIVE</time><span><b>AWAITING FIRST UPDATE</b>The feed begins with the next funded pot.</span></p>}</div>
             </article>
           </aside>
         </div>
       </section>
 
-      {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>EPISODE {String(revealRound.roundNumber).padStart(3, "0")} · THE REVEAL</span><h2>{revealRound.status === "settled" ? "THE BOX OPENS." : "THE BOX STAYS CLOSED."}</h2><strong>{revealRound.weightedHodlBps == null ? "CHOICES REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% WEIGHTED HODL`}</strong><p>{revealRound.status === "settled" ? "HODL players split The Box. Accepted deals were paid separately by the Banker." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next episode.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE STUDIO</button></article></div> : null}
+      {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>ROUND {String(revealRound.roundNumber).padStart(3, "0")} · THE REVEAL</span><h2>{revealRound.status === "settled" ? "SELL WINS." : "HOLD WINS."}</h2><strong>{revealRound.weightedHodlBps == null ? "DECISIONS REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% WEIGHTED HOLD`}</strong><p>{revealRound.status === "settled" ? "SELL players split the fee pot." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next round.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE BOARD</button></article></div> : null}
       <button type="button" className="broadcast-chat-button" onClick={() => setChatOpen((open) => !open)}>CHAT</button>
       {chatOpen ? (
         <aside className="broadcast-chat-popover" aria-label="Live chat">
-          <header><span>LIVE CHAT</span><button type="button" onClick={() => setChatOpen(false)}>×</button></header>
+          <header><span>DILEMMA CHAT</span><button type="button" onClick={() => setChatOpen(false)}>×</button></header>
           <div className="broadcast-chat-log">
             {chatMessages.length ? chatMessages.map((item) => <p key={item.id}><b>{item.title || "Contestant"}</b><span>{item.detail}</span></p>) : <p><b>Studio</b><span>Be first in the room.</span></p>}
           </div>

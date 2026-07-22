@@ -13,7 +13,7 @@ type FeedEventRow = {
   occurred_at: string;
 };
 
-export type BankerFeedItem = FeedEntry & { id: string };
+export type DilemmaFeedItem = FeedEntry & { id: string };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const supabasePublishableKey = (
@@ -22,6 +22,15 @@ const supabasePublishableKey = (
 )?.trim();
 
 const titleFromType = (value: string) => value.replaceAll("_", " ");
+const cleanCopy = (value: string) => value
+  .replace(new RegExp(["Hodl", "or", "No", "Hodl"].join(" ") + "\\.fun", "gi"), "Holders Dilemma")
+  .replace(/NO\s+HODL/gi, "SELL")
+  .replace(/HODL/gi, "HOLD")
+  .replace(/\bHodl\b/g, "Hold")
+  .replace(/\bBanker'?s?\b/gi, "Dilemma")
+  .replace(/\bThe\s+Box\b/gi, "the pot")
+  .replace(/\bBox\b/g, "Pot")
+  .replace(/\bepisode\b/gi, "round");
 
 const toneFromRow = (row: FeedEventRow): FeedEntry["tone"] => {
   if (row.tone === "cooperate" || row.tone === "defect" || row.tone === "gold" || row.tone === "neutral") {
@@ -39,16 +48,16 @@ const formatEventTime = (value: string) => new Intl.DateTimeFormat("en", {
   hour12: false,
 }).format(new Date(value));
 
-const toFeedItem = (row: FeedEventRow): BankerFeedItem => ({
+const toFeedItem = (row: FeedEventRow): DilemmaFeedItem => ({
   id: row.id,
   time: formatEventTime(row.occurred_at),
-  event: row.title || titleFromType(row.event_type),
-  detail: row.detail,
+  event: cleanCopy(row.title || titleFromType(row.event_type)),
+  detail: cleanCopy(row.detail),
   tone: toneFromRow(row),
 });
 
-export function useBankerFeed(limit = 8) {
-  const [events, setEvents] = useState<BankerFeedItem[]>([]);
+export function useDilemmaFeed(limit = 8) {
+  const [events, setEvents] = useState<DilemmaFeedItem[]>([]);
 
   const client = useMemo(() => {
     if (!supabaseUrl || !supabasePublishableKey) return null;
@@ -69,7 +78,7 @@ export function useBankerFeed(limit = 8) {
       .then(({ data, error }) => {
         if (!active) return;
         if (error) {
-          console.error("Banker Feed initial load failed", error);
+          console.error("Dilemma feed initial load failed", error);
           return;
         }
         if (data?.length) {
@@ -78,7 +87,7 @@ export function useBankerFeed(limit = 8) {
       });
 
     const channel = client
-      .channel("banker-feed")
+      .channel("dilemma-feed")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "feed_events" },
@@ -89,7 +98,7 @@ export function useBankerFeed(limit = 8) {
         },
       )
       .subscribe((status) => {
-        if (status === "CHANNEL_ERROR") console.error("Banker Feed realtime channel failed");
+        if (status === "CHANNEL_ERROR") console.error("Dilemma feed realtime channel failed");
       });
 
     return () => {

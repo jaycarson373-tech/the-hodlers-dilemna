@@ -6,8 +6,8 @@ import { ShowBrand } from "@/components/show-brand";
 import { WalletConnect } from "@/components/wallet-connect";
 
 export const metadata: Metadata = {
-  title: "Leaderboard | Hodl or No Hodl.fun",
-  description: "The public Hodl or No Hodl leaderboard: wallet, score, tier, total SOL paid, wins, and losses.",
+  title: "Leaderboard | Holders Dilemma",
+  description: "The public Holders Dilemma leaderboard: wallet, score, tier, total SOL paid, wins, and losses.",
 };
 
 export default function LeaderboardPage() {
@@ -28,7 +28,7 @@ export default function LeaderboardPage() {
       <PublicLeaderboardBoard limit={50} />
       <footer className="broadcast-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/hodl-no-hodl-banner-v2.jpg" alt="Hodl or No Hodl" width="1280" height="426" />
+        <img src="/holders-dilemma-og.svg" alt="Holders Dilemma" width="1200" height="630" />
         <div>
           <ShowBrand />
           <span>The public board updates after every settlement.</span>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Holders Dilemma">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#7cffb2"/>
+      <stop offset=".5" stop-color="#14f195"/>
+      <stop offset="1" stop-color="#00c16a"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="#050807"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#14f195" stroke-width="14" opacity=".38"/>
+  <path d="M144 170h224l-112 178L144 170Z" fill="url(#g)" filter="url(#glow)"/>
+  <path d="M144 170l52-64h120l52 64M196 106l60 242m60-242-60 242" fill="none" stroke="#eafff2" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/>
+  <text x="256" y="430" text-anchor="middle" fill="#eafff2" font-family="Arial Black, Impact, sans-serif" font-size="78" font-weight="900">$D</text>
+</svg>

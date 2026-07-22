@@ -3,12 +3,12 @@ import { SolanaWalletProvider } from "@/components/solana-wallet-provider";
 import "./globals.css";
 import "./broadcast.css";
 
-const siteUrl = "https://hodlornohodl.fun";
-const title = "Hodl or No Hodl.fun";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://holdersdilemma.fun";
+const title = "Holders Dilemma";
 const description =
-  "A live holder game where every round ends with one question: HODL, or NO HODL?";
-const brandIcon = "/hodl-no-hodl-logo-v2.jpg";
-const socialImage = `${siteUrl}/hodl-no-hodl-og-v2.jpg`;
+  "A pump.fun holder dilemma where every 30-minute round asks the same question: hold, or sell?";
+const brandIcon = "/holders-dilemma-icon.svg";
+const socialImage = `${siteUrl}/holders-dilemma-og.svg`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -19,16 +19,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon.jpg", type: "image/jpeg" },
-      { url: brandIcon, type: "image/jpeg" },
+      { url: brandIcon, type: "image/svg+xml" },
     ],
-    shortcut: "/icon.jpg",
-    apple: "/apple-icon.jpg",
+    shortcut: brandIcon,
+    apple: brandIcon,
   },
   openGraph: {
     type: "website",
     url: siteUrl,
-    siteName: "Hodl or No Hodl.fun",
+    siteName: "Holders Dilemma",
     title,
     description,
     images: [{ url: socialImage, width: 1200, height: 630, alt: title }],
@@ -37,7 +36,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title,
     description,
-    site: "@hodlornohodl",
     images: [socialImage],
   },
 };

@@ -1,33 +1,25 @@
 import Link from "next/link";
-import { ShowBrand } from "@/components/show-brand";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
+import { ShowBrand } from "@/components/show-brand";
 
 const chapters = [
-  ["01", "THE BOX", "EVERY EPISODE HAS ONE PRIZE.", "Creator fees split every 15 minutes: 80% enters The Box and 20% enters the Banker Reserve."],
-  ["02", "THE BANKER'S OFFER", "A REAL NUMBER. FULLY FUNDED.", "Before choices open, every eligible wallet receives its own exact offer. Banker deals are paid only from the separate 20% Banker Reserve."],
-  ["03", "HODL OR TAKE THE DEAL", "CERTAINTY OR THE BOX.", "Take the posted deal from the Banker Reserve and reset your streak—or reject it, HODL, and play for The Box. Choices stay sealed until the Reveal."],
-  ["04", "THE 70% LINE", "THE CROWD IS WEIGHTED.", "Weight equals token balance × multiplier. When at least 70% of weighted decisions are HODL, the crowd holds and The Box opens. Silence counts as HODL."],
-  ["05", "WHEN THE CROWD HOLDS", "THE BOX OPENS.", "Accepted Banker deals are paid from the separate reserve. HODL players split every lamport in The Box by their share of total HODL weight."],
-  ["06", "WHEN THE CROWD FAILS", "THE BOX STAYS SEALED.", "Accepted deals are still paid from the Banker Reserve. HODL players receive nothing this episode. The full Box rolls into the next episode."],
-  ["07", "ROLLOVER", "FAILURE MAKES THE NEXT BOX BIGGER.", "A 10 SOL Box fails, so all 10 SOL rolls forward. Add 4 SOL in new Box fees and the next Box begins at 14 SOL."],
-  ["08", "STREAKS & MULTIPLIERS", "CONVICTION INCREASES YOUR WEIGHT.", "Hold longer to climb from Paper to Obsidian Hands. Your multiplier affects voting weight and HODL payouts, never the posted deal budget cap."],
-  ["09", "SELLING", "SELLING COUNTS AS NO HODL.", "Any balance decrease during an active episode overrides your sealed decision, removes you from the HODL payout, and resets your streak to 1.0×."],
-  ["10", "THREE-FAILURE FORCE OPEN", "THE JACKPOT CANNOT STAY SHUT FOREVER.", "After three consecutive failed episodes, the next episode force-opens. Accepted deals are paid from the Banker Reserve; HODL players split The Box and the failure counter resets."],
+  ["01", "THE POT", "FEES ENTER THE WHEEL.", "Every 30 minutes, the current fee pot resolves. The pot is paid only when SELL wins. If HOLD wins, it rolls forward."],
+  ["02", "THE CHOICE", "HOLD OR SELL.", "HOLD means you stay in and let the pot grow. SELL means you are playing for the current round's fees."],
+  ["03", "THE SIGNAL", "THE ROOM CAN BLUFF.", "Early signal is visible. At 10 minutes left it starts to blur. At 5 minutes it gets harder to read. At 1 minute it locks."],
+  ["04", "IF SELL WINS", "SELLERS RECEIVE THE FEES.", "Eligible SELL voters split the round's fee pot by player weight. The round ends and the next one begins."],
+  ["05", "IF HOLD WINS", "THE POT MOVES ON.", "Nobody is paid yet. The full pot rolls to the next round, and only wallets that held remain eligible to vote next round."],
+  ["06", "THE REVEAL", "ONE SIDE WINS.", "At zero, the final hidden choices reveal. The board shows whether the round landed HOLD or SELL."],
 ] as const;
 
-const ladder = [["UNDER 1 HOUR", "1.0×", "PAPER"], ["1 HOUR", "1.2×", "PAPER"], ["2 HOURS", "1.5×", "IRON"], ["6 HOURS", "2.0×", "IRON"], ["1 DAY", "2.5×", "DIAMOND"], ["3 DAYS", "3.0×", "DIAMOND"], ["7 DAYS", "4.0× CAP", "OBSIDIAN"]];
+const ladder = [["NEW", "1.0×", "PAPER"], ["1 HOUR", "1.2×", "PAPER"], ["2 HOURS", "1.5×", "IRON"], ["6 HOURS", "2.0×", "IRON"], ["1 DAY", "2.5×", "DIAMOND"], ["3 DAYS", "3.0×", "DIAMOND"], ["7 DAYS", "4.0× CAP", "OBSIDIAN"]];
 
 function RuleVisual({ number }: { number: string }) {
-  if (number === "01") return <div className="rule-diagram fee"><strong>CREATOR FEES</strong><i>↓</i><span>THE BOX<br /><b>FILLS EVERY 15 MINUTES</b></span></div>;
-  if (number === "02") return <div className="rule-diagram offer"><small>YOUR FUNDED OFFER</small><strong>TAKE 0.07 SOL</strong><span>PAID FROM THE 20% BANKER RESERVE</span></div>;
-  if (number === "03") return <div className="rule-diagram versus"><span>📦<b>HODL</b><small>PLAY FOR THE BOX</small></span><i>OR</i><span>☎<b>TAKE THE DEAL</b><small>GUARANTEED OFFER</small></span></div>;
-  if (number === "04") return <div className="rule-diagram line"><span>WEIGHT = BALANCE × MULTIPLIER</span><i><b /></i><strong>70% HODL → BOX OPENS</strong></div>;
-  if (number === "05") return <div className="rule-diagram math"><span>10 SOL BOX</span><i>+</i><span>DEALS PAID SEPARATELY</span><i>=</i><strong>10 SOL FOR HODL</strong></div>;
-  if (number === "06") return <div className="rule-diagram math"><span>10 SOL BOX</span><i>+</i><span>CROWD FAILS</span><i>=</i><strong>10 SOL ROLLOVER</strong></div>;
-  if (number === "07") return <div className="rule-diagram math"><span>10 SOL ROLLOVER</span><i>+</i><span>4 SOL NEW BOX FEES</span><i>=</i><strong>14 SOL BOX</strong></div>;
-  if (number === "08") return <div className="rule-ladder">{ladder.map(([held, multiplier, tier]) => <div key={held}><span>{held}</span><strong>{multiplier}</strong><b>{tier}</b></div>)}</div>;
-  if (number === "09") return <div className="rule-diagram out"><strong>SELL / TRANSFER OUT</strong><i>→</i><span>NO HODL<br /><b>STREAK RESET</b></span></div>;
-  return <div className="rule-diagram force"><span>FAIL 1</span><i>→</i><span>FAIL 2</span><i>→</i><span>FAIL 3</span><i>→</i><strong>FORCE OPEN</strong></div>;
+  if (number === "01") return <div className="rule-diagram fee"><strong>CREATOR FEES</strong><i>↓</i><span>LIVE POT<br /><b>30-MINUTE ROUND</b></span></div>;
+  if (number === "02") return <div className="rule-diagram versus"><span>◆<b>HOLD</b><small>LET IT ROLL</small></span><i>OR</i><span>◇<b>SELL</b><small>PLAY FOR FEES</small></span></div>;
+  if (number === "03") return <div className="rule-diagram line"><span>LIVE → BLUR → HEAVY BLUR → LOCK</span><i><b /></i><strong>10 MIN · 5 MIN · 1 MIN</strong></div>;
+  if (number === "04") return <div className="rule-diagram math"><span>SELL WINS</span><i>→</i><strong>SELLERS SPLIT FEES</strong></div>;
+  if (number === "05") return <div className="rule-diagram math"><span>HOLD WINS</span><i>→</i><strong>POT ROLLS FORWARD</strong></div>;
+  return <div className="rule-ladder">{ladder.map(([held, multiplier, tier]) => <div key={held}><span>{held}</span><strong>{multiplier}</strong><b>{tier}</b></div>)}</div>;
 }
 
 export function RulesExperience() {
@@ -35,11 +27,11 @@ export function RulesExperience() {
     <main className="rules-page">
       <div className="show-bulbs" aria-hidden="true" />
       <header className="rules-nav"><ShowBrand /><nav><Link href="/">Home</Link><Link href="/docs">Docs</Link><LaunchNavLinks /><Link className="show-button show-button-red" href="/play">Enter Game</Link></nav></header>
-      <section className="rules-intro"><p>THE OFFICIAL RULES / ONE MINUTE</p><h1>TAKE THE DEAL.<br /><em>OR PLAY FOR THE BOX.</em></h1><span>Every 15 minutes, the Banker presents a funded offer. If enough weighted holders reject it, The Box opens.</span></section>
+      <section className="rules-intro"><p>THE OFFICIAL RULES / ONE MINUTE</p><h1>HOLD.<br /><em>OR SELL.</em></h1><span>If SELL wins, sellers receive the fees. If HOLD wins, the pot rolls forward and the next round belongs to the holders who stayed.</span></section>
       {chapters.map(([number, eyebrow, title, copy]) => <section className="rules-chapter" key={number}><div className="rules-chapter-copy"><span>{number} / {eyebrow}</span><h2>{title}</h2><p>{copy}</p></div><RuleVisual number={number} /></section>)}
-      <section className="rules-formula"><span>THE FEE SPLIT</span><h2>80% THE BOX · 20% BANKER RESERVE</h2><p>Banker deals never borrow from The Box. HODL payouts come from The Box; accepted deals come from the Banker Reserve.</p></section>
-      <section className="rules-one-line"><p>THAT&apos;S THE GAME.</p><h2>TAKE GUARANTEED MONEY—OR TRUST THE ROOM TO OPEN THE BOX.</h2><span>Everything else is strategy.</span><Link className="show-button show-button-red" href="/play">Enter Live Game</Link></section>
-      <footer className="show-footer"><ShowBrand /><span>Every holder eventually faces the Banker.</span><LaunchFooterLinks /></footer>
+      <section className="rules-formula"><span>THE WHOLE GAME</span><h2>SELL WINS: FEES PAID.<br />HOLD WINS: POT ROLLS.</h2><p>The pressure is simple. Take the current round, or keep the wheel spinning.</p></section>
+      <section className="rules-one-line"><p>$DILEMMA</p><h2>DO YOU HOLD...<br />OR DO YOU SELL?</h2><span>Everything else is timing, bluffing, and conviction.</span><Link className="show-button show-button-red" href="/play">Enter Live Game</Link></section>
+      <footer className="show-footer"><ShowBrand /><span>Every 30 minutes. One dilemma.</span><LaunchFooterLinks /></footer>
     </main>
   );
 }

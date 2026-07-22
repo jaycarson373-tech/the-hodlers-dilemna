@@ -1,20 +1,19 @@
-# HODL or NO HODL
+# Holders Dilemma
 
-HODL or NO HODL is a Solana holder game about conviction, cooperation, and betrayal. This repository contains the Next.js website, Railway API/worker, and Supabase read model.
+Holders Dilemma (`$DILEMMA`) is a Solana holder game with one simple pressure point:
 
-Live website: [hodlornohodl.fun](https://hodlornohodl.fun/)
+Hold, or sell.
 
 ## Game economy
 
-- Episodes and creator-fee sweeps run every 15 minutes.
-- Eligible wallets hold at least 1,000,000 tokens.
-- Weight is snapshot balance × uninterrupted-hold multiplier.
-- The Banker posts a fully funded wallet-specific offer before choices open.
-- Creator fees split 80% to The Box and 20% to the separate Banker Reserve.
-- Silence is HODL. Selling or transferring out is NO HODL and resets the streak.
-- At 70% weighted HODL, HODL players split The Box; accepted deals come from the Banker Reserve.
-- Below 70%, accepted deals are still paid and the full Box rolls over.
-- After three failures, the next episode force-opens for HODL players.
+- Rounds run every 30 minutes.
+- Eligible wallets hold the configured minimum amount of `$DILEMMA`.
+- Player weight is token balance × holder multiplier.
+- Before the reveal, players choose `HOLD` or `SELL`.
+- If `SELL` wins, SELL voters split the current fee pot in SOL by weight.
+- If `HOLD` wins, nobody is paid yet; the pot rolls into the next round.
+- After a HOLD rollover, only wallets that held remain eligible to vote in the next round.
+- The signal is visible early, starts obfuscating at 10 minutes, gets heavier at 5 minutes, and fully locks in the final minute.
 - Payouts go directly to wallets; there is no claim step.
 
 ## Website
@@ -28,20 +27,23 @@ pnpm lint
 pnpm build
 ```
 
-Vercel needs only:
+Vercel needs only public values:
 
 ```dotenv
 NEXT_PUBLIC_API_URL=https://your-railway-service.up.railway.app
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
 NEXT_PUBLIC_TOKEN_MINT=your_public_token_mint
+NEXT_PUBLIC_CONTRACT_ADDRESS=your_public_token_mint
+NEXT_PUBLIC_X_URL=https://x.com/your_handle
+NEXT_PUBLIC_COMMUNITY_URL=https://x.com/i/communities/your_community_id
 ```
 
-The Supabase publishable key and token mint are public identifiers. Never expose a service-role key, wallet keypair, Helius key, or any other secret with a `NEXT_PUBLIC_` prefix.
+Never expose a service-role key, wallet keypair, Helius key, or any other secret with a `NEXT_PUBLIC_` prefix.
 
 ## Database
 
-Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates the game state, sealed-choice, snapshot, audit, payout, leaderboard, and Realtime feed tables.
+Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates the game state, sealed-choice, snapshot, audit, payout, leaderboard, chat/feed, and Realtime tables.
 
 ## Railway keeper/API
 
@@ -55,12 +57,22 @@ pnpm build
 pnpm start
 ```
 
-`SWEEP_ENABLED` and `PAYOUT_ENABLED` both default to `false`. Every sweep and payout is audited before broadcast, and every transfer has a persistent idempotency key. The Pump creator wallet can also act as the payout wallet, so a second treasury key is not required.
+Current production defaults:
+
+```dotenv
+FEE_COLLECTION_INTERVAL_MS=1800000
+ROUND_LENGTH_SECONDS=1800
+DECISION_WINDOW_SECONDS=600
+BOX_ALLOCATION_BPS=10000
+BANKER_ALLOCATION_BPS=0
+MIN_HOLDING_TOKENS=1000000
+```
+
+`SWEEP_ENABLED` and `PAYOUT_ENABLED` both default to `false`. Every sweep and payout is audited before broadcast, and every transfer has a persistent idempotency key.
 
 ## Structure
 
 - `app/`, `components/`, `lib/` — website and game console
-- `programs/holders_dilemna/` — archived optional Anchor prototype; the production game uses the audited Railway/Supabase engine
-- `railway/` — wallet authentication, holder verification, keeper, fee collection, and payout API
+- `railway/` — wallet authentication, holder verification, keeper, fee collection, chat, and payout API
 - `supabase/schema.sql` — read-model schema and RLS policies
-- `public/official-mark.jpg`, `public/official-wordmark.jpg` — supplied official branding used unchanged
+- `public/holders-dilemma-icon.svg`, `public/holders-dilemma-og.svg` — launch metadata assets

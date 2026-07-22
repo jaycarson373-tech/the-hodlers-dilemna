@@ -6,8 +6,8 @@ import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { WalletConnect } from "@/components/wallet-connect";
 
 export const metadata: Metadata = {
-  title: "Live Game | Hodl or No Hodl.fun",
-  description: "Enter the live 15-minute Hodl or No Hodl episode. See your Box, the Banker's funded offer, and your projected HODL payout.",
+  title: "Live Game | Holders Dilemma",
+  description: "Enter the live 30-minute Holders Dilemma round. Choose HOLD or SELL before the reveal.",
 };
 
 export default function PlayPage() {
@@ -21,8 +21,8 @@ export default function PlayPage() {
       <ProtocolConsole />
       <footer className="broadcast-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/hodl-no-hodl-banner-v2.jpg" alt="Hodl or No Hodl" width="1254" height="426" />
-        <div><ShowBrand /><span>Every 15 minutes, every holder faces the Banker.</span><Link href="/rules">Read the Rules</Link><LaunchFooterLinks /></div>
+        <img src="/holders-dilemma-og.svg" alt="Holders Dilemma" width="1200" height="630" />
+        <div><ShowBrand /><span>Every 30 minutes, every holder faces the same dilemma.</span><Link href="/rules">Read the Rules</Link><LaunchFooterLinks /></div>
       </footer>
     </main>
   );
