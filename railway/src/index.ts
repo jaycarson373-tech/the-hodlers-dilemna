@@ -4,17 +4,18 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
   Connection,
-  Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
   type TransactionInstruction,
 } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import bs58 from "bs58";
 import { jwtVerify, SignJWT } from "jose";
 import nacl from "tweetnacl";
 import { z } from "zod";
+
+import { parseKeypairValue } from "./keypairs.js";
 
 type PumpSdkClient = {
   getCreatorVaultBalanceBothPrograms(creator: PublicKey): Promise<{ toString(): string }>;
@@ -27,7 +28,7 @@ const { OnlinePumpSdk } = nodeRequire("@pump-fun/pump-sdk") as {
 };
 
 const envSchema = z.object({
-  PORT: z.coerce.number().default(3001),
+  PORT: z.coerce.number().int().positive().max(65_535).default(3001),
   SITE_ORIGIN: z.string().url().default("http://localhost:3000"),
   SOLANA_RPC_URL: z.string().url(),
   SUPABASE_URL: z.string().url().optional(),
@@ -69,27 +70,6 @@ function tokenAmountStringToBaseUnits(value: string, decimals: number) {
   }
   const units = `${whole}${fraction.padEnd(decimals, "0")}`.replace(/^0+(?=\d)/, "");
   return BigInt(units || "0");
-}
-
-function secretFromBytes(bytes: Uint8Array) {
-  if (bytes.length !== 64) throw new Error(`Expected 64 secret-key bytes, received ${bytes.length}.`);
-  return Keypair.fromSecretKey(bytes);
-}
-
-function parseKeypairValue(value: string) {
-  const trimmed = value.trim();
-  if (trimmed.startsWith("[")) {
-    return secretFromBytes(Uint8Array.from(JSON.parse(trimmed) as number[]));
-  }
-
-  const decodedBase64 = Buffer.from(trimmed, "base64");
-  if (decodedBase64[0] === 91) {
-    return secretFromBytes(Uint8Array.from(JSON.parse(decodedBase64.toString("utf8")) as number[]));
-  }
-  if (decodedBase64.length === 64) return secretFromBytes(Uint8Array.from(decodedBase64));
-
-  const decodedBase58 = bs58.decode(trimmed);
-  return secretFromBytes(decodedBase58);
 }
 
 function optionalKeypair(name: string, value?: string) {
@@ -186,6 +166,23 @@ const publicErrorMessage = (message: string) => {
   return message;
 };
 
+const isMissingSchemaObject = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: string; message?: string };
+  return candidate.code === "42P01"
+    || candidate.code === "42703"
+    || candidate.code === "PGRST204"
+    || candidate.code === "PGRST205"
+    || /does not exist|not found in the schema cache/i.test(candidate.message ?? "");
+};
+
+const validStatelessChallenge = (message: string, wallet: string) => {
+  const match = message.match(/^Hodl or No Hodl\.fun\nSign in to play\.\nWallet: ([1-9A-HJ-NP-Za-km-z]+)\nNonce: ([0-9a-f-]{36})\nExpires: ([^\n]+)$/i);
+  if (!match || match[1] !== wallet) return false;
+  const expiresAt = new Date(match[3]).getTime();
+  return Number.isFinite(expiresAt) && expiresAt >= Date.now() && expiresAt <= Date.now() + 5 * 60_000;
+};
+
 function requireDb() {
   if (!supabase) throw new Error("Supabase is not configured.");
   return supabase;
@@ -203,6 +200,7 @@ async function authenticate(req: Request) {
     .select("wallet,expires_at,revoked_at")
     .eq("token_hash", sha256(token))
     .maybeSingle<{ wallet: string; expires_at: string; revoked_at: string | null }>();
+  if (error && isMissingSchemaObject(error)) return payload.sub;
   if (error || !session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
     throw new Error("Wallet session expired. Sign in again.");
   }
@@ -227,11 +225,14 @@ async function tokenSupplyDecimals() {
 
 async function walletTokenBalance(wallet: PublicKey) {
   if (!tokenMint) return { amount: 0n, decimals: 6 };
-  const account = getAssociatedTokenAddressSync(tokenMint, wallet, false, TOKEN_PROGRAM_ID);
-  const balance = await connection.getTokenAccountBalance(account, "confirmed").catch(() => null);
+  const accounts = await connection.getParsedTokenAccountsByOwner(wallet, { mint: tokenMint }, "confirmed");
+  const amount = accounts.value.reduce((sum, account) => {
+    const tokenAmount = account.account.data.parsed.info.tokenAmount as { amount: string };
+    return sum + BigInt(tokenAmount.amount);
+  }, 0n);
   return {
-    amount: BigInt(balance?.value.amount ?? "0"),
-    decimals: balance?.value.decimals ?? await tokenSupplyDecimals(),
+    amount,
+    decimals: await tokenSupplyDecimals(),
   };
 }
 
@@ -915,38 +916,120 @@ app.use((req, res, next) => {
   next();
 });
 
-const healthResponse = () => ({
-  ok: true,
-  cluster: clusterName,
-  tokenMint: tokenMint?.toBase58() ?? null,
+const readinessChecks = () => ({
   database: Boolean(supabase),
-  keeper: Boolean(keeper),
+  tokenMint: Boolean(tokenMint),
+  sessionSecret: Boolean(sessionKey),
+  payoutWallet: Boolean(payoutWallet),
   pumpCreator: Boolean(pumpCreator),
-  payoutWallet: payoutWallet?.publicKey.toBase58() ?? null,
-  feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
-  roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
-  minHoldingTokens: env.MIN_HOLDING_TOKENS,
-  sweepEnabled: env.SWEEP_ENABLED,
-  payoutEnabled: env.PAYOUT_ENABLED,
-  cooperationThresholdBps: env.COOPERATION_THRESHOLD_BPS,
-  dealBudgetBps: env.DEAL_BUDGET_BPS,
-  decisionWindowSeconds: env.DECISION_WINDOW_SECONDS,
-  warnings: keypairWarnings,
+  keypairsValid: keypairWarnings.length === 0,
 });
+
+const readinessResponse = async () => {
+  const checks = readinessChecks();
+  let databaseReachable = false;
+  let databaseSchema = false;
+  let schedulerCurrent = false;
+  let tableChecks: Record<string, boolean> = {};
+  let tokenMintReachable = false;
+
+  if (supabase) {
+    const { data, error: configError } = await supabase
+      .from("protocol_config")
+      .select("id,current_round,next_round_at,round_active,paused,available_pool_lamports")
+      .eq("id", true)
+      .maybeSingle<{
+        id: boolean;
+        current_round: number | string;
+        next_round_at: string | null;
+        round_active: boolean;
+        paused: boolean;
+        available_pool_lamports: number | string;
+      }>();
+    databaseReachable = !configError;
+    const requiredTables = [
+      "protocol_config",
+      "rounds",
+      "holders",
+      "round_votes",
+      "reward_claims",
+      "protocol_events",
+      "feed_events",
+      "wallet_auth_nonces",
+      "wallet_sessions",
+      "round_snapshots",
+      "sealed_choices",
+      "commitments",
+      "revealed_choices",
+      "audience_signals",
+      "audit_log",
+      "worker_state",
+    ];
+    const tableResults = await Promise.all(requiredTables.map(async (table) => {
+      const { error } = await supabase.from(table).select("*", { count: "exact", head: true });
+      return [table, !error] as const;
+    }));
+    tableChecks = Object.fromEntries(tableResults);
+    databaseSchema = Object.values(tableChecks).every(Boolean);
+    const nextRoundAt = data?.next_round_at ? new Date(data.next_round_at).getTime() : 0;
+    const hasFundedPot = bigintValue(data?.available_pool_lamports) > 0n;
+    schedulerCurrent = Boolean(
+      data
+      && !data.paused
+      && (data.round_active || !hasFundedPot || nextRoundAt >= Date.now() - 60_000),
+    );
+  }
+
+  if (tokenMint) {
+    tokenMintReachable = await connection
+      .getTokenSupply(tokenMint, "confirmed")
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  const deepChecks = { ...checks, databaseReachable, databaseSchema, schedulerCurrent, tokenMintReachable };
+  const ok = Object.values(deepChecks).every(Boolean);
+  return {
+    ok,
+    service: "hodl-or-no-hodl-api",
+    cluster: clusterName,
+    tokenMint: tokenMint?.toBase58() ?? null,
+    checks: deepChecks,
+    tableChecks,
+    payoutWallet: payoutWallet?.publicKey.toBase58() ?? null,
+    feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
+    roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
+    minHoldingTokens: env.MIN_HOLDING_TOKENS,
+    sweepEnabled: env.SWEEP_ENABLED,
+    payoutEnabled: env.PAYOUT_ENABLED,
+    cooperationThresholdBps: env.COOPERATION_THRESHOLD_BPS,
+    dealBudgetBps: env.DEAL_BUDGET_BPS,
+    decisionWindowSeconds: env.DECISION_WINDOW_SECONDS,
+    warnings: keypairWarnings,
+  };
+};
 
 app.get("/", (_req, res) => {
-  res.json({ ok: true, service: "hodl-or-no-hodl-api", health: "/health", status: "/api/status" });
+  res.json({ ok: true, service: "hodl-or-no-hodl-api", live: "/health/live", ready: "/health/ready", status: "/api/status" });
 });
 
-app.get("/health", (_req, res) => {
-  res.json(healthResponse());
+app.get("/health", async (_req, res) => {
+  const health = await readinessResponse();
+  res.status(health.ok ? 200 : 503).json(health);
 });
 
-app.get("/api/health", (_req, res) => {
-  res.json({
-    ...healthResponse(),
-    canonical: "/health",
-  });
+app.get("/health/live", (_req, res) => {
+  res.json({ ok: true, service: "hodl-or-no-hodl-api" });
+});
+
+app.get("/health/ready", async (_req, res) => {
+  const health = await readinessResponse();
+  res.status(health.ok ? 200 : 503).json(health);
+});
+
+app.get("/api/health", async (_req, res) => {
+  const health = await readinessResponse();
+  res.status(health.ok ? 200 : 503).json({ ...health, canonical: "/health/ready" });
 });
 
 app.get("/api/status", async (_req, res, next) => {
@@ -957,11 +1040,15 @@ app.get("/api/status", async (_req, res, next) => {
     }
     const config = await ensureGameConfig();
     const round = await fetchCurrentRound(config);
-    const [{ count }, { data: oldest }, decimals] = await Promise.all([
+    const [holderCountResult, oldestResult, decimals] = await Promise.all([
       supabase.from("holders").select("wallet", { count: "exact", head: true }).gt("position_amount", 0),
       supabase.from("holders").select("streak_started_at").gt("position_amount", 0).order("streak_started_at", { ascending: true }).limit(1).maybeSingle<{ streak_started_at: string | null }>(),
       tokenSupplyDecimals(),
     ]);
+    if (holderCountResult.error) throw holderCountResult.error;
+    if (oldestResult.error) throw oldestResult.error;
+    const count = holderCountResult.count;
+    const oldest = oldestResult.data;
     const longestStreakDays = oldest?.streak_started_at
       ? Math.max(0, Math.floor((Date.now() - new Date(oldest.streak_started_at).getTime()) / 86_400_000))
       : 0;
@@ -1077,7 +1164,7 @@ app.get("/api/auth/challenge", async (req, res, next) => {
       consumed_at: null,
       created_at: nowIso(),
     });
-    if (error) throw error;
+    if (error && !isMissingSchemaObject(error)) throw error;
     res.json({ message, expiresAt: new Date(expiresAt).toISOString() });
   } catch (error) { next(error); }
 });
@@ -1094,19 +1181,21 @@ app.post("/api/auth/verify", async (req, res, next) => {
       .select("message,expires_at,consumed_at")
       .eq("wallet", wallet)
       .maybeSingle<{ message: string; expires_at: string; consumed_at: string | null }>();
-    if (nonceError) throw nonceError;
+    if (nonceError && !isMissingSchemaObject(nonceError)) throw nonceError;
     const memoryValid = pending && pending.expiresAt >= Date.now() && body.message.includes(`Nonce: ${pending.nonce}`);
     const storedValid = stored && !stored.consumed_at && new Date(stored.expires_at).getTime() >= Date.now() && stored.message === body.message;
-    if (!memoryValid && !storedValid) throw new Error("The sign-in challenge expired.");
+    const statelessValid = isMissingSchemaObject(nonceError) && validStatelessChallenge(body.message, wallet);
+    if (!memoryValid && !storedValid && !statelessValid) throw new Error("The sign-in challenge expired.");
     const signature = body.signature.includes("=") ? Buffer.from(body.signature, "base64") : bs58.decode(body.signature);
     const valid = nacl.sign.detached.verify(new TextEncoder().encode(body.message), signature, new PublicKey(wallet).toBytes());
     if (!valid) throw new Error("The wallet signature is invalid.");
     nonces.delete(wallet);
-    await db.from("wallet_auth_nonces").update({ consumed_at: nowIso() }).eq("wallet", wallet);
+    const { error: consumeError } = await db.from("wallet_auth_nonces").update({ consumed_at: nowIso() }).eq("wallet", wallet);
+    if (consumeError && !isMissingSchemaObject(consumeError)) throw consumeError;
     const expiresAt = addSeconds(new Date(), 43_200);
     const token = await new SignJWT({ wallet }).setProtectedHeader({ alg: "HS256" }).setSubject(wallet).setIssuer("hodlornohodl.fun").setAudience("game").setIssuedAt().setExpirationTime("12h").sign(sessionKey);
     const { error: sessionError } = await db.from("wallet_sessions").insert({ wallet, token_hash: sha256(token), expires_at: expiresAt });
-    if (sessionError) throw sessionError;
+    if (sessionError && !isMissingSchemaObject(sessionError)) throw sessionError;
     res.json({ token, wallet, expiresIn: 43_200 });
   } catch (error) { next(error); }
 });
@@ -1248,16 +1337,8 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ error: publicErrorMessage(message) });
 });
 
-const listenPorts = Array.from(new Set([env.PORT, 3001, 8080])).filter((port) => Number.isInteger(port) && port > 0);
-
-listenPorts.forEach((port) => {
-  app.listen(port, () => {
-    console.log(`Hodl or No Hodl keeper/API listening on ${port}`);
-  });
-});
-
-console.log(`Hodl or No Hodl primary API port ${env.PORT}`);
-{
+app.listen(env.PORT, "0.0.0.0", () => {
+  console.log(`Hodl or No Hodl keeper/API listening on ${env.PORT}`);
   console.log(`Mainnet game mode: rounds=${env.ROUND_LENGTH_SECONDS}s feeCollection=${env.FEE_COLLECTION_INTERVAL_MS}ms`);
   void (async () => {
     await collectPumpCreatorFees();
@@ -1265,4 +1346,4 @@ console.log(`Hodl or No Hodl primary API port ${env.PORT}`);
   })();
   setInterval(() => void keeperTick(), 15_000).unref();
   setInterval(() => void collectPumpCreatorFees(), env.FEE_COLLECTION_INTERVAL_MS).unref();
-}
+});

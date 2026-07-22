@@ -1,25 +1,31 @@
-FROM node:22.19-slim AS build
+FROM node:22.19-slim AS base
+
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+
+RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+
+FROM base AS build
 
 WORKDIR /app/railway
 
-COPY railway/package.json ./
-RUN npm install
+COPY railway/package.json railway/pnpm-lock.yaml railway/pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
-COPY railway/ ./
-RUN npm run build
+COPY railway/tsconfig.json ./tsconfig.json
+COPY railway/src ./src
+RUN pnpm build && pnpm prune --prod
 
-FROM node:22.19-slim AS runner
+FROM base AS runner
 
 ENV NODE_ENV=production
-ENV PORT=3001
 
 WORKDIR /app/railway
 
-COPY railway/package.json ./
-RUN npm install --omit=dev
-
+COPY --from=build /app/railway/package.json ./package.json
+COPY --from=build /app/railway/node_modules ./node_modules
 COPY --from=build /app/railway/dist ./dist
 
-EXPOSE 3001 8080
+EXPOSE 3001
 
-CMD ["node", "dist/index.js"]
+CMD ["pnpm", "start"]

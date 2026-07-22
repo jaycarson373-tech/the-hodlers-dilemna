@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ShowBrand } from "@/components/show-brand";
+import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 
 const chapters = [
   ["01", "THE BOX", "EVERY EPISODE HAS ONE PRIZE.", "Creator fees enter The Box every 15 minutes. The live Box is the total prize before accepted Banker deals are paid."],
@@ -33,11 +34,12 @@ export function RulesExperience() {
   return (
     <main className="rules-page">
       <div className="show-bulbs" aria-hidden="true" />
-      <header className="rules-nav"><ShowBrand /><nav><Link href="/">Home</Link><Link className="show-button show-button-red" href="/play">Enter Game</Link></nav></header>
+      <header className="rules-nav"><ShowBrand /><nav><Link href="/">Home</Link><LaunchNavLinks /><Link className="show-button show-button-red" href="/play">Enter Game</Link></nav></header>
       <section className="rules-intro"><p>THE OFFICIAL RULES / ONE MINUTE</p><h1>TAKE THE DEAL.<br /><em>OR PLAY FOR THE BOX.</em></h1><span>Every 15 minutes, the Banker presents a funded offer. If enough weighted holders reject it, The Box opens.</span></section>
       {chapters.map(([number, eyebrow, title, copy]) => <section className="rules-chapter" key={number}><div className="rules-chapter-copy"><span>{number} / {eyebrow}</span><h2>{title}</h2><p>{copy}</p></div><RuleVisual number={number} /></section>)}
       <section className="rules-formula"><span>THE PAYOUT FORMULA</span><h2>YOUR HODL WEIGHT ÷ TOTAL HODL WEIGHT × REMAINING BOX</h2><p>Remaining Box = starting Box − all accepted, fully funded Banker offers.</p></section>
       <section className="rules-one-line"><p>THAT&apos;S THE GAME.</p><h2>TAKE GUARANTEED MONEY—OR TRUST THE ROOM TO OPEN THE BOX.</h2><span>Everything else is strategy.</span><Link className="show-button show-button-red" href="/play">Enter Live Game</Link></section>
+      <footer className="show-footer"><ShowBrand /><span>Every holder eventually faces the Banker.</span><LaunchFooterLinks /></footer>
     </main>
   );
 }

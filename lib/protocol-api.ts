@@ -64,7 +64,7 @@ export type HolderState = {
 
 type ApiError = { error?: string };
 
-const normalizeProtocolApiUrl = (value?: string) => {
+export const normalizeProtocolApiUrl = (value?: string) => {
   const trimmed = (value ?? "").trim().replace(/\/+$/, "");
   if (!trimmed) return "";
   const absolute = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;

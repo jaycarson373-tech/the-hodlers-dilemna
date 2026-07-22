@@ -67,15 +67,15 @@ body { background: var(--stage); color: var(--cream); }
 .show-brand em { color: var(--scarlet-hot); font-style: normal; }
 .show-brand-mark {
   position: relative; display: grid; width: 38px; height: 31px; place-items: center;
-  overflow: visible; border: 1px solid #ff665e; border-radius: 6px;
-  background: linear-gradient(180deg, #ff443c, #c10913 64%, #710209);
+  overflow: hidden; border: 1px solid #ff665e; border-radius: 6px;
+  background: #120104;
   box-shadow: 0 0 16px rgba(240, 29, 38, .5), inset 0 1px 0 rgba(255,255,255,.35);
 }
-.show-brand-mark::before {
-  position: absolute; top: -4px; left: 5px; width: 26px; height: 6px; border-radius: 3px;
-  background: linear-gradient(180deg, #ff665e, #bd0910); content: "";
-}
-.show-brand-mark i { color: #ffe386; font: 900 1rem/1 var(--display); font-style: normal; text-shadow: 0 0 9px rgba(255,217,112,.65); }
+.show-brand-mark img { width:100%;height:100%;object-fit:cover;display:block; }
+.launch-ca { padding:7px 10px;border:1px solid rgba(245,183,60,.3);border-radius:999px;color:var(--gold-hot);font:900 .55rem/1 var(--terminal);letter-spacing:.08em;white-space:nowrap; }
+.launch-footer-links { display:flex;align-items:center;justify-content:flex-end;gap:16px;flex-wrap:wrap; }
+.launch-footer-links a { color:var(--gold-hot);text-decoration:none;text-transform:uppercase; }
+.launch-footer-links span { color:rgba(246,223,198,.35);text-transform:uppercase; }
 
 .wallet-button, .show-button {
   display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 24px;
@@ -166,7 +166,7 @@ body { background: var(--stage); color: var(--cream); }
 .show-faq summary { display:flex; justify-content:space-between; gap:20px; padding:24px 0; cursor:pointer; color:#fff0dc; font:900 .8rem/1.2 var(--terminal); letter-spacing:.1em; list-style:none; }
 .show-faq summary::-webkit-details-marker { display:none; }.show-faq summary i { color:var(--gold);font-style:normal; }.show-faq details p { margin:0 0 24px;color:rgba(246,223,198,.65);line-height:1.6; }
 .show-final-call { text-align:center;border-top:1px solid rgba(245,183,60,.13); }.show-final-call p { color:var(--gold-hot);font:900 .68rem/1 var(--terminal);letter-spacing:.2em; }.show-final-call h2 { margin:22px 0 35px;font-size:clamp(5rem,11vw,10rem); }
-.show-footer { display:flex;align-items:center;justify-content:space-between;gap:24px;padding:32px clamp(20px,5vw,72px);border-top:1px solid var(--line-gold);background:#080103;color:rgba(246,223,198,.55);font:800 .68rem/1.4 var(--terminal); }
+.show-footer { display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:32px clamp(20px,5vw,72px);border-top:1px solid var(--line-gold);background:#080103;color:rgba(246,223,198,.55);font:800 .68rem/1.4 var(--terminal); }
 
 /* Live game room */
 .broadcast-page { padding-bottom: 0; }
@@ -220,7 +220,8 @@ body { background: var(--stage); color: var(--cream); }
   .show-nav, .rules-nav, .broadcast-nav { flex-direction:row!important;align-items:center!important;flex-wrap:nowrap!important; }
   .show-nav nav, .rules-nav nav, .broadcast-nav nav { width:auto!important;flex:0 0 auto!important; }
   .show-nav .wallet-button, .rules-nav .wallet-button, .broadcast-nav .wallet-button { width:auto!important; }
-  .show-brand > span:last-child { font-size:.68rem; }.show-brand-mark { width:32px;height:27px; }
+  .show-brand > span:last-child { display:none; }.show-brand-mark { width:34px;height:34px; }
+  .launch-ca { display:inline-flex!important;font-size:.45rem;padding:6px 7px; }.launch-x { display:inline-flex!important; }
   .show-hero { min-height:850px;padding:75px 17px 55px; }.show-hero h1 { font-size:clamp(4.3rem,22vw,6rem); }.show-hero-copy>span { font-size:.91rem; }.show-hero-actions { flex-direction:column;width:100%; }.show-hero-actions .show-button { width:100%; }.show-box-stage { min-height:360px;margin-top:48px; }.show-box-facts { gap:6px; }.show-box-facts span { padding:10px 5px;font-size:.45rem; }.show-box-facts b { font-size:.75rem; }
   .show-live-call,.show-streak-section,.show-boxes-section,.show-banker-section,.show-how,.show-faq,.show-final-call { width:min(100% - 28px,1180px);padding:72px 0; }.show-live-call h2,.show-streak-section h2,.show-boxes-section h2,.show-banker-section h2,.show-how h2,.show-faq h2 { font-size:clamp(2.8rem,13.5vw,4.4rem); }.show-choice-grid,.show-tier-grid,.show-how>div { grid-template-columns:1fr; }.show-ladder div { min-height:58px;padding:0 20px; }.show-phone-card { min-height:280px;padding:25px; }.show-final-call h2 { font-size:clamp(4.8rem,22vw,7rem); }.show-footer { align-items:flex-start;flex-direction:column; }
   .broadcast-room,.broadcast-leaderboard { width:min(100% - 24px,1180px); }.broadcast-room { padding-top:18px; }.broadcast-grid { margin-top:18px; }.broadcast-box-panel { min-height:560px;padding:24px 16px; }.broadcast-choices { gap:8px; }.broadcast-choices button { min-height:92px;padding:12px 8px; }.broadcast-choices strong { font-size:1.2rem; }.broadcast-choices span { font-size:.47rem; }.broadcast-sidebar { grid-template-columns:1fr; }.broadcast-player { padding:22px 18px; }.broadcast-feed { min-height:150px; }.broadcast-footer>img { max-height:170px; }.broadcast-footer>div { align-items:flex-start;flex-direction:column; }.broadcast-leaderboard h2 { font-size:clamp(2.9rem,14vw,4.3rem); }.broadcast-table-wrap { overflow:visible; }.broadcast-table-wrap table,.broadcast-table-wrap thead,.broadcast-table-wrap tbody,.broadcast-table-wrap tr,.broadcast-table-wrap td { display:block; }.broadcast-table-wrap thead { display:none; }.broadcast-table-wrap tr { display:grid;grid-template-columns:44px 1fr 1fr;gap:0;margin-bottom:10px;border:1px solid rgba(245,183,60,.15);border-radius:9px;background:rgba(31,5,9,.82); }.broadcast-table-wrap td { border:0!important;border-radius:0!important;background:transparent;padding:10px;font-size:.58rem; }.broadcast-table-wrap td:first-child { grid-row:1/3;display:grid;place-items:center;color:var(--gold);font-size:.8rem; }.broadcast-table-wrap td:nth-child(2) { grid-column:2/4;color:#fff0da; }.broadcast-table-wrap td::before { display:block;margin-bottom:4px;color:rgba(246,223,198,.35);font-size:.43rem; }.broadcast-table-wrap td:nth-child(3)::before { content:"SCORE"; }.broadcast-table-wrap td:nth-child(4)::before { content:"TIER"; }.broadcast-table-wrap td:nth-child(5)::before { content:"SOL PAID"; }.broadcast-table-wrap td:nth-child(6)::before { content:"W / L"; }
