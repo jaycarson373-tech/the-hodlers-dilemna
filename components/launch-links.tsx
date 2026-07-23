@@ -2,9 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const xUrl = process.env.NEXT_PUBLIC_X_URL?.trim();
+const publicContractAddress =
+  process.env.NEXT_PUBLIC_CONTRACT_ADDRESS?.trim() ||
+  process.env.NEXT_PUBLIC_TOKEN_MINT?.trim() ||
+  "EVJSSzoD73noecpLV6f2Y3589AxV6XK3vFEV1vGNpump";
+
+const xUrl = process.env.NEXT_PUBLIC_X_URL?.trim() || "https://x.com/HoldersDilemma";
 const communityUrl = process.env.NEXT_PUBLIC_COMMUNITY_URL?.trim();
-const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS?.trim();
+const contractAddress = publicContractAddress;
 
 const pumpUrl = contractAddress ? `https://pump.fun/coin/${contractAddress}` : null;
 const dexUrl = contractAddress ? `https://dexscreener.com/solana/${contractAddress}` : null;
