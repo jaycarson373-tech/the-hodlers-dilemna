@@ -1097,8 +1097,6 @@ app.use((req, res, next) => {
     env.SITE_ORIGIN,
     "https://holdersdilemma.fun",
     "https://www.holdersdilemma.fun",
-    "https://hodlornohodl.fun",
-    "https://www.hodlornohodl.fun",
   ]);
   if (!origin || allowedOrigins.has(origin) || origin.startsWith("http://localhost:")) {
     if (origin) res.setHeader("Access-Control-Allow-Origin", origin);

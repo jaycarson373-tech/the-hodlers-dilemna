@@ -9,9 +9,9 @@ Use this for wallet connection, wallet sign-in, `404`, `502`, CORS, or “Banker
 3. Run:
 
    ```bash
-   NEXT_PUBLIC_API_URL=https://YOUR-SERVICE.up.railway.app \
-   SITE_ORIGIN=https://www.hodlornohodl.fun \
-   pnpm preflight:live
+NEXT_PUBLIC_API_URL=https://YOUR-SERVICE.up.railway.app \
+SITE_ORIGIN=https://www.holdersdilemma.fun \
+pnpm preflight:live
    ```
 
 4. Fix only the first failed hop.

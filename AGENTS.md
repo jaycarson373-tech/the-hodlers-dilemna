@@ -1,4 +1,4 @@
-# Holder's Dilemma agent operating rules
+# Holders Dilemma agent operating rules
 
 These rules are mandatory for every agent working in this repository.
 
@@ -17,7 +17,7 @@ The canonical live check is:
 
 ```bash
 NEXT_PUBLIC_API_URL=https://YOUR-SERVICE.up.railway.app \
-SITE_ORIGIN=https://www.hodlornohodl.fun \
+SITE_ORIGIN=https://www.holdersdilemma.fun \
 pnpm preflight:live
 ```
 
