@@ -6,8 +6,8 @@ import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { WalletConnect } from "@/components/wallet-connect";
 
 export const metadata: Metadata = {
-  title: "Live Game | Holders Dilemma",
-  description: "Enter the live 15-minute Holders Dilemma round. Choose HOLD or JEET before the reveal.",
+  title: "Live Bingo | On-Chain Bingo",
+  description: "Enter the live Solana bingo board. Every 1M $DILEMMA becomes a ticket.",
 };
 
 export default function PlayPage() {
@@ -25,8 +25,8 @@ export default function PlayPage() {
       <ProtocolConsole />
       <footer className="broadcast-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/holders-dilemma-banner.png" alt="Holders Dilemma" width="1280" height="426" loading="lazy" decoding="async" />
-        <div><ShowBrand /><span>Every 15 minutes, every holder faces the same dilemma.</span><Link href="/rules">Read the Rules</Link><LaunchFooterLinks /></div>
+        <img src="/holders-dilemma-banner.png" alt="On-Chain Bingo" width="1280" height="426" loading="lazy" decoding="async" />
+        <div><ShowBrand /><span>Every 1M tokens becomes a live bingo ticket.</span><Link href="/rules">Read the Rules</Link><LaunchFooterLinks /></div>
       </footer>
     </main>
   );

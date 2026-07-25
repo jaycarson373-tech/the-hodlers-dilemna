@@ -6,8 +6,8 @@ import { ShowBrand } from "@/components/show-brand";
 import { WalletConnect } from "@/components/wallet-connect";
 
 export const metadata: Metadata = {
-  title: "Leaderboard | Holders Dilemma",
-  description: "The public Holders Dilemma leaderboard: wallet, score, tier, total SOL paid, wins, and losses.",
+  title: "Leaderboard | On-Chain Bingo",
+  description: "The public On-Chain Bingo leaderboard: wallet, ticket score, tier, total SOL paid, wins, and losses.",
 };
 
 export default function LeaderboardPage() {
@@ -28,10 +28,10 @@ export default function LeaderboardPage() {
       <PublicLeaderboardBoard limit={50} />
       <footer className="broadcast-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/holders-dilemma-banner.png" alt="Holders Dilemma" width="1280" height="426" loading="lazy" decoding="async" />
+        <img src="/holders-dilemma-banner.png" alt="On-Chain Bingo" width="1280" height="426" loading="lazy" decoding="async" />
         <div>
           <ShowBrand />
-          <span>The public board updates after every settlement.</span>
+          <span>The public bingo board updates after every settlement.</span>
           <Link href="/play">Enter the Game</Link>
           <LaunchFooterLinks />
         </div>

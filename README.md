@@ -1,20 +1,17 @@
-# Holders Dilemma
+# On-Chain Bingo
 
-Holders Dilemma (`$DILEMMA`) is a Solana holder game with one simple pressure point:
+On-Chain Bingo (`$DILEMMA`) is a Solana holder game where wallets become live bingo cards.
 
-HOLD, or JEET.
+Every 1,000,000 tokens becomes one ticket on the board.
 
 ## Game economy
 
-- Rounds run every 15 minutes.
+- Fast rounds run every 15 minutes by default.
 - Eligible wallets hold the configured minimum amount of `$DILEMMA`.
-- Holding weight is token balance × time-held boost.
-- Creator fees split 65% to the main pot, 25% to the Banker fund, and 10% to the airdrop fund.
-- Before the reveal, players choose `HOLD` or `JEET`.
-- If `JEET` wins, JEET voters split the current fee pot in SOL by holding weight.
-- If `HOLD` wins, nobody is paid yet; the pot rolls into the next round.
-- After a HOLD rollover, only wallets that held remain eligible to vote in the next round.
-- The signal is visible for 10 minutes, heavily obfuscated for 4 minutes, and fully locked in the final minute.
+- Every full 1,000,000 tokens becomes one live ticket.
+- Creator fees split 80% to the main bingo pool and 20% to the jackpot pool.
+- The board draws a winning wallet card from eligible tickets.
+- Jackpot rounds can trigger a second bonus reveal after the normal winner.
 - Payouts go directly to wallets; there is no claim step.
 
 ## Website
@@ -64,9 +61,9 @@ Current production defaults:
 FEE_COLLECTION_INTERVAL_MS=900000
 ROUND_LENGTH_SECONDS=900
 DECISION_WINDOW_SECONDS=900
-BOX_ALLOCATION_BPS=6500
-BANKER_ALLOCATION_BPS=2500
-AIRDROP_ALLOCATION_BPS=1000
+BOX_ALLOCATION_BPS=8000
+BANKER_ALLOCATION_BPS=2000
+AIRDROP_ALLOCATION_BPS=0
 MIN_HOLDING_TOKENS=1000000
 ```
 

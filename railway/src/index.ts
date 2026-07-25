@@ -47,9 +47,9 @@ const envSchema = z.object({
   ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(900),
   DECISION_WINDOW_SECONDS: z.coerce.number().int().positive().default(900),
   COOPERATION_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
-  BOX_ALLOCATION_BPS: z.coerce.number().int().min(1).max(10_000).default(6_500),
-  BANKER_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).default(2_500),
-  AIRDROP_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).default(1_000),
+  BOX_ALLOCATION_BPS: z.coerce.number().int().min(1).max(10_000).default(8_000),
+  BANKER_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).default(2_000),
+  AIRDROP_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).default(0),
   SWEEP_ENABLED: z.string().optional().transform((value) => value === "true").default(false),
   PAYOUT_ENABLED: z.string().optional().transform((value) => value === "true").default(false),
   MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("1000000"),
@@ -233,7 +233,7 @@ const publicErrorMessage = (message: string) => {
     return "Error: not enough tokens.";
   }
   if (/supabase|token_mint|database|configured|configuration|column|relation|schema|railway|api|rpc|keypair|private|secret/i.test(message)) {
-    return "The live dilemma could not be completed. Try again.";
+    return "The live bingo room could not be completed. Try again.";
   }
   return message;
 };
@@ -249,7 +249,7 @@ const isMissingSchemaObject = (error: unknown) => {
 };
 
 const validStatelessChallenge = (message: string, wallet: string) => {
-  const match = message.match(/^Holders Dilemma\nSign in to play\.\nWallet: ([1-9A-HJ-NP-Za-km-z]+)\nNonce: ([0-9a-f-]{36})\nExpires: ([^\n]+)$/i);
+  const match = message.match(/^(?:Holders Dilemma|On-Chain Bingo)\nSign in to play\.\nWallet: ([1-9A-HJ-NP-Za-km-z]+)\nNonce: ([0-9a-f-]{36})\nExpires: ([^\n]+)$/i);
   if (!match || match[1] !== wallet) return false;
   const expiresAt = new Date(match[3]).getTime();
   return Number.isFinite(expiresAt) && expiresAt >= Date.now() && expiresAt <= Date.now() + 5 * 60_000;
@@ -820,7 +820,7 @@ async function openRound(config: DbConfig) {
   await db.from("protocol_events").insert({
     event_type: "ROUND_OPENED",
     round_number: next.toString(),
-    detail: `Round ${next.toString()} opened. The dilemma is live for ${Math.floor(Number(config.round_length_seconds) / 60)} minutes.`,
+    detail: `Round ${next.toString()} opened. The bingo board is live for ${Math.floor(Number(config.round_length_seconds) / 60)} minutes.`,
   });
 }
 
@@ -923,8 +923,8 @@ async function settleRound(config: DbConfig, round: DbRound) {
   const rollover = rollsOver ? remainingBox : 0n;
   const status = rollsOver ? "rolled_over" : "settled";
   const detail = rollsOver
-    ? `HOLD won. ${remainingBox.toString()} lamports roll into the next round.`
-    : `JEET won. JEET players split ${acceptedDealsTotal.toString()} lamports.`;
+    ? `Pool rolled. ${remainingBox.toString()} lamports move into the next bingo draw.`
+    : `Winning card paid. Players split ${acceptedDealsTotal.toString()} lamports.`;
 
   const { error: roundError } = await db.from("rounds").update({
     status,
@@ -964,7 +964,7 @@ async function settleRound(config: DbConfig, round: DbRound) {
       event_type: "JEET_FEES_PAID",
       round_number: roundNumber,
       wallet: biggest.wallet,
-      detail: `${acceptedDeals.length} JEET player${acceptedDeals.length === 1 ? "" : "s"} paid. Biggest payout: ${biggest.payout.toString()} lamports.`,
+      detail: `${acceptedDeals.length} winning player${acceptedDeals.length === 1 ? "" : "s"} paid. Biggest payout: ${biggest.payout.toString()} lamports.`,
     });
   }
   await db.from("worker_state").upsert({ id: true, last_processed_round: roundNumber, updated_at: nowIso() });
@@ -990,7 +990,7 @@ async function keeperTick() {
       if (now >= decisionAt && now < new Date(round.closes_at).getTime()) {
         const db = requireDb();
         const { count } = await db.from("protocol_events").select("id", { count: "exact", head: true }).eq("event_type", "DECISION_WINDOW_OPENED").eq("round_number", String(round.round_number));
-        if (!count) await db.from("protocol_events").insert({ event_type: "DECISION_WINDOW_OPENED", round_number: String(round.round_number), detail: "The dilemma is open. HOLD or JEET choices are live." });
+        if (!count) await db.from("protocol_events").insert({ event_type: "DECISION_WINDOW_OPENED", round_number: String(round.round_number), detail: "The bingo board is open. Card actions are live." });
       }
     }
 
@@ -1357,7 +1357,7 @@ app.post("/api/chat", async (req, res, next) => {
       message: z.string().trim().min(1).max(160),
     }).parse(req.body);
     await requireSameWallet(req, body.wallet);
-    const name = body.name.replace(/[^\w .!?-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24) || "Contestant";
+    const name = body.name.replace(/[^\w .!?-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24) || "Player";
     const detail = body.message.replace(/[^\w .,!?'\"$%:;()-]/g, "").replace(/\s+/g, " ").trim().slice(0, 160);
     const { data, error } = await db
       .from("feed_events")
@@ -1454,7 +1454,7 @@ app.get("/api/auth/challenge", async (req, res, next) => {
     const nonce = randomUUID();
     const expiresAt = Date.now() + 5 * 60_000;
     nonces.set(wallet, { nonce, expiresAt });
-    const message = `Holders Dilemma\nSign in to play.\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
+    const message = `On-Chain Bingo\nSign in to play.\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
     const { error } = await db.from("wallet_auth_nonces").upsert({
       wallet,
       message,
@@ -1532,7 +1532,7 @@ app.post("/api/tx/initialize", async (req, res, next) => {
       throw new Error("Only the configured admin can initialize the game.");
     }
     await ensureGameConfig();
-    res.json({ ok: true, message: "The first dilemma is preparing." });
+    res.json({ ok: true, message: "The first bingo board is preparing." });
   } catch (error) { next(error); }
 });
 
@@ -1638,7 +1638,7 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 app.listen(env.PORT, "0.0.0.0", () => {
-  console.log(`Holders Dilemma keeper/API listening on ${env.PORT}`);
+  console.log(`On-Chain Bingo keeper/API listening on ${env.PORT}`);
   console.log(`Mainnet game mode: rounds=${env.ROUND_LENGTH_SECONDS}s feeCollection=${env.FEE_COLLECTION_INTERVAL_MS}ms`);
   void (async () => {
     await collectPumpCreatorFees();

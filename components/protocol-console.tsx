@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { useWalletConnection } from "@solana/react-hooks";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDilemmaFeed } from "@/components/use-dilemma-feed";
+import { usePublicLeaderboard } from "@/components/use-public-leaderboard";
 import {
   baseUnitsToTokenAmount,
   lamportsToSol,
@@ -41,6 +42,53 @@ const positive = (value?: string) => {
   try { return BigInt(value ?? "0") > 0n; } catch { return false; }
 };
 const shortWallet = (value?: string) => value ? `${value.slice(0, 4)}...${value.slice(-4)}` : "NOT CONNECTED";
+const ticketCountFromScore = (score?: string) => Math.max(1, Math.min(99, Math.floor(Number(String(score ?? "0").replace(/,/g, "")) / 1_000_000) || 1));
+
+function BingoTicketWall({ connectedWallet }: { connectedWallet?: string }) {
+  const { entries } = usePublicLeaderboard(80);
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const cards = entries.map((entry) => ({
+    wallet: entry.wallet,
+    rank: entry.rank,
+    tickets: ticketCountFromScore(entry.score),
+    score: entry.score,
+    tier: entry.tier,
+    isConnected: connectedWallet ? entry.wallet.toLowerCase() === connectedWallet.toLowerCase() : false,
+  }));
+  const selected = normalizedQuery
+    ? cards.find((card) => card.wallet.toLowerCase().includes(normalizedQuery))
+    : cards.find((card) => card.isConnected);
+
+  return (
+    <section className="bingo-ticket-wall" aria-labelledby="bingo-ticket-wall-title">
+      <header>
+        <span>LIVE WALLET CARDS</span>
+        <h3 id="bingo-ticket-wall-title">THE BOARD EXPANDS WITH EVERY ELIGIBLE WALLET.</h3>
+        <label>
+          <span>Search wallet</span>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Paste wallet or search..." />
+        </label>
+      </header>
+      {selected ? (
+        <article className="bingo-focus-card">
+          <small>ZOOMED CARD</small>
+          <strong>{shortWallet(selected.wallet)}</strong>
+          <p>{selected.tickets} ticket{selected.tickets === 1 ? "" : "s"} · {selected.tier}</p>
+        </article>
+      ) : null}
+      <div className="bingo-card-grid">
+        {cards.length ? cards.map((card) => (
+          <article className={`bingo-player-card ${card === selected ? "is-selected" : ""} ${card.isConnected ? "is-connected" : ""}`} key={card.wallet}>
+            <small>#{String(card.rank).padStart(2, "0")}</small>
+            <strong>{shortWallet(card.wallet)}</strong>
+            <span>{card.tickets}x</span>
+          </article>
+        )) : <p>Wallet cards appear after players claim tickets.</p>}
+      </div>
+    </section>
+  );
+}
 
 export function ProtocolConsole() {
   const { connected, wallet } = useWalletConnection();
@@ -58,7 +106,7 @@ export function ProtocolConsole() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [signal, setSignal] = useState<AudienceSignal>({ hodl: null, noHodl: null, phase: "waiting" });
-  const [chatName, setChatName] = useState("Contestant");
+  const [chatName, setChatName] = useState("Player");
   const [chatDraft, setChatDraft] = useState("");
   const previousRound = useRef<ProtocolRound | null>(null);
   const { events } = useDilemmaFeed(8);
@@ -150,7 +198,7 @@ export function ProtocolConsole() {
 
   const signIn = useCallback(async () => {
     if (!wallet || !address) throw new Error("Connect a Solana wallet first.");
-    if (!wallet.signMessage) throw new Error("This wallet cannot sign the Holders Dilemma message.");
+    if (!wallet.signMessage) throw new Error("This wallet cannot sign the On-Chain Bingo message.");
     setBusy("signin"); setError("");
     try {
       const challenge = await protocolRequest<{ message: string }>(`/api/auth/challenge?wallet=${encodeURIComponent(address)}`);
@@ -161,7 +209,7 @@ export function ProtocolConsole() {
       });
       setSessionToken(verified.token);
       window.sessionStorage.setItem(`holders-dilemma-session:${address}`, verified.token);
-      setMessage("SEAT VERIFIED — YOUR POSITION IS READY.");
+      setMessage("CARD VERIFIED — YOUR TICKET IS READY.");
       await refresh(verified.token);
       return verified.token;
     } finally { setBusy(""); }
@@ -173,7 +221,7 @@ export function ProtocolConsole() {
     try {
       const token = sessionToken || await signIn();
       const response = await protocolRequest<GameResponse>("/api/tx/open-position", { method: "POST", body: JSON.stringify({ wallet: address }) }, token);
-      setMessage(response.message ?? "YOUR SEAT IS ON THE BOARD.");
+      setMessage(response.message ?? "YOUR CARD IS ON THE BOARD.");
       await refresh(token);
     } catch (seatError) {
       setError(seatError instanceof Error ? seatError.message : "This seat could not be verified.");
@@ -193,7 +241,7 @@ export function ProtocolConsole() {
         body: JSON.stringify({ wallet: address, roundNumber: activeRoundNumber, choice, salt, commitment }),
       }, token);
       setSealedChoice(choice);
-      setMessage("DECISION SEALED — LAST VOTE COUNTS.");
+      setMessage("ENTRY SEALED — LAST ACTION COUNTS.");
       await refresh(token);
     } catch (decisionError) {
       setError(decisionError instanceof Error ? decisionError.message : "The decision could not be sealed.");
@@ -210,7 +258,7 @@ export function ProtocolConsole() {
       const token = sessionToken || await signIn();
       await protocolRequest("/api/chat", {
         method: "POST",
-        body: JSON.stringify({ wallet: address, name: chatName || "Contestant", message: draft }),
+        body: JSON.stringify({ wallet: address, name: chatName || "Player", message: draft }),
       }, token);
       setChatDraft("");
       await refreshChat();
@@ -243,79 +291,80 @@ export function ProtocolConsole() {
   const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : status ? "WAITING" : "LOADING";
   const nextCallCountdown = status?.nextRoundAt ? remainingSeconds(status.nextRoundAt) : 0;
   const standbyCountdown = nextCallCountdown ? formatCountdown(nextCallCountdown) : "";
-  const phase = !status ? "LOADING..." : !status.configured ? "DILEMMA WARMING UP" : !status.roundActive ? "FEE POT FORMING" : finalMinute ? "FINAL SIGNAL LOCK" : decisionOpen ? "HOLD OR JEET" : "POT IS BUILDING";
+  const phase = !status ? "LOADING..." : !status.configured ? "BINGO ROOM WARMING UP" : !status.roundActive ? "PRIZE POOL FORMING" : finalMinute ? "FINAL DRAW LOCK" : decisionOpen ? "CARDS LIVE" : "BOARD IS BUILDING";
 
   return (
     <>
       <section className={`broadcast-room ${finalMinute ? "is-final-minute" : ""} ${holder?.soldThisRound ? "is-out" : ""}`} id="game-console">
         <div className="broadcast-phase">
-          <div><span>ROUND {episode} · {status?.roundActive ? decisionOpen ? "CHOOSE" : "LIVE" : "STANDBY"}</span><strong>{phase}</strong></div>
-          <time><span>{status?.roundActive ? "ROUND ENDS IN" : standbyCountdown ? "NEXT 15-MINUTE ROUND" : "NEXT UP"}</span><b>{status?.roundActive ? formatCountdown(countdown) : standbyCountdown || "THE DILEMMA"}</b></time>
+          <div><span>BINGO ROUND {episode} · {status?.roundActive ? decisionOpen ? "DRAW LIVE" : "LIVE" : "STANDBY"}</span><strong>{phase}</strong></div>
+          <time><span>{status?.roundActive ? "DRAW REVEALS IN" : standbyCountdown ? "NEXT FAST ROUND" : "NEXT UP"}</span><b>{status?.roundActive ? formatCountdown(countdown) : standbyCountdown || "ON-CHAIN BINGO"}</b></time>
         </div>
 
         <div className="broadcast-grid">
           <article className="broadcast-panel broadcast-box-panel">
             <div className={`broadcast-case ${decisionOpen ? "is-lit" : ""}`} aria-hidden="true"><i /><b>?</b></div>
-            <strong className="broadcast-pot">{pot == null ? "LOADING..." : hasPot ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</strong>
-            <span className="broadcast-pot-caption">LIVE FEE POT · $DILEMMA</span>
+            <strong className="broadcast-pot">{pot == null ? "LOADING..." : hasPot ? `${lamportsToSol(pot)} SOL` : "POOL FORMING"}</strong>
+            <span className="broadcast-pot-caption">LIVE BINGO POOL · $DILEMMA</span>
             <div className="broadcast-wallet-pots">
-              <span><b>ROUND POT</b>{pot == null ? "LOADING..." : positive(pot) ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</span>
+              <span><b>MAIN POOL</b>{pot == null ? "LOADING..." : positive(pot) ? `${lamportsToSol(pot)} SOL` : "POOL FORMING"}</span>
             </div>
-            {status?.potRolloverCount ? <div className="broadcast-rollover">POT HAS ROLLED {status.potRolloverCount}X</div> : null}
+            {status?.potRolloverCount ? <div className="broadcast-rollover">POOL HAS ROLLED {status.potRolloverCount}X</div> : null}
 
             <div className="broadcast-signal" aria-label="Audience signal">
-              <span>{finalMinute ? "FINAL MINUTE — SIGNAL LOCKED" : heavySignal ? "FINAL FOUR — SIGNAL HEAVILY OBFUSCATED" : liveSignal ? "AUDIENCE SIGNAL — LIVE, NOT FINAL" : "DILEMMA SIGNAL FORMING"}</span>
+              <span>{finalMinute ? "FINAL MINUTE — DRAW LOCKED" : heavySignal ? "FINAL FOUR — DRAW OBFUSCATED" : liveSignal ? "BOARD SIGNAL — LIVE, NOT FINAL" : "BINGO SIGNAL FORMING"}</span>
               {finalMinute ? (
-                <small>Final choices stay hidden until the reveal.</small>
+                <small>The winning card stays hidden until the reveal.</small>
               ) : heavySignal ? (
                 <>
                   <div className="is-ambiguous"><i style={{ width: `${heavyHold}%` }} /><b style={{ width: `${100 - heavyHold}%` }} /></div>
-                  <p><b>HOLD ???</b><b>JEET ???</b></p>
-                  <small>The room is hard to read now.</small>
+                  <p><b>CARDS ???</b><b>POOL ???</b></p>
+                  <small>The draw is hard to read now.</small>
                 </>
               ) : liveSignal ? (
                 <>
                   <div><i style={{ width: `${signal.hodl ?? 0}%` }} /><b style={{ width: `${signal.noHodl ?? 0}%` }} /></div>
-                  <p><b>HOLD {signal.hodl}%</b><b>JEET {signal.noHodl}%</b></p>
-                  <small>Not final votes. Last sealed decision counts.</small>
+                  <p><b>CARDS {signal.hodl}%</b><b>POOL {signal.noHodl}%</b></p>
+                  <small>Not the final draw. Winner appears at reveal.</small>
                 </>
               ) : (
-                <small>The signal appears once the round is live.</small>
+                <small>The board appears once the round is live.</small>
               )}
             </div>
 
             <div className="broadcast-choices">
-              <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-busy={busy === "cooperate"} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>HOLD</strong><span>Let the pot roll and stay eligible if HOLD wins.</span></button>
-              <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-busy={busy === "defect"} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>JEET</strong><span>Play for the fee pot if JEET wins.</span></button>
+              <button type="button" className="broadcast-hodl" disabled={!canChoose || Boolean(busy)} aria-busy={busy === "cooperate"} aria-pressed={sealedChoice === "cooperate"} onClick={() => void submitDecision("cooperate")}><strong>ENTER CARD</strong><span>Keep your wallet on the live bingo board.</span></button>
+              <button type="button" className="broadcast-deal" disabled={!canChoose || Boolean(busy)} aria-busy={busy === "defect"} aria-pressed={sealedChoice === "defect"} onClick={() => void submitDecision("defect")}><strong>PASS ROUND</strong><span>Skip this draw without adding a new card action.</span></button>
             </div>
-            <p className="broadcast-lock-note">{sealedChoice ? "DECISION SEALED — LAST VOTE COUNTS." : finalMinute ? "FINAL MINUTE · SIGNAL HIDDEN · VOTES STILL SEALED" : decisionOpen ? "CHOICES ARE OPEN · EVERY DECISION REMAINS SEALED" : `CHOICES OPEN IN ${formatCountdown(callCountdown)}`}</p>
-            <p className="broadcast-sell-rule">SELL ONCE = JEET. A SALE OVERRIDES A SEALED HOLD.</p>
-            <p className="broadcast-rule-line">IF HOLD WINS, THE POT ROLLS. IF JEET WINS, JEETERS SPLIT FEES.</p>
+            <p className="broadcast-lock-note">{sealedChoice ? "CARD ACTION SEALED — LAST ACTION COUNTS." : finalMinute ? "FINAL MINUTE · DRAW HIDDEN" : decisionOpen ? "CARD ACTIONS ARE OPEN" : `BOARD OPENS IN ${formatCountdown(callCountdown)}`}</p>
+            <p className="broadcast-sell-rule">1M TOKENS = 1 TICKET. MORE TOKENS MEAN MORE CARDS.</p>
+            <p className="broadcast-rule-line">80% FUNDS THE MAIN BINGO POOL. 20% BUILDS THE JACKPOT SPIN.</p>
           </article>
 
           <aside className="broadcast-sidebar">
             <article className={`broadcast-panel broadcast-player ${holder?.soldThisRound ? "player-sold" : ""}`}>
-              <span>YOUR POSITION · HOLDER {shortWallet(address)}</span>
+              <span>YOUR BINGO CARD · {shortWallet(address)}</span>
               {!connected ? (
-                <div className="broadcast-entry"><strong>SEE YOUR POSITION.</strong><p>Connect your wallet to reveal your seat, holding weight, vote status, and projected payout.</p><button type="button" onClick={() => document.getElementById("wallet-access")?.click()}>CONNECT WALLET</button></div>
+                <div className="broadcast-entry"><strong>FIND YOUR CARD.</strong><p>Connect your wallet to reveal tickets, holding weight, and prize estimate.</p><button type="button" onClick={() => document.getElementById("wallet-access")?.click()}>CONNECT WALLET</button></div>
               ) : !sessionToken ? (
-                <div className="broadcast-entry"><strong>ENTER THE DILEMMA.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} aria-busy={busy === "signin"} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
+                <div className="broadcast-entry"><strong>ENTER BINGO.</strong><p>Sign one message. No transaction, approval, or wallet access.</p><button type="button" disabled={Boolean(busy)} aria-busy={busy === "signin"} onClick={() => void signIn().catch((signError) => setError(signError instanceof Error ? signError.message : "Sign-in failed."))}>{busy === "signin" ? "SIGNING…" : "SIGN IN"}</button></div>
               ) : holder?.soldThisRound ? (
-                <div className="broadcast-out"><strong>YOU SOLD.</strong><p>Your choice is now JEET. Selling overrides any sealed HOLD vote.</p></div>
+                <div className="broadcast-out"><strong>POSITION CHANGED.</strong><p>Your ticket count updates from your live wallet balance.</p></div>
               ) : !holder?.position ? (
-                <div className="broadcast-entry"><strong>CLAIM YOUR SEAT.</strong><p>Verify the required $DILEMMA balance and enter the board.</p><button type="button" disabled={Boolean(busy)} aria-busy={busy === "seat"} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY SEAT"}</button></div>
+                <div className="broadcast-entry"><strong>CLAIM YOUR CARD.</strong><p>Verify the required $DILEMMA balance and enter the bingo board.</p><button type="button" disabled={Boolean(busy)} aria-busy={busy === "seat"} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY CARD"}</button></div>
               ) : (
                 <>
                   <dl className="broadcast-stats">
                     <div><dt>BALANCE</dt><dd>{balance}</dd></div>
-                    <div><dt>HOLDER STREAK</dt><dd>{streak}</dd></div>
+                    <div><dt>TICKETS</dt><dd>{ticketCountFromScore(balance)}</dd></div>
+                    <div><dt>HELD</dt><dd>{streak}</dd></div>
                     <div><dt>TIER</dt><dd>{tierNames[holder.position.tier] ?? holder.position.tierName}</dd></div>
-                    <div><dt>TIME-HELD BOOST</dt><dd>{timeHeldBoost}</dd></div>
+                    <div><dt>TIME BOOST</dt><dd>{timeHeldBoost}</dd></div>
                     <div><dt>HOLDING WEIGHT</dt><dd>{playerWeight}</dd></div>
-                    <div><dt>JEET-SIDE EST.</dt><dd>{offer}</dd></div>
-                    <div><dt>DECISION</dt><dd>{sealedChoice === "cooperate" ? "HOLD · SEALED" : sealedChoice === "defect" ? "JEET · SEALED" : "NOT SUBMITTED"}</dd></div>
+                    <div><dt>JACKPOT RESERVE</dt><dd>{offer}</dd></div>
+                    <div><dt>CARD STATUS</dt><dd>{sealedChoice === "cooperate" ? "ENTERED" : sealedChoice === "defect" ? "PASSED" : "READY"}</dd></div>
                   </dl>
-                  <div className="broadcast-projection"><span>PROJECTED JEET PAYOUT · ESTIMATE</span><strong>{projected}</strong><small>BALANCE × TIME-HELD BOOST ÷ WINNING-SIDE WEIGHT × CURRENT POT</small></div>
+                  <div className="broadcast-projection"><span>PROJECTED BINGO PRIZE · ESTIMATE</span><strong>{projected}</strong><small>TICKETS × TIME BOOST ÷ BOARD WEIGHT × MAIN POOL</small></div>
                 </>
               )}
               {message ? <p className="broadcast-message">{message}</p> : null}
@@ -323,20 +372,21 @@ export function ProtocolConsole() {
             </article>
 
             <article className="broadcast-panel broadcast-feed">
-              <span>LIVE FEED</span>
+              <span>LIVE DRAW FEED</span>
               <div>{events.length ? events.map((event) => <p key={event.id}><time>{event.time}</time><span><b>{event.event}</b>{event.detail}</span></p>) : <p><time>LIVE</time><span><b>STUDIO FEED READY</b>The feed begins with the next funded pot.</span></p>}</div>
             </article>
           </aside>
         </div>
+        <BingoTicketWall connectedWallet={address} />
       </section>
 
-      {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>ROUND {String(revealRound.roundNumber).padStart(3, "0")} · THE REVEAL</span><h2>{revealRound.status === "settled" ? "JEET WINS." : "HOLD WINS."}</h2><strong>{revealRound.weightedHodlBps == null ? "DECISIONS REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% WEIGHTED HOLD`}</strong><p>{revealRound.status === "settled" ? "JEET players split the fee pot." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next round.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE BOARD</button></article></div> : null}
+      {revealRound ? <div className="broadcast-reveal" role="dialog" aria-modal="true" aria-label="The Reveal"><article><span>ROUND {String(revealRound.roundNumber).padStart(3, "0")} · BINGO REVEAL</span><h2>{revealRound.status === "settled" ? "WINNER DRAWN." : "POOL ROLLED."}</h2><strong>{revealRound.weightedHodlBps == null ? "CARD RESULT REVEALED" : `${(revealRound.weightedHodlBps / 100).toFixed(1)}% BOARD WEIGHT`}</strong><p>{revealRound.status === "settled" ? "The winning card splits the active pool." : `${lamportsToSol(revealRound.rolloverLamports)} SOL rolls into the next draw.`}</p><button type="button" onClick={() => setRevealRound(null)}>RETURN TO THE BOARD</button></article></div> : null}
       <button type="button" className="broadcast-chat-button" onClick={() => setChatOpen((open) => !open)}>CHAT</button>
       {chatOpen ? (
         <aside className="broadcast-chat-popover" aria-label="Live chat">
-          <header><span>DILEMMA CHAT</span><button type="button" onClick={() => setChatOpen(false)}>×</button></header>
+          <header><span>BINGO CHAT</span><button type="button" onClick={() => setChatOpen(false)}>×</button></header>
           <div className="broadcast-chat-log">
-            {chatMessages.length ? chatMessages.map((item) => <p key={item.id}><b>{item.title || "Contestant"}</b><span>{item.detail}</span></p>) : <p><b>Studio</b><span>Be first in the room.</span></p>}
+            {chatMessages.length ? chatMessages.map((item) => <p key={item.id}><b>{item.title || "Player"}</b><span>{item.detail}</span></p>) : <p><b>Studio</b><span>Be first in the room.</span></p>}
           </div>
           <form onSubmit={submitChat}>
             <input value={chatName} onChange={(event) => setChatName(event.target.value)} maxLength={24} placeholder="Name" aria-label="Chat name" />

@@ -21,7 +21,7 @@ export function HomeShow() {
         <ShowBrand />
         <nav aria-label="Primary navigation">
           <a href="#live-round">Live Round</a>
-          <a href="#choice">Decision</a>
+          <a href="#choice">Tickets</a>
           <a href="#leaderboard">Leaderboard</a>
           <a href="#history">History</a>
           <Link href="/docs">Docs</Link>
@@ -33,18 +33,18 @@ export function HomeShow() {
       <section className="show-hero" aria-labelledby="show-home-title">
         <div className="show-spotlights" aria-hidden="true"><i /><i /></div>
         <div className="show-hero-copy">
-          <p>ON-CHAIN HOLDER GAME / $DILEMMA</p>
-          <h1 id="show-home-title">HOLDERS<br /><em>DILEMMA</em></h1>
-          <span>Every holder eventually chooses.</span>
+          <p>FAST SOLANA BINGO / $DILEMMA</p>
+          <h1 id="show-home-title">ON-CHAIN<br /><em>BINGO</em></h1>
+          <span>Every 1M tokens becomes a live ticket on the board.</span>
           <div className="show-hero-actions">
-            <Link className="show-button show-button-green" href="/play">TAKE THE GREEN PILL</Link>
-            <Link className="show-button show-button-red" href="/play">TAKE THE RED PILL</Link>
+            <Link className="show-button show-button-green" href="/play">ENTER THE BOARD</Link>
+            <Link className="show-button show-button-red" href="/rules">HOW IT WORKS</Link>
           </div>
         </div>
       </section>
 
       <div className="show-ticker" aria-hidden="true">
-        <div>GREEN = HOLD ★ RED = JEET ★ THE PROTOCOL REMEMBERS ★ EVERY ROUND REVEALS WHO STAYED ★ GREEN = HOLD ★ RED = JEET ★</div>
+        <div>1M TOKENS = 1 TICKET ★ CREATOR FEES FUND THE DRAW ★ 80% MAIN BOARD ★ 20% JACKPOT ★ EVERY ROUND REVEALS A CARD ★</div>
       </div>
 
       <section className="home-live-section" id="live-round">
@@ -52,22 +52,22 @@ export function HomeShow() {
       </section>
 
       <section className="show-live-call" id="choice">
-        <span>01 / THE DECISION</span>
-        <h2>ONE ROOM.<br />TWO PILLS.</h2>
-        <p>The protocol remembers your last choice. Sell once and the chain marks you JEET.</p>
+        <span>01 / THE BOARD</span>
+        <h2>EVERY WALLET<br />GETS A CARD.</h2>
+        <p>Your wallet balance becomes tickets. One million tokens equals one bingo card on the live board.</p>
         <div className="show-choice-grid">
           <article className="is-hold">
-            <small>GREEN PILL</small>
-            <h3>HOLD</h3>
-            <p>Stay in. Let the pot roll. Survive to the next board.</p>
+            <small>PLAYER CARD</small>
+            <h3>1M = 1</h3>
+            <p>Every full million $DILEMMA adds another card to your wallet entry.</p>
           </article>
           <article className="is-red">
-            <small>RED PILL</small>
-            <h3>JEET</h3>
-            <p>Break. Fight for the fees. Reveal who folded.</p>
+            <small>LIVE DRAW</small>
+            <h3>SPIN</h3>
+            <p>A live draw rolls through the holder cards until the winning wallet is revealed.</p>
           </article>
         </div>
-        <div className="sell-override-callout"><span>SELL OVERRIDE</span><strong>SELL ONCE = JEET.</strong><p>If you vote HOLD but sell before the reveal, your vote is automatically overridden to JEET.</p></div>
+        <div className="sell-override-callout"><span>JACKPOT MODE</span><strong>ONE IN 25 ROUNDS.</strong><p>Most fees fund the active board. A separate jackpot pool builds for rare bonus spins after a winner is drawn.</p></div>
       </section>
 
       <section className="home-leaderboard-section" id="leaderboard">
@@ -78,8 +78,8 @@ export function HomeShow() {
         <RoundHistoryBoard />
       </section>
 
-      <section className="show-final-call"><p>THE EXPERIMENT IS LIVE.</p><h2>GREEN...<br />OR RED?</h2><Link className="show-button show-button-green" href="/play">ENTER THE DILEMMA</Link></section>
-      <footer className="show-footer"><ShowBrand /><span>Every 15 minutes. One pot. Two sides.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
+      <section className="show-final-call"><p>THE BOARD IS LIVE.</p><h2>FIND YOUR<br />CARD.</h2><Link className="show-button show-button-green" href="/play">ENTER BINGO</Link></section>
+      <footer className="show-footer"><ShowBrand /><span>Fast rounds. Holder cards. Creator-fee prizes.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
       <FooterBanner />
     </main>
   );

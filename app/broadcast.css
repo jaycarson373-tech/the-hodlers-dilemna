@@ -3641,6 +3641,167 @@ body {
   50% { opacity: .76; text-shadow: 0 0 28px rgba(255, 52, 72, .28); }
 }
 
+.bingo-ticket-wall {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1180px);
+  margin: 28px auto 0;
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid rgba(20, 241, 149, .22);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(20, 241, 149, .12), transparent 34%),
+    radial-gradient(circle at 88% 14%, rgba(255, 52, 72, .10), transparent 35%),
+    rgba(5, 8, 7, .74);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .04);
+  overflow: hidden;
+}
+
+.bingo-ticket-wall::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(20, 241, 149, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 52, 72, .055) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,.9), transparent 92%);
+  opacity: .42;
+}
+
+.bingo-ticket-wall > * {
+  position: relative;
+  z-index: 1;
+}
+
+.bingo-ticket-wall header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 330px);
+  gap: 20px;
+  align-items: end;
+  margin-bottom: 22px;
+}
+
+.bingo-ticket-wall header > span,
+.bingo-ticket-wall label span,
+.bingo-focus-card small,
+.bingo-player-card small {
+  display: block;
+  color: rgba(20, 241, 149, .82);
+  font: 800 .68rem/1.2 var(--mono);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.bingo-ticket-wall h3 {
+  max-width: 760px;
+  margin: 9px 0 0;
+  color: rgba(246, 255, 251, .94);
+  font: 900 clamp(1.7rem, 4vw, 3.2rem)/.95 var(--display);
+  letter-spacing: -.055em;
+  text-transform: uppercase;
+}
+
+.bingo-ticket-wall label {
+  display: grid;
+  gap: 8px;
+}
+
+.bingo-ticket-wall input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(244, 255, 248, .16);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .34);
+  color: rgba(246, 255, 251, .94);
+  font: 800 .82rem/1 var(--mono);
+  letter-spacing: .05em;
+  padding: 0 18px;
+  outline: none;
+}
+
+.bingo-ticket-wall input:focus-visible {
+  border-color: rgba(20, 241, 149, .68);
+  box-shadow: 0 0 0 4px rgba(20, 241, 149, .12);
+}
+
+.bingo-focus-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(20, 241, 149, .44);
+  border-radius: 22px;
+  background: linear-gradient(90deg, rgba(20, 241, 149, .14), rgba(255, 52, 72, .08));
+  box-shadow: 0 0 32px rgba(20, 241, 149, .10);
+}
+
+.bingo-focus-card strong {
+  color: #fff;
+  font: 900 clamp(1.35rem, 3vw, 2.1rem)/1 var(--display);
+  letter-spacing: -.04em;
+}
+
+.bingo-focus-card p {
+  margin: 0;
+  color: rgba(246, 255, 251, .72);
+  font-weight: 800;
+}
+
+.bingo-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+  max-height: 430px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.bingo-card-grid > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: rgba(246, 255, 251, .68);
+  font-weight: 800;
+}
+
+.bingo-player-card {
+  min-height: 96px;
+  padding: 14px;
+  border: 1px solid rgba(244, 255, 248, .12);
+  border-radius: 18px;
+  background: rgba(0, 0, 0, .32);
+  transition: transform 180ms var(--ui-ease), border-color 180ms var(--ui-ease), box-shadow 180ms var(--ui-ease);
+}
+
+.bingo-player-card strong {
+  display: block;
+  margin-top: 12px;
+  color: rgba(246, 255, 251, .92);
+  font: 900 .86rem/1.1 var(--mono);
+  letter-spacing: .02em;
+}
+
+.bingo-player-card span {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 5px 9px;
+  border: 1px solid rgba(20, 241, 149, .24);
+  border-radius: 999px;
+  color: rgba(20, 241, 149, .92);
+  font: 900 .68rem/1 var(--mono);
+}
+
+.bingo-player-card.is-selected,
+.bingo-player-card.is-connected {
+  border-color: rgba(20, 241, 149, .62);
+  box-shadow: 0 0 28px rgba(20, 241, 149, .13);
+  transform: translateY(-2px);
+}
+
 @media (max-width: 620px) {
   .show-nav,
   .rules-nav,
@@ -3688,6 +3849,15 @@ body {
   .show-footer,
   .broadcast-footer > div {
     padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .bingo-ticket-wall header {
+    grid-template-columns: 1fr;
+  }
+
+  .bingo-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 360px;
   }
 }
 

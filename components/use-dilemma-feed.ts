@@ -23,15 +23,14 @@ const supabasePublishableKey = (
 
 const titleFromType = (value: string) => value.replaceAll("_", " ");
 const cleanCopy = (value: string) => value
-  .replace(new RegExp(["Hodl", "or", "No", "Hodl"].join(" ") + "\\.fun", "gi"), "Holders Dilemma")
-  .replace(/NO\s+HODL/gi, "JEET")
-  .replace(/\bSELL\b/gi, "JEET")
-  .replace(/HODL/gi, "HOLD")
-  .replace(/\bHodl\b/g, "Hold")
-  .replace(/\bBanker'?s?\b/gi, "Dilemma")
-  .replace(/\bThe\s+Box\b/gi, "the pot")
-  .replace(/\bBox\b/g, "Pot")
-  .replace(/\bepisode\b/gi, "round");
+  .replace(new RegExp(["Hodl", "or", "No", "Hodl"].join(" ") + "\\.fun", "gi"), "On-Chain Bingo")
+  .replace(/NO\s+HODL|JEET|HODL|\bHOLD\b|\bHodl\b/gi, "card")
+  .replace(/\bSELL\b/gi, "card")
+  .replace(/\bBanker'?s?\b/gi, "spinner")
+  .replace(/\bThe\s+Box\b/gi, "the pool")
+  .replace(/\bBox\b/g, "Pool")
+  .replace(/\bepisode\b/gi, "round")
+  .replace(/dilemma/gi, "bingo");
 
 const toneFromRow = (row: FeedEventRow): FeedEntry["tone"] => {
   if (row.tone === "cooperate" || row.tone === "defect" || row.tone === "gold" || row.tone === "neutral") {
@@ -79,7 +78,7 @@ export function useDilemmaFeed(limit = 8) {
       .then(({ data, error }) => {
         if (!active) return;
         if (error) {
-          console.error("Dilemma feed initial load failed", error);
+          console.error("Bingo feed initial load failed", error);
           return;
         }
         if (data?.length) {
@@ -99,7 +98,7 @@ export function useDilemmaFeed(limit = 8) {
         },
       )
       .subscribe((status) => {
-        if (status === "CHANNEL_ERROR") console.error("Dilemma feed realtime channel failed");
+        if (status === "CHANNEL_ERROR") console.error("Bingo feed realtime channel failed");
       });
 
     return () => {

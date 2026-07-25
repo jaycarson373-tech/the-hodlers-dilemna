@@ -59,32 +59,32 @@ export function HomeSpectatorBoard() {
   const heavyHold = 50 + heavyDrift;
   const nextRoundCountdown = !roundActive && status?.nextRoundAt ? Math.max(0, Math.floor((new Date(status.nextRoundAt).getTime() - now) / 1_000)) : 0;
   const displayCountdown = roundActive ? formatClock(remaining) : nextRoundCountdown ? formatClock(nextRoundCountdown) : loaded ? "WAITING" : "LOADING...";
-  const episodeLabel = status?.currentRound ? `ROUND ${Number(status.currentRound)}` : loaded ? "NO LIVE ROUND" : "LOADING...";
+  const episodeLabel = status?.currentRound ? `DRAW ${Number(status.currentRound)}` : loaded ? "NO LIVE DRAW" : "LOADING...";
   const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports;
 
   return (
     <section className="spectator-board home-spectator-board" aria-label="Live spectator dashboard">
       <header>
-        <span>LIVE ROUND / SPECTATOR BOARD</span>
-        <h2>{roundActive ? "THE DILEMMA IS LIVE." : "NEXT DILEMMA LOADING."}</h2>
-        <p>Watch the signal. The closer it gets to zero, the harder the room becomes to read.</p>
+        <span>LIVE BINGO / SPECTATOR BOARD</span>
+        <h2>{roundActive ? "THE DRAW IS LIVE." : "NEXT DRAW LOADING."}</h2>
+        <p>Watch the board fill. Every eligible wallet becomes a card in the live draw.</p>
       </header>
       <div className="spectator-grid">
         <article className="spectator-countdown-card">
-          <span>CURRENT ROUND</span>
+          <span>CURRENT DRAW</span>
           <strong>{episodeLabel}</strong>
-          <small>{roundActive ? "ROUND ENDS IN" : "NEXT ROUND IN"}</small>
+          <small>{roundActive ? "DRAW REVEALS IN" : "NEXT DRAW IN"}</small>
           <b>{displayCountdown}</b>
         </article>
         <article className="spectator-audience-card">
-          <span>{revealing ? "REVEALING FINAL DECISIONS..." : finalSignal ? "FINAL WEIGHTED RESULT" : signalLocked ? "FINAL MINUTE — SIGNAL LOCKED" : heavyObfuscation ? "FINAL FOUR — SIGNAL HEAVILY OBFUSCATED" : roundActive ? "AUDIENCE SIGNAL — LIVE, NOT FINAL" : "DILEMMA SIGNAL FORMING"}</span>
-          {revealing ? <strong>THE REVEAL IS UNDERWAY</strong> : finalSignal ? <><div className="spectator-signal"><i style={{ width: `${finalHoldPercent}%` }} /><b style={{ width: `${100 - finalHoldPercent}%` }} /></div><p><b>HOLD {finalHoldPercent}%</b><b>JEET {100 - finalHoldPercent}%</b></p></> : signalLocked ? <div className="spectator-blackout"><strong>{formatClock(remaining)}</strong><small>Final decisions are hidden until the reveal.</small></div> : heavyObfuscation ? <><div className="spectator-signal is-heavy-obfuscated"><i style={{ width: `${heavyHold}%` }} /><b style={{ width: `${100 - heavyHold}%` }} /></div><p><b>HOLD ???</b><b>JEET ???</b></p><small>The room is nearly unreadable.</small></> : showSignal ? <><div className="spectator-signal"><i style={{ width: `${signal.hodl}%` }} /><b style={{ width: `${signal.noHodl}%` }} /></div><p><b>HOLD {signal.hodl}%</b><b>JEET {signal.noHodl}%</b></p></> : <strong>{displayCountdown}</strong>}
-          <dl><div><dt>ACTIVE HOLDERS</dt><dd>{status?.activeHolders != null ? status.activeHolders.toLocaleString() : loaded ? "UNAVAILABLE" : "LOADING..."}</dd></div><div><dt>LONGEST STREAK</dt><dd>{status?.longestStreakDays != null ? `${status.longestStreakDays} DAYS` : loaded ? "UNAVAILABLE" : "LOADING..."}</dd></div></dl>
+          <span>{revealing ? "REVEALING WINNING CARD..." : finalSignal ? "FINAL DRAW RESULT" : signalLocked ? "FINAL MINUTE — BOARD LOCKED" : heavyObfuscation ? "FINAL FOUR — BOARD OBFUSCATED" : roundActive ? "BOARD SIGNAL — LIVE, NOT FINAL" : "BINGO BOARD FORMING"}</span>
+          {revealing ? <strong>THE REVEAL IS UNDERWAY</strong> : finalSignal ? <><div className="spectator-signal"><i style={{ width: `${finalHoldPercent}%` }} /><b style={{ width: `${100 - finalHoldPercent}%` }} /></div><p><b>CARDS {finalHoldPercent}%</b><b>POOL {100 - finalHoldPercent}%</b></p></> : signalLocked ? <div className="spectator-blackout"><strong>{formatClock(remaining)}</strong><small>The winning card is hidden until reveal.</small></div> : heavyObfuscation ? <><div className="spectator-signal is-heavy-obfuscated"><i style={{ width: `${heavyHold}%` }} /><b style={{ width: `${100 - heavyHold}%` }} /></div><p><b>CARDS ???</b><b>POOL ???</b></p><small>The board is nearly unreadable.</small></> : showSignal ? <><div className="spectator-signal"><i style={{ width: `${signal.hodl}%` }} /><b style={{ width: `${signal.noHodl}%` }} /></div><p><b>CARDS {signal.hodl}%</b><b>POOL {signal.noHodl}%</b></p></> : <strong>{displayCountdown}</strong>}
+          <dl><div><dt>ACTIVE CARDS</dt><dd>{status?.activeHolders != null ? status.activeHolders.toLocaleString() : loaded ? "UNAVAILABLE" : "LOADING..."}</dd></div><div><dt>TOP STREAK</dt><dd>{status?.longestStreakDays != null ? `${status.longestStreakDays} DAYS` : loaded ? "UNAVAILABLE" : "LOADING..."}</dd></div></dl>
         </article>
         <article className="spectator-box-card">
-          <span>LIVE FEE POT</span>
+          <span>LIVE BINGO POOL</span>
           <div className="spectator-mini-box" aria-hidden="true">$</div>
-          <strong>{pot == null ? loaded ? "UNAVAILABLE" : "LOADING..." : Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POT FORMING"}</strong>
+          <strong>{pot == null ? loaded ? "UNAVAILABLE" : "LOADING..." : Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POOL FORMING"}</strong>
           <small>$DILEMMA · CREATOR FEES</small>
           {status?.potRolloverCount ? <div><span>ROLLOVER</span><b>{status.potRolloverCount}X</b></div> : null}
         </article>

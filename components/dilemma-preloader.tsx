@@ -91,7 +91,7 @@ export function DilemmaPreloader() {
   if (!active) return null;
 
   return (
-    <div className={`dilemma-preloader is-${step}`} role="dialog" aria-modal="true" aria-label="Holders Dilemma intro">
+    <div className={`dilemma-preloader is-${step}`} role="dialog" aria-modal="true" aria-label="On-Chain Bingo intro">
       <button type="button" className="dilemma-preloader__skip" onClick={finish}>
         SKIP
       </button>
@@ -105,13 +105,13 @@ export function DilemmaPreloader() {
       </div>
 
       <div className="dilemma-preloader__copy" aria-live="polite">
-        {step === "incoming" ? <p>INCOMING DILEMMA...</p> : null}
-        {step === "choice" ? <p>YOU HAVE A CHOICE.</p> : null}
+        {step === "incoming" ? <p>ON-CHAIN BINGO...</p> : null}
+        {step === "choice" ? <p>FIND YOUR CARD.</p> : null}
         {step === "pill" ? (
           <p className="dilemma-preloader__decision">
-            <span>HOLD</span>
+            <span>1M</span>
             <em>OR</em>
-            <span>JEET</span>
+            <span>BINGO</span>
           </p>
         ) : null}
       </div>

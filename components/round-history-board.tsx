@@ -4,17 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 import { lamportsToSol, protocolRequest, type RoundHistoryEntry } from "@/lib/protocol-api";
 
 const resultLabel = (entry: RoundHistoryEntry) => {
-  if (entry.result === "HOLD") return "HOLD";
-  if (entry.result === "JEET") return "JEET";
+  if (entry.result === "HOLD") return "ROLLED";
+  if (entry.result === "JEET") return "WINNER";
   if (entry.result === "LIVE") return "LIVE";
   return "CLOSED";
 };
 
 const resultDetail = (entry: RoundHistoryEntry) => {
-  if (entry.result === "HOLD") return "Pot rolled forward";
-  if (entry.result === "JEET") return "Fees paid to JEET";
-  if (entry.result === "LIVE") return "Spin in progress";
-  return "Round closed";
+  if (entry.result === "HOLD") return "Pool rolled into the next draw";
+  if (entry.result === "JEET") return "Winning card paid";
+  if (entry.result === "LIVE") return "Draw in progress";
+  return "Draw closed";
 };
 
 export function RoundHistoryBoard() {
@@ -47,9 +47,9 @@ export function RoundHistoryBoard() {
   return (
     <section className="roulette-history-board" aria-labelledby="roulette-history-title">
       <header>
-        <span>PREVIOUS ROUNDS / ON-CHAIN ROULETTE</span>
-        <h2 id="roulette-history-title">THE TABLE REMEMBERS.</h2>
-        <p>Every settled round lands on one side: HOLD rolls the pot forward. JEET pays the fee pot to the winning side.</p>
+        <span>PREVIOUS DRAWS / ON-CHAIN BINGO</span>
+        <h2 id="roulette-history-title">THE BOARD REMEMBERS.</h2>
+        <p>Every settled draw prints a result: winner paid, pool rolled, or jackpot triggered.</p>
       </header>
 
       {visibleRounds.length ? (
@@ -59,7 +59,7 @@ export function RoundHistoryBoard() {
               <article className={`roulette-spin is-${entry.result.toLowerCase()}`} key={entry.roundNumber}>
                 <small>R{entry.roundNumber.padStart(3, "0")}</small>
                 <strong>{resultLabel(entry)}</strong>
-                <span>{entry.holdPercent === null ? "SIGNAL HIDDEN" : `${Math.round(entry.holdPercent)} / ${Math.round(entry.jeetPercent ?? 0)}`}</span>
+                <span>{entry.holdPercent === null ? "RESULT HIDDEN" : `${Math.round(entry.holdPercent)} / ${Math.round(entry.jeetPercent ?? 0)}`}</span>
               </article>
             ))}
           </div>
@@ -71,21 +71,21 @@ export function RoundHistoryBoard() {
               <p>{lastSettled ? resultDetail(lastSettled) : "The current spin is still resolving."}</p>
             </article>
             <article>
-              <span>LAST BOX</span>
+              <span>LAST POOL</span>
               <strong>{lastSettled ? `${lamportsToSol(lastSettled.potLamports)} SOL` : "—"}</strong>
               <p>{lastSettled?.result === "HOLD" ? `${lamportsToSol(lastSettled.rolloverLamports)} SOL rolled` : lastSettled?.result === "JEET" ? `${lamportsToSol(lastSettled.paidLamports)} SOL paid` : "Appears after the reveal."}</p>
             </article>
             <article>
               <span>BOARD STATE</span>
               <strong>{rounds[0]?.result === "LIVE" ? "SPINNING" : "READY"}</strong>
-              <p>{rounds[0]?.result === "LIVE" ? "Current round is on the wheel." : "Next result prints after settlement."}</p>
+              <p>{rounds[0]?.result === "LIVE" ? "Current bingo draw is live." : "Next result prints after settlement."}</p>
             </article>
           </div>
         </>
       ) : (
         <div className="roulette-history-empty">
-          <strong>{loaded ? "ROUND HISTORY STARTS AFTER THE FIRST REVEAL." : "LOADING THE TABLE..."}</strong>
-          <span>No fake spins. The board fills with real settled rounds.</span>
+          <strong>{loaded ? "DRAW HISTORY STARTS AFTER THE FIRST REVEAL." : "LOADING THE BOARD..."}</strong>
+          <span>No fake draws. The board fills with real settled rounds.</span>
         </div>
       )}
     </section>

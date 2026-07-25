@@ -7,7 +7,7 @@ export function ShowBrand({ href = "/" }: { href?: string }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/holders-dilemma-logo-small.jpg" alt="" width="76" height="76" decoding="async" />
       </span>
-      <span>HOLDERS <em>DILEMMA</em><span>$DILEMMA</span></span>
+      <span>ON-CHAIN <em>BINGO</em><span>$DILEMMA</span></span>
     </Link>
   );
 }
