@@ -12,15 +12,13 @@ const chapters = [
   ["06", "YOUR CARD", "SEARCH. ZOOM. WATCH.", "Connect or search a wallet to find its ticket on the board. The interface zooms to that card so players can watch their spot live."],
 ] as const;
 
-const ladder = [["NEW", "BASE", "PAPER"], ["1 HOUR", "+20%", "PAPER"], ["2 HOURS", "+50%", "IRON"], ["6 HOURS", "2.0×", "IRON"], ["1 DAY", "2.5×", "DIAMOND"], ["3 DAYS", "3.0×", "DIAMOND"], ["7 DAYS", "4.0× CAP", "OBSIDIAN"]];
-
 function RuleVisual({ number }: { number: string }) {
   if (number === "01") return <div className="rule-diagram fee"><strong>1M TOKENS</strong><i>↓</i><span>1 LIVE BINGO TICKET<br /><b>WALLET = PLAYER CARD</b></span></div>;
   if (number === "02") return <div className="rule-diagram fee"><strong>CREATOR FEES</strong><i>↓</i><span>80% MAIN POOL · 20% JACKPOT<br /><b>FAST BINGO DRAW</b></span></div>;
   if (number === "03") return <div className="rule-diagram line"><span>SPIN → MARK → REVEAL</span><i><b /></i><strong>LIVE BOARD</strong></div>;
   if (number === "04") return <div className="rule-diagram math"><span>BINGO</span><i>→</i><strong>WINNER PAID</strong></div>;
   if (number === "05") return <div className="rule-diagram math"><span>RARE HIT</span><i>→</i><strong>JACKPOT SPIN</strong></div>;
-  return <div className="rule-ladder">{ladder.map(([held, boost, tier]) => <div key={held}><span>{held}</span><strong>{boost}</strong><b>{tier}</b></div>)}</div>;
+  return <div className="rule-diagram fee"><strong>PASTE A WALLET</strong><i>↓</i><span>OPEN ITS BOOK OF CARDS<br /><b>WATCH EVERY CALL LAND</b></span></div>;
 }
 
 export function RulesExperience() {

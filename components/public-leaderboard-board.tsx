@@ -12,7 +12,7 @@ export function PublicLeaderboardBoard({ limit = 25 }: { limit?: number }) {
       <header>
         <span>LIVE BINGO RANKING</span>
         <h2>TOP CARDS.</h2>
-        <p>Wallet · ticket score · tier · total SOL paid · wins / losses</p>
+        <p>Wallet · ticket score · cards · total SOL paid · wins / jackpots</p>
       </header>
       {entries.length ? (
         <div className="broadcast-table-wrap">
@@ -24,7 +24,7 @@ export function PublicLeaderboardBoard({ limit = 25 }: { limit?: number }) {
                 <th>Score</th>
                 <th>Tier</th>
                 <th>SOL Paid</th>
-                <th>W / L</th>
+                <th>W / JP</th>
               </tr>
             </thead>
             <tbody>

@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -16,6 +16,16 @@ import nacl from "tweetnacl";
 import { z } from "zod";
 
 import { parseKeypairValue } from "./keypairs.js";
+import {
+  cardCountForBalance,
+  generateBingoCard,
+  generateDrawOrder,
+  jackpotHits,
+  numberLabel,
+  seedCommitment,
+  selectWinningCard,
+  type BingoEntry,
+} from "./bingo.js";
 
 type PumpSdkClient = {
   getCreatorVaultBalanceBothPrograms(creator: PublicKey): Promise<{ toString(): string }>;
@@ -38,15 +48,22 @@ const envSchema = z.object({
   KEEPER_KEYPAIR_BASE64: z.string().optional(),
   PUMP_CREATOR_PRIVATE_KEY: z.string().optional(),
   PUMP_CREATOR_KEYPAIR_BASE64: z.string().optional(),
+  JACKPOT_PRIVATE_KEY: z.string().optional(),
+  JACKPOT_KEYPAIR_BASE64: z.string().optional(),
   BANKER_PRIVATE_KEY: z.string().optional(),
   BANKER_KEYPAIR_BASE64: z.string().optional(),
   BOX_WALLET_ADDRESS: z.string().optional(),
+  JACKPOT_WALLET_ADDRESS: z.string().optional(),
   BANKER_WALLET_ADDRESS: z.string().optional(),
   AIRDROP_WALLET_ADDRESS: z.string().optional(),
   FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
   ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(900),
+  BINGO_CALLS_PER_GAME: z.coerce.number().int().min(4).max(75).default(20),
+  BINGO_JACKPOT_ODDS: z.coerce.number().int().min(1).max(10_000).default(25),
   DECISION_WINDOW_SECONDS: z.coerce.number().int().positive().default(900),
   COOPERATION_THRESHOLD_BPS: z.coerce.number().int().min(1).max(10_000).default(5_000),
+  MAIN_ALLOCATION_BPS: z.coerce.number().int().min(1).max(10_000).optional(),
+  JACKPOT_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).optional(),
   BOX_ALLOCATION_BPS: z.coerce.number().int().min(1).max(10_000).default(8_000),
   BANKER_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).default(2_000),
   AIRDROP_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).default(0),
@@ -59,6 +76,8 @@ const envSchema = z.object({
 
 const env = envSchema.parse(process.env);
 const decisionWindowSeconds = env.DECISION_WINDOW_SECONDS;
+const mainAllocationBps = env.MAIN_ALLOCATION_BPS ?? env.BOX_ALLOCATION_BPS;
+const jackpotAllocationBps = env.JACKPOT_ALLOCATION_BPS ?? env.BANKER_ALLOCATION_BPS;
 const connection = new Connection(env.SOLANA_RPC_URL, "confirmed");
 const clusterName = "mainnet-beta";
 const sessionKey = env.SESSION_SECRET ? new TextEncoder().encode(env.SESSION_SECRET) : undefined;
@@ -93,10 +112,13 @@ function optionalKeypair(name: string, value?: string) {
 
 const keeperPrivateKey = env.KEEPER_PRIVATE_KEY ?? env.KEEPER_KEYPAIR_BASE64;
 const pumpCreatorPrivateKey = env.PUMP_CREATOR_PRIVATE_KEY ?? env.PUMP_CREATOR_KEYPAIR_BASE64;
-const bankerPrivateKey = env.BANKER_PRIVATE_KEY ?? env.BANKER_KEYPAIR_BASE64;
+const jackpotPrivateKey = env.JACKPOT_PRIVATE_KEY
+  ?? env.JACKPOT_KEYPAIR_BASE64
+  ?? env.BANKER_PRIVATE_KEY
+  ?? env.BANKER_KEYPAIR_BASE64;
 const keeper = optionalKeypair("KEEPER_PRIVATE_KEY", keeperPrivateKey);
 const pumpCreator = optionalKeypair("PUMP_CREATOR_PRIVATE_KEY", pumpCreatorPrivateKey);
-const bankerSigner = optionalKeypair("BANKER_PRIVATE_KEY", bankerPrivateKey);
+const jackpotSigner = optionalKeypair("JACKPOT_PRIVATE_KEY", jackpotPrivateKey);
 const boxPayoutWallet = pumpCreator ?? keeper;
 const optionalPublicKey = (name: string, value?: string) => {
   if (!value) return undefined;
@@ -104,13 +126,18 @@ const optionalPublicKey = (name: string, value?: string) => {
   catch { keypairWarnings.push(`${name}: Invalid public key.`); return undefined; }
 };
 const boxWalletAddress = optionalPublicKey("BOX_WALLET_ADDRESS", env.BOX_WALLET_ADDRESS) ?? boxPayoutWallet?.publicKey;
-const bankerWalletAddress = optionalPublicKey("BANKER_WALLET_ADDRESS", env.BANKER_WALLET_ADDRESS) ?? bankerSigner?.publicKey;
-const airdropWalletAddress = optionalPublicKey("AIRDROP_WALLET_ADDRESS", env.AIRDROP_WALLET_ADDRESS) ?? bankerWalletAddress;
-if (env.BOX_ALLOCATION_BPS + env.BANKER_ALLOCATION_BPS + env.AIRDROP_ALLOCATION_BPS !== 10_000) {
-  keypairWarnings.push("BOX_ALLOCATION_BPS, BANKER_ALLOCATION_BPS, and AIRDROP_ALLOCATION_BPS must total 10000.");
+const jackpotWalletAddress = optionalPublicKey(
+  "JACKPOT_WALLET_ADDRESS",
+  env.JACKPOT_WALLET_ADDRESS ?? env.BANKER_WALLET_ADDRESS,
+) ?? jackpotSigner?.publicKey;
+if (mainAllocationBps + jackpotAllocationBps !== 10_000) {
+  keypairWarnings.push("MAIN_ALLOCATION_BPS and JACKPOT_ALLOCATION_BPS must total 10000.");
 }
-if (bankerSigner && bankerWalletAddress && !bankerSigner.publicKey.equals(bankerWalletAddress)) {
-  keypairWarnings.push("BANKER_PRIVATE_KEY does not match BANKER_WALLET_ADDRESS.");
+if (env.AIRDROP_ALLOCATION_BPS !== 0) {
+  keypairWarnings.push("AIRDROP_ALLOCATION_BPS is legacy and must be 0 for Bingo.");
+}
+if (jackpotSigner && jackpotWalletAddress && !jackpotSigner.publicKey.equals(jackpotWalletAddress)) {
+  keypairWarnings.push("JACKPOT_PRIVATE_KEY does not match JACKPOT_WALLET_ADDRESS.");
 }
 if (boxPayoutWallet && boxWalletAddress && !boxPayoutWallet.publicKey.equals(boxWalletAddress)) {
   keypairWarnings.push("The pot payout key does not match BOX_WALLET_ADDRESS.");
@@ -169,6 +196,52 @@ type DbRoundHistory = {
   weighted_hodl_bps?: number | null;
   voter_count: number;
   settled_at?: string | null;
+};
+
+type BingoConfig = {
+  token_mint: string;
+  cluster: string;
+  current_game: number | string;
+  main_pool_lamports: number | string;
+  jackpot_pool_lamports: number | string;
+  game_length_seconds: number;
+  calls_per_game: number;
+  jackpot_odds: number;
+  next_game_at: string | null;
+  game_active: boolean;
+  paused: boolean;
+};
+
+type BingoGame = {
+  game_number: number | string;
+  status: "open" | "drawing" | "settled" | "rolled_over" | "failed";
+  opened_at: string;
+  closes_at: string;
+  snapshot_slot: number | string;
+  seed_commitment: string;
+  seed_reveal: string | null;
+  called_numbers: number[];
+  calls_per_game: number;
+  player_count: number;
+  card_count: number;
+  main_pot_lamports: number | string;
+  jackpot_pot_lamports: number | string;
+  rollover_lamports: number | string;
+  winner_wallet: string | null;
+  winner_card_index: number | null;
+  winner_card: number[] | null;
+  winning_call_index: number | null;
+  payout_lamports: number | string;
+  jackpot_triggered: boolean;
+  jackpot_payout_lamports: number | string;
+  settlement_signature: string | null;
+  settled_at: string | null;
+};
+
+type BingoEntryRow = {
+  wallet: string;
+  snapshot_balance: number | string;
+  card_count: number;
 };
 
 const dbOpenRoundStatuses = [
@@ -319,6 +392,54 @@ function minimumHoldingBaseUnits(decimals: number) {
 
 async function fetchMintHolders() {
   if (!tokenMint) return new Map<string, bigint>();
+
+  try {
+    const balances = new Map<string, bigint>();
+    let cursor: string | undefined;
+    do {
+      const response = await fetch(env.SOLANA_RPC_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "bingo-holder-snapshot",
+          method: "getTokenAccounts",
+          params: {
+            mint: tokenMint.toBase58(),
+            ...(cursor ? { cursor } : {}),
+            limit: 1_000,
+            options: { showZeroBalance: false },
+          },
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      const payload = await response.json() as {
+        error?: { message?: string };
+        result?: {
+          cursor?: string;
+          token_accounts?: Array<{
+            owner: string;
+            amount: number | string;
+            frozen?: boolean;
+            burnt?: boolean;
+          }>;
+        };
+      };
+      if (!response.ok || payload.error || !payload.result?.token_accounts) {
+        throw new Error(payload.error?.message ?? "DAS token-account snapshot unavailable.");
+      }
+      for (const account of payload.result.token_accounts) {
+        if (account.frozen || account.burnt) continue;
+        const amount = BigInt(String(account.amount));
+        if (amount > 0n) balances.set(account.owner, (balances.get(account.owner) ?? 0n) + amount);
+      }
+      cursor = payload.result.cursor || undefined;
+    } while (cursor);
+    return balances;
+  } catch (error) {
+    console.warn("DAS holder snapshot unavailable; falling back to SPL token accounts.", error instanceof Error ? error.message : "unknown");
+  }
+
   const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, {
     commitment: "confirmed",
     filters: [{ dataSize: 165 }, { memcmp: { offset: 0, bytes: tokenMint.toBase58() } }],
@@ -373,7 +494,7 @@ async function sendDirectPayout(roundNumber: string, wallet: string, amount: big
   const idempotencyKey = `${roundNumber}:${kind}:${wallet}`;
   await writeAudit({ idempotencyKey, action: kind, status: "dry_run", roundNumber, wallet, amountLamports: amount, payload: { directPayout: true } });
   if (!env.PAYOUT_ENABLED) return null;
-  const payoutSigner = kind === "banker_deal" ? bankerSigner : boxPayoutWallet;
+  const payoutSigner = kind === "banker_deal" ? jackpotSigner : boxPayoutWallet;
   if (!payoutSigner) throw new Error(`${kind === "banker_deal" ? "Reserve" : "Pot"} payout wallet is not configured.`);
 
   const { data: existing, error: existingError } = await db.from("audit_log").select("status,transaction_signature").eq("idempotency_key", idempotencyKey).maybeSingle<{ status: string; transaction_signature: string | null }>();
@@ -479,10 +600,41 @@ function betweenRoundsSummary(liveBalance: bigint, streakStartedAt: string | nul
 
 async function safePlayerRoundSummary(wallet: string, liveBalance: bigint, streakStartedAt: string | null) {
   try {
-    return await playerRoundSummary(wallet, liveBalance, streakStartedAt);
+    const db = requireDb();
+    const config = await ensureBingoConfig();
+    const game = await fetchCurrentBingoGame(config);
+    if (!game) return betweenRoundsSummary(liveBalance, streakStartedAt);
+
+    const [{ data: entry, error: entryError }, { data: allEntries, error: entriesError }] = await Promise.all([
+      db.from("bingo_entries")
+        .select("snapshot_balance,card_count")
+        .eq("game_number", String(game.game_number))
+        .eq("wallet", wallet)
+        .maybeSingle<{ snapshot_balance: string; card_count: number }>(),
+      db.from("bingo_entries")
+        .select("card_count")
+        .eq("game_number", String(game.game_number)),
+    ]);
+    if (entryError || entriesError) throw entryError ?? entriesError;
+
+    const snapshotBalance = bigintValue(entry?.snapshot_balance ?? liveBalance);
+    const playerCards = Number(entry?.card_count ?? 0);
+    const totalCards = (allEntries ?? []).reduce((sum, row) => sum + Number(row.card_count ?? 0), 0);
+    const projectedShare = playerCards > 0 && totalCards > 0
+      ? (bigintValue(game.main_pot_lamports) * BigInt(playerCards)) / BigInt(totalCards)
+      : 0n;
+    return {
+      snapshotBalance: snapshotBalance.toString(),
+      multiplierBps: 10_000,
+      playerWeight: playerCards.toString(),
+      bankerOfferLamports: "0",
+      projectedShareLamports: projectedShare.toString(),
+      participationStatus: playerCards > 0 ? "entered" : "spectator",
+      soldThisRound: false,
+    };
   } catch (error) {
     if (!isMissingSchemaObject(error)) throw error;
-    console.error("player round summary unavailable until database migration completes", error);
+    console.error("bingo player summary unavailable until database migration completes", error);
     return betweenRoundsSummary(liveBalance, streakStartedAt);
   }
 }
@@ -635,6 +787,8 @@ async function syncHolder(wallet: PublicKey) {
       .from("holders")
       .update({
         token_balance_raw: "0",
+        position_amount: "0",
+        card_count: 0,
         streak_started_at: null,
         streak_seconds: "0",
         tier: 0,
@@ -672,7 +826,11 @@ async function syncHolder(wallet: PublicKey) {
 
   const row = {
     wallet_address: walletAddress,
+    wallet: walletAddress,
+    position_amount: eligibleAmount.toString(),
     token_balance_raw: eligibleAmount.toString(),
+    card_count: cardCountForBalance(eligibleAmount, minimumHolding),
+    leaderboard_score: eligibleAmount.toString(),
     supply_bps: 0,
     streak_started_at: streakStartedAt,
     streak_seconds: streakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(streakStartedAt).getTime()) / 1000)).toString() : "0",
@@ -704,6 +862,354 @@ async function syncHolder(wallet: PublicKey) {
     } : null,
     ...await safePlayerRoundSummary(walletAddress, balance.amount, streakStartedAt),
   };
+}
+
+async function ensureBingoConfig() {
+  const db = requireDb();
+  if (!tokenMint) throw new Error("TOKEN_MINT is not configured.");
+  const { data, error } = await db
+    .from("bingo_config")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle<BingoConfig>();
+  if (error) throw error;
+
+  const desired = {
+    token_mint: tokenMint.toBase58(),
+    cluster: clusterName,
+    game_length_seconds: env.ROUND_LENGTH_SECONDS,
+    calls_per_game: env.BINGO_CALLS_PER_GAME,
+    jackpot_odds: env.BINGO_JACKPOT_ODDS,
+  };
+  if (!data) {
+    const { data: created, error: createError } = await db
+      .from("bingo_config")
+      .insert({
+        id: true,
+        ...desired,
+        current_game: "0",
+        main_pool_lamports: "0",
+        jackpot_pool_lamports: "0",
+        next_game_at: nowIso(),
+        game_active: false,
+        paused: false,
+      })
+      .select("*")
+      .single<BingoConfig>();
+    if (createError) throw createError;
+    return created;
+  }
+
+  const needsUpdate = data.token_mint !== desired.token_mint
+    || data.cluster !== desired.cluster
+    || Number(data.game_length_seconds) !== desired.game_length_seconds
+    || Number(data.calls_per_game) !== desired.calls_per_game
+    || Number(data.jackpot_odds) !== desired.jackpot_odds
+    || !data.next_game_at;
+  if (!needsUpdate) return data;
+  const { data: updated, error: updateError } = await db
+    .from("bingo_config")
+    .update({ ...desired, next_game_at: data.next_game_at ?? nowIso(), updated_at: nowIso() })
+    .eq("id", true)
+    .select("*")
+    .single<BingoConfig>();
+  if (updateError) throw updateError;
+  return updated;
+}
+
+async function fetchCurrentBingoGame(config: BingoConfig) {
+  if (bigintValue(config.current_game) <= 0n) return null;
+  const db = requireDb();
+  const { data, error } = await db
+    .from("bingo_games")
+    .select("*")
+    .eq("game_number", String(config.current_game))
+    .maybeSingle<BingoGame>();
+  if (error) throw error;
+  return data;
+}
+
+async function sendBingoPayout(
+  gameNumber: string,
+  wallet: string,
+  amount: bigint,
+  kind: "main" | "jackpot",
+) {
+  if (amount <= 0n) return null;
+  const db = requireDb();
+  const idempotencyKey = `bingo:${gameNumber}:${wallet}:${kind}`;
+  const action = kind === "main" ? "bingo_main_payout" : "bingo_jackpot_payout";
+  await writeAudit({
+    idempotencyKey,
+    action,
+    status: "dry_run",
+    roundNumber: gameNumber,
+    wallet,
+    amountLamports: amount,
+    payload: { gameNumber, payoutKind: kind },
+  });
+  const { error: payoutPlanError } = await db.from("bingo_payouts").upsert({
+    game_number: gameNumber,
+    wallet,
+    payout_kind: kind,
+    amount_lamports: amount.toString(),
+    idempotency_key: idempotencyKey,
+    status: "dry_run",
+    updated_at: nowIso(),
+  }, { onConflict: "game_number,wallet,payout_kind", ignoreDuplicates: true });
+  if (payoutPlanError) throw payoutPlanError;
+  if (!env.PAYOUT_ENABLED || !env.SWEEP_ENABLED) return null;
+
+  const signer = kind === "main" ? boxPayoutWallet : jackpotSigner;
+  if (!signer) throw new Error(`${kind === "main" ? "Main pool" : "Jackpot"} payout signer is not configured.`);
+  const { data: claimed, error: claimError } = await db
+    .from("bingo_payouts")
+    .update({ status: "broadcast", error_message: null, updated_at: nowIso() })
+    .eq("idempotency_key", idempotencyKey)
+    .eq("status", "dry_run")
+    .select("idempotency_key")
+    .maybeSingle<{ idempotency_key: string }>();
+  if (claimError) throw claimError;
+  if (!claimed) {
+    const { data: existing, error: existingError } = await db
+      .from("bingo_payouts")
+      .select("status,transaction_signature")
+      .eq("idempotency_key", idempotencyKey)
+      .single<{ status: string; transaction_signature: string | null }>();
+    if (existingError) throw existingError;
+    if (existing.status === "confirmed") return existing.transaction_signature;
+    throw new Error(`Payout ${idempotencyKey} requires reconciliation.`);
+  }
+  const { error: auditBroadcastError } = await db
+    .from("audit_log")
+    .update({ status: "broadcast", error_message: null, updated_at: nowIso() })
+    .eq("idempotency_key", idempotencyKey);
+  if (auditBroadcastError) throw auditBroadcastError;
+  try {
+    const latest = await connection.getLatestBlockhash("confirmed");
+    const transaction = new Transaction({
+      feePayer: signer.publicKey,
+      blockhash: latest.blockhash,
+      lastValidBlockHeight: latest.lastValidBlockHeight,
+    }).add(SystemProgram.transfer({
+      fromPubkey: signer.publicKey,
+      toPubkey: new PublicKey(wallet),
+      lamports: amount,
+    }));
+    const signature = await connection.sendTransaction(transaction, [signer], {
+      preflightCommitment: "confirmed",
+      maxRetries: 3,
+    });
+    await connection.confirmTransaction(signature, "confirmed");
+    await Promise.all([
+      db.from("bingo_payouts").update({
+        status: "confirmed",
+        transaction_signature: signature,
+        updated_at: nowIso(),
+      }).eq("idempotency_key", idempotencyKey),
+      db.from("audit_log").update({
+        status: "confirmed",
+        transaction_signature: signature,
+        updated_at: nowIso(),
+      }).eq("idempotency_key", idempotencyKey),
+    ]);
+    return signature;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Broadcast failed";
+    await Promise.all([
+      db.from("bingo_payouts").update({ error_message: errorMessage, updated_at: nowIso() })
+        .eq("idempotency_key", idempotencyKey),
+      db.from("audit_log").update({ error_message: errorMessage, updated_at: nowIso() })
+        .eq("idempotency_key", idempotencyKey),
+    ]);
+    throw error;
+  }
+}
+
+async function openBingoGame(config: BingoConfig) {
+  const db = requireDb();
+  const balances = await fetchMintHolders();
+  const decimals = await tokenSupplyDecimals();
+  const cardPrice = minimumHoldingBaseUnits(decimals);
+  const entries = Array.from(balances.entries())
+    .map(([wallet, balance]) => ({
+      wallet,
+      balance,
+      cardCount: cardCountForBalance(balance, cardPrice),
+    }))
+    .filter((entry) => entry.cardCount > 0);
+
+  if (!entries.length || bigintValue(config.main_pool_lamports) <= 0n) {
+    await db.from("bingo_config").update({
+      next_game_at: addSeconds(new Date(), 30),
+      updated_at: nowIso(),
+    }).eq("id", true);
+    return;
+  }
+
+  const gameNumber = (bigintValue(config.current_game) + 1n).toString();
+  const openedAt = new Date();
+  const closesAt = addSeconds(openedAt, Number(config.game_length_seconds));
+  const seed = randomBytes(32).toString("hex");
+  const mainPot = bigintValue(config.main_pool_lamports);
+  const jackpotPot = bigintValue(config.jackpot_pool_lamports);
+  const snapshotSlot = await connection.getSlot("confirmed");
+  const totalCards = entries.reduce((sum, entry) => sum + entry.cardCount, 0);
+
+  const { data: opened, error: openError } = await db.rpc("open_bingo_game", {
+    p_game_number: gameNumber,
+    p_opened_at: openedAt.toISOString(),
+    p_closes_at: closesAt,
+    p_snapshot_slot: snapshotSlot,
+    p_seed: seed,
+    p_seed_commitment: seedCommitment(seed),
+    p_calls_per_game: Number(config.calls_per_game),
+    p_main_pot_lamports: mainPot.toString(),
+    p_jackpot_pot_lamports: jackpotPot.toString(),
+    p_entries: entries.map((entry) => ({
+      wallet: entry.wallet,
+      balance: entry.balance.toString(),
+      cardCount: entry.cardCount,
+    })),
+  });
+  if (openError) throw openError;
+  if (!opened) return;
+
+  await db.from("protocol_events").insert({
+    event_type: "BINGO_GAME_OPENED",
+    round_number: gameNumber,
+    detail: `Game ${gameNumber} opened with ${entries.length} wallets and ${totalCards} cards.`,
+  });
+}
+
+async function revealScheduledBingoCalls(config: BingoConfig, game: BingoGame) {
+  if (!["open", "drawing"].includes(game.status)) return game.called_numbers ?? [];
+  const db = requireDb();
+  const { data: secret, error: secretError } = await db
+    .from("bingo_game_secrets")
+    .select("draw_seed")
+    .eq("game_number", String(game.game_number))
+    .single<{ draw_seed: string }>();
+  if (secretError) throw secretError;
+  const openedAt = new Date(game.opened_at).getTime();
+  const closesAt = new Date(game.closes_at).getTime();
+  const duration = Math.max(1, closesAt - openedAt);
+  const progress = Math.min(1, Math.max(0, (Date.now() - openedAt) / duration));
+  const expectedCount = Date.now() >= closesAt
+    ? Number(game.calls_per_game)
+    : Math.min(Number(game.calls_per_game), Math.floor(progress * Number(game.calls_per_game)));
+  const draw = generateDrawOrder(secret.draw_seed, String(game.game_number));
+  const nextCalls = draw.slice(0, expectedCount);
+  const existingCount = game.called_numbers?.length ?? 0;
+  if (nextCalls.length <= existingCount) return game.called_numbers ?? [];
+
+  const { error: updateError } = await db.from("bingo_games").update({
+    status: "drawing",
+    called_numbers: nextCalls,
+    updated_at: nowIso(),
+  }).eq("game_number", String(game.game_number));
+  if (updateError) throw updateError;
+  for (const number of nextCalls.slice(existingCount)) {
+    await db.from("protocol_events").insert({
+      event_type: "BINGO_NUMBER_CALLED",
+      round_number: String(game.game_number),
+      detail: `${numberLabel(number)} called.`,
+    });
+  }
+  return nextCalls;
+}
+
+async function settleBingoGame(config: BingoConfig, game: BingoGame) {
+  const db = requireDb();
+  const gameNumber = String(game.game_number);
+  if (["settled", "rolled_over"].includes(game.status)) return;
+  const [{ data: secret, error: secretError }, { data: entryRows, error: entriesError }] = await Promise.all([
+    db.from("bingo_game_secrets").select("draw_seed").eq("game_number", gameNumber).single<{ draw_seed: string }>(),
+    db.from("bingo_entries").select("wallet,snapshot_balance,card_count").eq("game_number", gameNumber),
+  ]);
+  if (secretError || entriesError) throw secretError ?? entriesError;
+
+  const calls = generateDrawOrder(secret.draw_seed, gameNumber).slice(0, Number(game.calls_per_game));
+  const entries: BingoEntry[] = ((entryRows ?? []) as BingoEntryRow[]).map((entry) => ({
+    wallet: entry.wallet,
+    cardCount: Number(entry.card_count),
+  }));
+  const winner = selectWinningCard(secret.draw_seed, gameNumber, entries, calls);
+  const mainPot = bigintValue(game.main_pot_lamports);
+  const jackpotPot = bigintValue(game.jackpot_pot_lamports);
+  const jackpotTriggered = Boolean(winner && jackpotPot > 0n && jackpotHits(
+    secret.draw_seed,
+    gameNumber,
+    Number(config.jackpot_odds),
+  ));
+  const mainPayout = winner ? mainPot : 0n;
+  const jackpotPayout = jackpotTriggered ? jackpotPot : 0n;
+
+  await writeAudit({
+    idempotencyKey: `bingo:settlement:${gameNumber}:dry-run`,
+    action: "bingo_settlement_plan",
+    status: "dry_run",
+    roundNumber: gameNumber,
+    amountLamports: mainPayout + jackpotPayout,
+    payload: {
+      seedCommitment: game.seed_commitment,
+      seedReveal: secret.draw_seed,
+      calledNumbers: calls,
+      winnerWallet: winner?.wallet ?? null,
+      winnerCardIndex: winner?.cardIndex ?? null,
+      winningCallIndex: winner?.completedAtCall ?? null,
+      mainPayoutLamports: mainPayout.toString(),
+      jackpotTriggered,
+      jackpotPayoutLamports: jackpotPayout.toString(),
+      mainRolloverLamports: winner ? "0" : mainPot.toString(),
+      jackpotRolloverLamports: jackpotTriggered ? "0" : jackpotPot.toString(),
+    },
+  });
+
+  let mainSignature: string | null = null;
+  let jackpotSignature: string | null = null;
+  if (winner) {
+    mainSignature = await sendBingoPayout(gameNumber, winner.wallet, mainPayout, "main");
+    if (jackpotTriggered) {
+      jackpotSignature = await sendBingoPayout(gameNumber, winner.wallet, jackpotPayout, "jackpot");
+    }
+  }
+
+  if (winner && (!env.PAYOUT_ENABLED || !env.SWEEP_ENABLED)) {
+    return;
+  }
+
+  const { data: finalized, error: finalizeError } = await db.rpc("finalize_bingo_game", {
+    p_game_number: gameNumber,
+    p_called_numbers: calls,
+    p_seed_reveal: secret.draw_seed,
+    p_winner_wallet: winner?.wallet ?? null,
+    p_winner_card_index: winner?.cardIndex ?? null,
+    p_winner_card: winner?.card ?? null,
+    p_winning_call_index: winner?.completedAtCall ?? null,
+    p_main_payout_lamports: mainPayout.toString(),
+    p_jackpot_triggered: jackpotTriggered,
+    p_jackpot_payout_lamports: jackpotPayout.toString(),
+    p_settlement_signature: mainSignature ?? jackpotSignature,
+  });
+  if (finalizeError) throw finalizeError;
+  if (!finalized) return;
+
+  if (winner) {
+    await db.from("protocol_events").insert({
+      event_type: jackpotTriggered ? "BINGO_JACKPOT_WINNER" : "BINGO_WINNER",
+      round_number: gameNumber,
+      wallet: winner.wallet,
+      detail: `${winner.wallet} completed card ${winner.cardIndex + 1} on call ${winner.completedAtCall}.`,
+      transaction_signature: mainSignature ?? jackpotSignature,
+    });
+  } else {
+    await db.from("protocol_events").insert({
+      event_type: "BINGO_NO_WINNER",
+      round_number: gameNumber,
+      detail: `No card completed. ${mainPot.toString()} lamports roll into the next game.`,
+    });
+  }
 }
 
 async function openRound(config: DbConfig) {
@@ -974,33 +1480,24 @@ async function keeperTick() {
   if (!supabase || !tokenMint || keeperBusy) return;
   keeperBusy = true;
   try {
-    const config = await ensureGameConfig();
+    const config = await ensureBingoConfig();
     if (config.paused) return;
-
     const now = Date.now();
-    const nextAt = config.next_round_at ? new Date(config.next_round_at).getTime() : 0;
-    const round = await fetchCurrentRound(config);
-
-    if (config.round_active && round && isOpenRoundStatus(round.status) && now >= nextAt) {
-      await settleRound(config, round);
-    }
-
-    if (config.round_active && round && isOpenRoundStatus(round.status)) {
-      const decisionAt = new Date(round.closes_at).getTime() - Number(config.decision_window_seconds ?? env.DECISION_WINDOW_SECONDS) * 1_000;
-      if (now >= decisionAt && now < new Date(round.closes_at).getTime()) {
-        const db = requireDb();
-        const { count } = await db.from("protocol_events").select("id", { count: "exact", head: true }).eq("event_type", "DECISION_WINDOW_OPENED").eq("round_number", String(round.round_number));
-        if (!count) await db.from("protocol_events").insert({ event_type: "DECISION_WINDOW_OPENED", round_number: String(round.round_number), detail: "The bingo board is open. Card actions are live." });
+    const game = await fetchCurrentBingoGame(config);
+    if (config.game_active && game && ["open", "drawing"].includes(game.status)) {
+      await revealScheduledBingoCalls(config, game);
+      if (now >= new Date(game.closes_at).getTime()) {
+        await settleBingoGame(config, game);
       }
     }
 
-    const freshConfig = await ensureGameConfig();
-    const freshNextAt = freshConfig.next_round_at ? new Date(freshConfig.next_round_at).getTime() : 0;
-    if (!freshConfig.round_active && now >= freshNextAt && bigintValue(freshConfig.available_pool_lamports) > 0n) {
-      await openRound(freshConfig);
+    const freshConfig = await ensureBingoConfig();
+    const nextAt = freshConfig.next_game_at ? new Date(freshConfig.next_game_at).getTime() : 0;
+    if (!freshConfig.game_active && now >= nextAt) {
+      await openBingoGame(freshConfig);
     }
   } catch (error) {
-    console.error("keeper tick failed", error);
+    console.error("bingo keeper tick failed", error);
   } finally {
     keeperBusy = false;
   }
@@ -1008,7 +1505,8 @@ async function keeperTick() {
 
 async function addCollectedFeesToPot(idempotencyKey: string) {
   const db = requireDb();
-  const { error } = await db.rpc("apply_confirmed_sweep", { p_idempotency_key: idempotencyKey });
+  await ensureBingoConfig();
+  const { error } = await db.rpc("apply_confirmed_bingo_sweep", { p_idempotency_key: idempotencyKey });
   if (error) throw error;
 }
 
@@ -1031,29 +1529,41 @@ async function collectPumpCreatorFees() {
     const available = await pumpSdk.getCreatorVaultBalanceBothPrograms(pumpCreator.publicKey);
     const amount = BigInt(available.toString());
     if (amount <= 0n) return;
-    const bankerAmount = (amount * BigInt(env.BANKER_ALLOCATION_BPS)) / 10_000n;
-    const airdropAmount = (amount * BigInt(env.AIRDROP_ALLOCATION_BPS)) / 10_000n;
-    if (bankerAmount > 0n && !bankerWalletAddress) throw new Error("Reserve wallet is not configured.");
-    if (airdropAmount > 0n && !airdropWalletAddress) throw new Error("Airdrop wallet is not configured.");
-    const boxAmount = amount - bankerAmount - airdropAmount;
+    const jackpotAmount = (amount * BigInt(jackpotAllocationBps)) / 10_000n;
+    if (jackpotAmount > 0n && !jackpotWalletAddress) throw new Error("Jackpot wallet is not configured.");
+    const mainAmount = amount - jackpotAmount;
     await writeAudit({ idempotencyKey, action: "creator_fee_sweep", status: "dry_run", amountLamports: amount, payload: {
       creator: pumpCreator.publicKey.toBase58(),
-      boxWallet: boxWalletAddress?.toBase58(),
-      bankerWallet: bankerWalletAddress?.toBase58() ?? null,
-      airdropWallet: airdropWalletAddress?.toBase58() ?? null,
-      boxAmountLamports: boxAmount.toString(),
-      bankerAmountLamports: bankerAmount.toString(),
-      airdropAmountLamports: airdropAmount.toString(),
-      boxAllocationBps: env.BOX_ALLOCATION_BPS,
-      bankerAllocationBps: env.BANKER_ALLOCATION_BPS,
-      airdropAllocationBps: env.AIRDROP_ALLOCATION_BPS,
+      mainWallet: boxWalletAddress?.toBase58(),
+      jackpotWallet: jackpotWalletAddress?.toBase58() ?? null,
+      mainAmountLamports: mainAmount.toString(),
+      jackpotAmountLamports: jackpotAmount.toString(),
+      mainAllocationBps,
+      jackpotAllocationBps,
       window: sweepWindow,
     } });
     if (!env.SWEEP_ENABLED) return;
-    const { data: existing, error: auditError } = await db.from("audit_log").select("status,transaction_signature").eq("idempotency_key", idempotencyKey).single<{ status: string; transaction_signature: string | null }>();
-    if (auditError) throw auditError;
-    if (existing.status === "confirmed") return;
-    await db.from("audit_log").update({ status: "broadcast", updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
+    const { data: claimed, error: claimError } = await db
+      .from("audit_log")
+      .update({ status: "broadcast", error_message: null, updated_at: nowIso() })
+      .eq("idempotency_key", idempotencyKey)
+      .eq("status", "dry_run")
+      .select("idempotency_key")
+      .maybeSingle<{ idempotency_key: string }>();
+    if (claimError) throw claimError;
+    if (!claimed) {
+      const { data: existing, error: auditError } = await db
+        .from("audit_log")
+        .select("status,transaction_signature")
+        .eq("idempotency_key", idempotencyKey)
+        .single<{ status: string; transaction_signature: string | null }>();
+      if (auditError) throw auditError;
+      if (existing.status === "confirmed") {
+        await addCollectedFeesToPot(idempotencyKey);
+        return;
+      }
+      throw new Error(`Sweep ${idempotencyKey} requires transaction reconciliation.`);
+    }
 
     const collectInstructions = await pumpSdk.collectCoinCreatorFeeInstructions(
       pumpCreator.publicKey,
@@ -1066,11 +1576,8 @@ async function collectPumpCreatorFees() {
       lastValidBlockHeight: latest.lastValidBlockHeight,
     }).add(
       ...collectInstructions,
-      ...(bankerAmount > 0n && bankerWalletAddress && !pumpCreator.publicKey.equals(bankerWalletAddress)
-        ? [SystemProgram.transfer({ fromPubkey: pumpCreator.publicKey, toPubkey: bankerWalletAddress, lamports: bankerAmount })]
-        : []),
-      ...(airdropAmount > 0n && airdropWalletAddress && !pumpCreator.publicKey.equals(airdropWalletAddress)
-        ? [SystemProgram.transfer({ fromPubkey: pumpCreator.publicKey, toPubkey: airdropWalletAddress, lamports: airdropAmount })]
+      ...(jackpotAmount > 0n && jackpotWalletAddress && !pumpCreator.publicKey.equals(jackpotWalletAddress)
+        ? [SystemProgram.transfer({ fromPubkey: pumpCreator.publicKey, toPubkey: jackpotWalletAddress, lamports: jackpotAmount })]
         : []),
     );
     const signature = await connection.sendTransaction(transaction, [pumpCreator], {
@@ -1082,7 +1589,12 @@ async function collectPumpCreatorFees() {
     await db.from("audit_log").update({ status: "confirmed", transaction_signature: signature, updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
     await addCollectedFeesToPot(idempotencyKey);
   } catch (error) {
-    if (!chainConfirmed && idempotencyKey && supabase) await supabase.from("audit_log").update({ status: "failed", error_message: error instanceof Error ? error.message : "Sweep failed", updated_at: nowIso() }).eq("idempotency_key", idempotencyKey);
+    if (!chainConfirmed && idempotencyKey && supabase) {
+      await supabase.from("audit_log").update({
+        error_message: error instanceof Error ? error.message : "Sweep failed",
+        updated_at: nowIso(),
+      }).eq("idempotency_key", idempotencyKey);
+    }
     console.error("pump creator fee collection failed", error);
   } finally {
     feeCollectorBusy = false;
@@ -1112,12 +1624,11 @@ const readinessChecks = () => ({
   database: Boolean(supabase),
   tokenMint: Boolean(tokenMint),
   sessionSecret: Boolean(sessionKey),
-  boxPayoutWallet: Boolean(boxPayoutWallet),
-  boxWalletAddress: Boolean(boxWalletAddress),
-  bankerWalletAddress: env.BANKER_ALLOCATION_BPS === 0 || Boolean(bankerWalletAddress),
-  bankerPayoutSigner: env.BANKER_ALLOCATION_BPS === 0 || !env.PAYOUT_ENABLED || Boolean(bankerSigner),
-  airdropWalletAddress: env.AIRDROP_ALLOCATION_BPS === 0 || Boolean(airdropWalletAddress),
-  pumpCreator: Boolean(pumpCreator),
+  mainPayoutSigner: !env.PAYOUT_ENABLED || Boolean(boxPayoutWallet),
+  mainWalletAddress: !env.PAYOUT_ENABLED || Boolean(boxWalletAddress),
+  jackpotWalletAddress: jackpotAllocationBps === 0 || Boolean(jackpotWalletAddress),
+  jackpotPayoutSigner: jackpotAllocationBps === 0 || !env.PAYOUT_ENABLED || Boolean(jackpotSigner),
+  pumpCreator: !env.SWEEP_ENABLED || Boolean(pumpCreator),
   keypairsValid: keypairWarnings.length === 0,
 });
 
@@ -1131,35 +1642,30 @@ const readinessResponse = async () => {
 
   if (supabase) {
     const { data, error: configError } = await supabase
-      .from("protocol_config")
-      .select("id,current_round,next_round_at,round_active,paused,available_pool_lamports")
+      .from("bingo_config")
+      .select("id,current_game,next_game_at,game_active,paused,main_pool_lamports")
       .eq("id", true)
       .maybeSingle<{
         id: boolean;
-        current_round: number | string;
-        next_round_at: string | null;
-        round_active: boolean;
+        current_game: number | string;
+        next_game_at: string | null;
+        game_active: boolean;
         paused: boolean;
-        available_pool_lamports: number | string;
+        main_pool_lamports: number | string;
       }>();
     databaseReachable = !configError;
     const requiredTables = [
-      "protocol_config",
-      "rounds",
+      "bingo_config",
+      "bingo_games",
+      "bingo_game_secrets",
+      "bingo_entries",
+      "bingo_payouts",
       "holders",
-      "round_votes",
-      "reward_claims",
       "protocol_events",
       "feed_events",
       "wallet_auth_nonces",
       "wallet_sessions",
-      "round_snapshots",
-      "sealed_choices",
-      "commitments",
-      "revealed_choices",
-      "audience_signals",
       "audit_log",
-      "worker_state",
     ];
     const tableResults = await Promise.all(requiredTables.map(async (table) => {
       const { error } = await supabase.from(table).select("*", { count: "exact", head: true });
@@ -1169,12 +1675,12 @@ const readinessResponse = async () => {
     databaseSchema = Object.entries(tableChecks).every(([table, ready]) => (
       ready || (table === "audit_log" && !env.SWEEP_ENABLED && !env.PAYOUT_ENABLED)
     ));
-    const nextRoundAt = data?.next_round_at ? new Date(data.next_round_at).getTime() : 0;
-    const hasFundedPot = bigintValue(data?.available_pool_lamports) > 0n;
+    const nextRoundAt = data?.next_game_at ? new Date(data.next_game_at).getTime() : 0;
+    const hasFundedPot = bigintValue(data?.main_pool_lamports) > 0n;
     schedulerCurrent = Boolean(
       data
       && !data.paused
-      && (data.round_active || !hasFundedPot || nextRoundAt >= Date.now() - 60_000),
+      && (data.game_active || !hasFundedPot || nextRoundAt >= Date.now() - 60_000),
     );
   }
 
@@ -1194,19 +1700,17 @@ const readinessResponse = async () => {
     tokenMint: tokenMint?.toBase58() ?? null,
     checks: deepChecks,
     tableChecks,
-    boxWallet: boxWalletAddress?.toBase58() ?? null,
-    bankerWallet: bankerWalletAddress?.toBase58() ?? null,
-    airdropWallet: airdropWalletAddress?.toBase58() ?? null,
+    mainWallet: boxWalletAddress?.toBase58() ?? null,
+    jackpotWallet: jackpotWalletAddress?.toBase58() ?? null,
     feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
-    roundLengthSeconds: env.ROUND_LENGTH_SECONDS,
-    minHoldingTokens: env.MIN_HOLDING_TOKENS,
+    gameLengthSeconds: env.ROUND_LENGTH_SECONDS,
+    tokensPerCard: env.MIN_HOLDING_TOKENS,
+    callsPerGame: env.BINGO_CALLS_PER_GAME,
+    jackpotOdds: env.BINGO_JACKPOT_ODDS,
     sweepEnabled: env.SWEEP_ENABLED,
     payoutEnabled: env.PAYOUT_ENABLED,
-    cooperationThresholdBps: env.COOPERATION_THRESHOLD_BPS,
-    boxAllocationBps: env.BOX_ALLOCATION_BPS,
-    bankerAllocationBps: env.BANKER_ALLOCATION_BPS,
-    airdropAllocationBps: env.AIRDROP_ALLOCATION_BPS,
-    decisionWindowSeconds,
+    mainAllocationBps,
+    jackpotAllocationBps,
     warnings: keypairWarnings,
   };
 };
@@ -1240,56 +1744,79 @@ app.get("/api/status", async (_req, res, next) => {
   try {
     await keeperTick();
     if (!supabase || !tokenMint) {
-      return res.json({ configured: false, cluster: clusterName, programId: "supabase-mainnet-game", tokenMint: tokenMint?.toBase58() ?? null });
+      return res.json({
+        configured: false,
+        cluster: clusterName,
+        programId: "supabase-bingo-engine",
+        tokenMint: tokenMint?.toBase58() ?? null,
+      });
     }
-    const config = await ensureGameConfig();
-    const round = await fetchCurrentRound(config);
-    const [holderCountResult, oldestResult, decimals, boxWalletBalance, bankerWalletBalance, airdropWalletBalance] = await Promise.all([
-      supabase.from("holders").select("wallet", { count: "exact", head: true }).gt("position_amount", 0),
-      supabase.from("holders").select("streak_started_at").gt("position_amount", 0).order("streak_started_at", { ascending: true }).limit(1).maybeSingle<{ streak_started_at: string | null }>(),
-      tokenSupplyDecimals(),
-      boxWalletAddress ? connection.getBalance(boxWalletAddress, "confirmed") : Promise.resolve(0),
-      bankerWalletAddress ? connection.getBalance(bankerWalletAddress, "confirmed") : Promise.resolve(0),
-      airdropWalletAddress ? connection.getBalance(airdropWalletAddress, "confirmed") : Promise.resolve(0),
-    ]);
-    if (holderCountResult.error && !isMissingSchemaObject(holderCountResult.error)) throw holderCountResult.error;
-    if (oldestResult.error && !isMissingSchemaObject(oldestResult.error)) throw oldestResult.error;
-    if (holderCountResult.error || oldestResult.error) {
-      console.error("holder statistics unavailable until database migration completes", holderCountResult.error ?? oldestResult.error);
-    }
-    const count = holderCountResult.error ? 0 : holderCountResult.count;
-    const oldest = oldestResult.error ? null : oldestResult.data;
-    const longestStreakDays = oldest?.streak_started_at
-      ? Math.max(0, Math.floor((Date.now() - new Date(oldest.streak_started_at).getTime()) / 86_400_000))
-      : 0;
+    const config = await ensureBingoConfig();
+    const game = await fetchCurrentBingoGame(config);
+    const decimals = await tokenSupplyDecimals();
+    const activeMainPot = game && ["open", "drawing"].includes(game.status)
+      ? bigintValue(game.main_pot_lamports)
+      : 0n;
+    const activeJackpotPot = game && ["open", "drawing"].includes(game.status)
+      ? bigintValue(game.jackpot_pot_lamports)
+      : 0n;
+    const trackedMainPool = bigintValue(config.main_pool_lamports) + activeMainPot;
+    const trackedJackpotPool = bigintValue(config.jackpot_pool_lamports) + activeJackpotPot;
     res.json({
       configured: true,
       cluster: clusterName,
-      programId: "supabase-mainnet-game",
+      programId: "supabase-bingo-engine",
       tokenMint: tokenMint.toBase58(),
       tokenDecimals: decimals,
-      currentRound: String(config.current_round),
-      availablePoolLamports: String(config.available_pool_lamports),
-      potRolloverCount: config.pot_rollover_count ?? 0,
-      failedRoundCount: config.failed_round_count ?? 0,
-      roundLengthSeconds: String(config.round_length_seconds),
-      decisionWindowSeconds: String(config.decision_window_seconds ?? env.DECISION_WINDOW_SECONDS),
-      cooperationThresholdBps: config.cooperation_threshold_bps ?? env.COOPERATION_THRESHOLD_BPS,
-      boxAllocationBps: env.BOX_ALLOCATION_BPS,
-      bankerAllocationBps: env.BANKER_ALLOCATION_BPS,
-      airdropAllocationBps: env.AIRDROP_ALLOCATION_BPS,
+      currentRound: String(config.current_game),
+      availablePoolLamports: trackedMainPool.toString(),
+      jackpotPoolLamports: trackedJackpotPool.toString(),
+      roundLengthSeconds: String(config.game_length_seconds),
+      callsPerGame: config.calls_per_game,
+      jackpotOdds: config.jackpot_odds,
+      minHoldingTokens: env.MIN_HOLDING_TOKENS,
+      boxAllocationBps: mainAllocationBps,
+      bankerAllocationBps: jackpotAllocationBps,
       boxWallet: boxWalletAddress?.toBase58() ?? null,
-      bankerWallet: bankerWalletAddress?.toBase58() ?? null,
-      airdropWallet: airdropWalletAddress?.toBase58() ?? null,
-      boxWalletBalanceLamports: String(boxWalletBalance),
-      bankerWalletBalanceLamports: String(bankerWalletBalance),
-      airdropWalletBalanceLamports: String(airdropWalletBalance),
-      nextRoundAt: iso(config.next_round_at),
-      roundActive: config.round_active,
+      bankerWallet: jackpotWalletAddress?.toBase58() ?? null,
+      boxWalletBalanceLamports: trackedMainPool.toString(),
+      bankerWalletBalanceLamports: trackedJackpotPool.toString(),
+      nextRoundAt: iso(config.next_game_at),
+      roundActive: config.game_active,
       paused: config.paused,
-      activeHolders: count ?? 0,
-      longestStreakDays,
-      round: publicRound(round),
+      activeHolders: game?.player_count ?? 0,
+      totalCards: game?.card_count ?? 0,
+      round: game ? {
+        roundNumber: String(game.game_number),
+        openedAt: game.opened_at,
+        closesAt: game.closes_at,
+        claimDeadline: null,
+        potLamports: String(game.main_pot_lamports),
+        remainingLamports: String(game.rollover_lamports),
+        cooperatePercent: null,
+        defectPercent: null,
+        voterCount: Number(game.card_count),
+        status: ["open", "drawing"].includes(game.status)
+          ? "open"
+          : game.status === "rolled_over"
+            ? "rolled_over"
+            : game.status === "failed"
+              ? "closed"
+              : "settled",
+        calledNumbers: game.called_numbers ?? [],
+        seedCommitment: game.seed_commitment,
+        seedReveal: game.seed_reveal,
+        winnerWallet: game.winner_wallet,
+        winnerCardIndex: game.winner_card_index,
+        winnerCard: game.winner_card,
+        winningCallIndex: game.winning_call_index,
+        payoutLamports: String(game.payout_lamports),
+        jackpotTriggered: game.jackpot_triggered,
+        jackpotPayoutLamports: String(game.jackpot_payout_lamports),
+        playerCount: game.player_count,
+        cardCount: game.card_count,
+        settledAt: game.settled_at,
+      } : null,
     });
   } catch (error) { next(error); }
 });
@@ -1297,7 +1824,11 @@ app.get("/api/status", async (_req, res, next) => {
 app.get("/api/leaderboard", async (_req, res, next) => {
   try {
     if (!supabase) return res.json([]);
-    const { data, error } = await supabase.from("holders").select("wallet,position_amount,streak_started_at,tier,cooperate_votes,defect_votes,bonus_bps").gt("position_amount", 0).order("streak_started_at", { ascending: true }).limit(50);
+    const { data, error } = await supabase
+      .from("public_leaderboard")
+      .select("rank,wallet,score,tier,total_airdropped_lamports,wins,losses")
+      .order("rank", { ascending: true })
+      .limit(50);
     if (error && isMissingSchemaObject(error)) {
       console.error("leaderboard unavailable until database migration completes", error);
       return res.json([]);
@@ -1320,16 +1851,108 @@ app.get("/api/round-history", async (_req, res, next) => {
   try {
     if (!supabase) return res.json([]);
     const { data, error } = await supabase
-      .from("rounds")
-      .select("round_number,status,opened_at,pot_lamports,cooperate_weight,defect_weight,accepted_deals_lamports,rollover_lamports,weighted_hodl_bps,voter_count,settled_at")
-      .order("round_number", { ascending: false })
+      .from("bingo_games")
+      .select("game_number,status,opened_at,main_pot_lamports,rollover_lamports,player_count,card_count,winner_wallet,payout_lamports,jackpot_triggered,jackpot_payout_lamports,called_numbers,settled_at")
+      .order("game_number", { ascending: false })
       .limit(32);
     if (error && isMissingSchemaObject(error)) {
       console.error("round history unavailable until database migration completes", error);
       return res.json([]);
     }
     if (error) throw error;
-    res.json(((data ?? []) as DbRoundHistory[]).map(publicRoundHistory));
+    res.json((data ?? []).map((game) => ({
+      roundNumber: String(game.game_number),
+      result: ["open", "drawing"].includes(game.status)
+        ? "LIVE"
+        : game.winner_wallet
+          ? "WINNER"
+          : "ROLLOVER",
+      status: ["open", "drawing"].includes(game.status)
+        ? "open"
+        : game.status === "rolled_over"
+          ? "rolled_over"
+          : game.status === "failed"
+            ? "closed"
+            : "settled",
+      potLamports: String(game.main_pot_lamports),
+      paidLamports: (bigintValue(game.payout_lamports) + bigintValue(game.jackpot_payout_lamports)).toString(),
+      rolloverLamports: String(game.rollover_lamports),
+      holdPercent: null,
+      jeetPercent: null,
+      voterCount: Number(game.card_count),
+      playerCount: Number(game.player_count),
+      cardCount: Number(game.card_count),
+      winnerWallet: game.winner_wallet,
+      jackpotTriggered: Boolean(game.jackpot_triggered),
+      calledNumbers: game.called_numbers ?? [],
+      openedAt: game.opened_at,
+      settledAt: game.settled_at,
+    })));
+  } catch (error) { next(error); }
+});
+
+app.get("/api/bingo/entries", async (_req, res, next) => {
+  try {
+    const db = requireDb();
+    const config = await ensureBingoConfig();
+    const game = await fetchCurrentBingoGame(config);
+    if (!game) return res.json({ gameNumber: null, entries: [] });
+    const [{ data: rows, error: entriesError }, { data: secret, error: secretError }] = await Promise.all([
+      db.from("bingo_entries")
+        .select("wallet,snapshot_balance,card_count")
+        .eq("game_number", String(game.game_number))
+        .order("card_count", { ascending: false })
+        .limit(500),
+      db.from("bingo_game_secrets")
+        .select("draw_seed")
+        .eq("game_number", String(game.game_number))
+        .single<{ draw_seed: string }>(),
+    ]);
+    if (entriesError || secretError) throw entriesError ?? secretError;
+    res.json({
+      gameNumber: String(game.game_number),
+      entries: ((rows ?? []) as BingoEntryRow[]).map((entry) => ({
+        wallet: entry.wallet,
+        snapshotBalance: String(entry.snapshot_balance),
+        cardCount: Number(entry.card_count),
+        firstCard: generateBingoCard(secret.draw_seed, String(game.game_number), entry.wallet, 0),
+      })),
+    });
+  } catch (error) { next(error); }
+});
+
+app.get("/api/bingo/cards/:wallet", async (req, res, next) => {
+  try {
+    const db = requireDb();
+    const wallet = new PublicKey(req.params.wallet).toBase58();
+    const config = await ensureBingoConfig();
+    const gameNumber = z.string().regex(/^\d+$/).optional().parse(req.query.game)
+      ?? String(config.current_game);
+    const [{ data: entry, error: entryError }, { data: secret, error: secretError }] = await Promise.all([
+      db.from("bingo_entries")
+        .select("wallet,snapshot_balance,card_count")
+        .eq("game_number", gameNumber)
+        .eq("wallet", wallet)
+        .maybeSingle<BingoEntryRow>(),
+      db.from("bingo_game_secrets")
+        .select("draw_seed")
+        .eq("game_number", gameNumber)
+        .maybeSingle<{ draw_seed: string }>(),
+    ]);
+    if (entryError || secretError) throw entryError ?? secretError;
+    if (!entry || !secret) return res.status(404).json({ error: "This wallet has no cards in that game." });
+    const requestedLimit = z.coerce.number().int().min(1).max(200).default(50).parse(req.query.limit);
+    const cardCount = Math.min(Number(entry.card_count), requestedLimit);
+    res.json({
+      gameNumber,
+      wallet,
+      snapshotBalance: String(entry.snapshot_balance),
+      cardCount: Number(entry.card_count),
+      cards: Array.from({ length: cardCount }, (_, cardIndex) => ({
+        cardIndex,
+        numbers: generateBingoCard(secret.draw_seed, gameNumber, wallet, cardIndex),
+      })),
+    });
   } catch (error) { next(error); }
 });
 
@@ -1517,7 +2140,7 @@ app.get("/api/holder/:wallet", async (req, res, next) => {
       });
     }
     await requireSameWallet(req, wallet.toBase58());
-    await ensureGameConfig();
+    await ensureBingoConfig();
     res.json(await syncHolder(wallet));
   } catch (error) { next(error); }
 });
@@ -1531,7 +2154,7 @@ app.post("/api/tx/initialize", async (req, res, next) => {
     if (env.INITIAL_ADMIN && new PublicKey(raw).toBase58() !== new PublicKey(env.INITIAL_ADMIN).toBase58()) {
       throw new Error("Only the configured admin can initialize the game.");
     }
-    await ensureGameConfig();
+    await ensureBingoConfig();
     res.json({ ok: true, message: "The first bingo board is preparing." });
   } catch (error) { next(error); }
 });
@@ -1567,56 +2190,17 @@ app.post("/api/tx/withdraw", async (req, res, next) => {
 
 app.post("/api/vote/commit", async (req, res, next) => {
   try {
-    const db = requireDb();
-    const body = walletBody.extend({
-      roundNumber: z.string().regex(/^\d+$/),
-      choice: z.enum(["cooperate", "defect"]),
-      salt: z.string().regex(/^[a-f0-9]{64}$/i),
-      commitment: z.string().regex(/^[a-f0-9]{64}$/i),
-    }).parse(req.body);
-    await requireSameWallet(req, body.wallet);
-    const config = await ensureGameConfig();
-    if (!config.round_active) throw new Error("No round is currently open.");
-    const round = await fetchCurrentRound(config);
-    if (!round || !isOpenRoundStatus(round.status)) throw new Error("No round is currently open.");
-    if (String(round.round_number) !== body.roundNumber) throw new Error("This decision belongs to a different round.");
-    const now = Date.now();
-    const closesAt = new Date(round.closes_at).getTime();
-    if (now < closesAt - decisionWindowSeconds * 1_000) throw new Error("Choices unlock when the round opens.");
-    if (now >= closesAt) throw new Error("Choices are locked for the reveal.");
-
-    const holder = await syncHolder(new PublicKey(body.wallet));
-    if (!holder.position) throw new Error(`This wallet must hold at least ${env.MIN_HOLDING_TOKENS} tokens to vote.`);
-    const wallet = new PublicKey(body.wallet).toBase58();
-    const commitment = body.commitment.toLowerCase();
-    const expected = sha256(`${body.choice}${body.salt.toLowerCase()}${wallet}${body.roundNumber}`);
-    if (expected !== commitment) throw new Error("The sealed decision hash is invalid.");
-
-    const { data: current, error: currentError } = await db.from("sealed_choices").select("id,commitment,version").eq("round_number", body.roundNumber).eq("wallet", wallet).is("superseded_at", null).order("version", { ascending: false }).limit(1).maybeSingle<{ id: string; commitment: string; version: number }>();
-    if (currentError) throw currentError;
-    if (current?.commitment === commitment) return res.json({ ok: true, message: "DECISION SEALED", commitment, version: current.version });
-    if (current) {
-      const supersededAt = nowIso();
-      const [{ error: sealedUpdateError }, { error: publicUpdateError }] = await Promise.all([
-        db.from("sealed_choices").update({ superseded_at: supersededAt }).eq("id", current.id),
-        db.from("commitments").update({ superseded: true }).eq("commitment", current.commitment),
-      ]);
-      if (sealedUpdateError || publicUpdateError) throw sealedUpdateError ?? publicUpdateError;
-    }
-
-    const version = (current?.version ?? 0) + 1;
-    const [{ error: sealedError }, { error: commitmentError }] = await Promise.all([
-      db.from("sealed_choices").insert({ round_number: body.roundNumber, wallet, choice: body.choice, salt: body.salt.toLowerCase(), commitment, version }),
-      db.from("commitments").insert({ round_number: body.roundNumber, wallet, commitment, version }),
-    ]);
-    if (sealedError || commitmentError) throw sealedError ?? commitmentError;
-    await db.from("protocol_events").insert({ event_type: "DECISION_SEALED", round_number: body.roundNumber, wallet, detail: `${wallet.slice(0, 4)}...${wallet.slice(-4)} sealed a decision.` });
-    res.json({ ok: true, message: "DECISION SEALED — LAST VOTE COUNTS", commitment, version });
+    void req;
+    res.status(410).json({
+      error: "Bingo cards enter automatically from the holder snapshot. No vote is required.",
+    });
   } catch (error) { next(error); }
 });
 
 app.post("/api/tx/vote", (_req, res) => {
-  res.status(410).json({ error: "Use the sealed decision flow." });
+  res.status(410).json({
+    error: "Bingo cards enter automatically from the holder snapshot. No vote is required.",
+  });
 });
 
 app.post("/api/tx/claim", (_req, res) => {
@@ -1641,8 +2225,8 @@ app.listen(env.PORT, "0.0.0.0", () => {
   console.log(`On-Chain Bingo keeper/API listening on ${env.PORT}`);
   console.log(`Mainnet game mode: rounds=${env.ROUND_LENGTH_SECONDS}s feeCollection=${env.FEE_COLLECTION_INTERVAL_MS}ms`);
   void (async () => {
-    await collectPumpCreatorFees();
     await keeperTick();
+    await collectPumpCreatorFees();
   })();
   setInterval(() => void keeperTick(), 15_000).unref();
   setInterval(() => void collectPumpCreatorFees(), env.FEE_COLLECTION_INTERVAL_MS).unref();

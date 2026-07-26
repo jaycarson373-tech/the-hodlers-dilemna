@@ -4,15 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { lamportsToSol, protocolRequest, type RoundHistoryEntry } from "@/lib/protocol-api";
 
 const resultLabel = (entry: RoundHistoryEntry) => {
-  if (entry.result === "HOLD") return "ROLLED";
-  if (entry.result === "JEET") return "WINNER";
+  if (entry.result === "ROLLOVER") return "ROLLED";
+  if (entry.result === "WINNER") return entry.jackpotTriggered ? "JACKPOT" : "WINNER";
   if (entry.result === "LIVE") return "LIVE";
   return "CLOSED";
 };
 
 const resultDetail = (entry: RoundHistoryEntry) => {
-  if (entry.result === "HOLD") return "Pool rolled into the next draw";
-  if (entry.result === "JEET") return "Winning card paid";
+  if (entry.result === "ROLLOVER") return "Pool rolled into the next draw";
+  if (entry.result === "WINNER") return entry.jackpotTriggered ? "Main prize and jackpot paid" : "Winning card paid";
   if (entry.result === "LIVE") return "Draw in progress";
   return "Draw closed";
 };
@@ -42,7 +42,7 @@ export function RoundHistoryBoard() {
   }, [refresh]);
 
   const visibleRounds = rounds.slice(0, 24);
-  const lastSettled = rounds.find((round) => round.result === "HOLD" || round.result === "JEET");
+  const lastSettled = rounds.find((round) => round.result === "ROLLOVER" || round.result === "WINNER");
 
   return (
     <section className="roulette-history-board" aria-labelledby="roulette-history-title">
@@ -59,7 +59,7 @@ export function RoundHistoryBoard() {
               <article className={`roulette-spin is-${entry.result.toLowerCase()}`} key={entry.roundNumber}>
                 <small>R{entry.roundNumber.padStart(3, "0")}</small>
                 <strong>{resultLabel(entry)}</strong>
-                <span>{entry.holdPercent === null ? "RESULT HIDDEN" : `${Math.round(entry.holdPercent)} / ${Math.round(entry.jeetPercent ?? 0)}`}</span>
+                <span>{entry.result === "WINNER" && entry.winnerWallet ? entry.winnerWallet.slice(0, 4) + "…" + entry.winnerWallet.slice(-4) : entry.result === "ROLLOVER" ? "NO FULL HOUSE" : "DRAW ACTIVE"}</span>
               </article>
             ))}
           </div>
@@ -73,7 +73,7 @@ export function RoundHistoryBoard() {
             <article>
               <span>LAST POOL</span>
               <strong>{lastSettled ? `${lamportsToSol(lastSettled.potLamports)} SOL` : "—"}</strong>
-              <p>{lastSettled?.result === "HOLD" ? `${lamportsToSol(lastSettled.rolloverLamports)} SOL rolled` : lastSettled?.result === "JEET" ? `${lamportsToSol(lastSettled.paidLamports)} SOL paid` : "Appears after the reveal."}</p>
+              <p>{lastSettled?.result === "ROLLOVER" ? `${lamportsToSol(lastSettled.rolloverLamports)} SOL rolled` : lastSettled?.result === "WINNER" ? `${lamportsToSol(lastSettled.paidLamports)} SOL paid` : "Appears after settlement."}</p>
             </article>
             <article>
               <span>BOARD STATE</span>

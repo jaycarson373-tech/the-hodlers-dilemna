@@ -6,10 +6,10 @@ import "./globals.css";
 import "./broadcast.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL;
-const title = "On-Chain Bingo";
+const title = "Bingo.fun — On-Chain Bingo";
 const description =
   "Fast Solana bingo powered by creator fees. Every 1M tokens becomes a live ticket on the board.";
-const brandIcon = "/onchain-bingo-logo.svg";
+const brandIcon = "/bingo-logo.jpg";
 const socialImage = `${siteUrl}/og.png`;
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: brandIcon, type: "image/svg+xml" },
+      { url: brandIcon, type: "image/jpeg" },
     ],
     shortcut: brandIcon,
     apple: brandIcon,
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: siteUrl,
-    siteName: "On-Chain Bingo",
+    siteName: "Bingo.fun",
     title,
     description,
     images: [{ url: socialImage, width: 1200, height: 630, alt: title }],

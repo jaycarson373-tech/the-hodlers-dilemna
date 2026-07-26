@@ -11,11 +11,6 @@ const timeline = [
   ["BONUS CHECK", "JACKPOT SPIN", "Rare rounds trigger a second jackpot reveal after the normal win."],
 ] as const;
 
-const ladder = [
-  ["New wallet", "Base weight", "Paper Card"], ["1 hour", "+20% boost", "Paper Card"], ["2 hours", "+50% boost", "Iron Card"],
-  ["6 hours", "2.0× weight", "Iron Card"], ["1 day", "2.5× weight", "Diamond Card"], ["3 days", "3.0× weight", "Diamond Card"], ["7 days", "4.0× cap", "Obsidian Card"],
-] as const;
-
 export function DocsExperience() {
   return (
     <main className="docs-page">
@@ -30,15 +25,15 @@ export function DocsExperience() {
 
       <section className="docs-section"><header><span>03 / TIMELINE</span><h2>THE SIGNAL GETS HARDER TO TRUST.</h2></header><div className="docs-timeline">{timeline.map(([time,title,copy]) => <article key={`${time}-${title}`}><time>{time}</time><div><h3>{title}</h3><p>{copy}</p></div></article>)}</div></section>
 
-      <section className="docs-section"><header><span>04 / ELIGIBILITY & WEIGHT</span><h2>YOUR BAG PRINTS YOUR TICKETS.</h2></header><div className="docs-grid two"><article><b>MINIMUM CARD</b><strong>1M+ {TICKER}</strong><p>The connected wallet must hold at least 1,000,000 {TICKER} for the active mint.</p></article><article><b>TICKET COUNT</b><strong>BALANCE ÷ 1M</strong><p>Each full 1M tokens becomes another chance on the board. Time held can still boost special card rewards.</p></article></div><div className="docs-callout">The live board is wallet-first: bigger committed balances occupy more card space.</div></section>
+      <section className="docs-section"><header><span>04 / ELIGIBILITY</span><h2>YOUR BAG PRINTS YOUR TICKETS.</h2></header><div className="docs-grid two"><article><b>MINIMUM CARD</b><strong>1M+ {TICKER}</strong><p>The wallet must hold at least 1,000,000 {TICKER} when the game snapshot is taken.</p></article><article><b>TICKET COUNT</b><strong>BALANCE ÷ 1M</strong><p>Every complete 1M-token block prints one deterministic card for that game. Partial blocks do not count.</p></article></div><div className="docs-callout">No staking and no manual entry. The snapshot determines every wallet&apos;s exact card count.</div></section>
 
-      <section className="docs-section"><header><span>05 / TIME-HELD BOOST</span><h2>CONVICTION STILL MATTERS.</h2></header><div className="docs-table"><div><b>HELD FOR</b><b>BOOST</b><b>TIER</b></div>{ladder.map(([held,boost,tier]) => <div key={held}><span>{held}</span><strong>{boost}</strong><span>{tier}</span></div>)}</div><p className="docs-note">There are no extra payout gimmicks layered on top. Winning splits are based on holding weight: balance first, then the time-held boost for wallets that stay in.</p></section>
+      <section className="docs-section"><header><span>05 / FAIR DRAW</span><h2>COMMIT FIRST. REVEAL AFTER.</h2></header><div className="docs-grid two"><article><b>GAME OPEN</b><strong>HASH PUBLISHED</strong><p>The worker commits to the hidden draw seed before calls begin.</p></article><article><b>GAME CLOSED</b><strong>SEED REVEALED</strong><p>The seed, calls, winning card, and settlement remain available for verification.</p></article></div><p className="docs-note">Cards and calls are deterministic from the committed seed. The worker cannot change the draw after the game opens.</p></section>
 
       <section className="docs-section"><header><span>06 / LIVE BOARD</span><h2>THE BOARD IS MEANT TO BE WATCHED.</h2></header><div className="docs-grid three"><article><b>EXPANDS</b><p>As more eligible wallets enter, the card wall grows without hiding the main draw.</p></article><article><b>SEARCHABLE</b><p>Search a wallet to zoom into that player card.</p></article><article><b>LIVE</b><p>Cards, pool, timer, and winner state update from the live protocol feed.</p></article></div><div className="docs-callout">No fake holder stats. If the board is empty, it says it is empty.</div></section>
 
       <section className="docs-section"><header><span>07 / SETTLEMENT</span><h2>BINGO HITS. WINNER PAID.</h2></header><div className="docs-grid two"><article><b>NORMAL WIN</b><strong>MAIN POOL</strong><p>The winning wallet receives the current main bingo pool in SOL.</p></article><article><b>JACKPOT HIT</b><strong>BONUS POOL</strong><p>When jackpot mode triggers, a second reveal can pay the jackpot pool after the normal winner.</p></article></div><div className="docs-formula">1M {TICKER} = 1 TICKET · 80% MAIN POOL · 20% JACKPOT POOL</div></section>
 
-      <section className="docs-section"><header><span>08 / CHAT & LEADERBOARD</span><h2>THE ROOM IS LIVE.</h2></header><div className="docs-grid two"><article><b>CHAT</b><p>Connected wallets can open the chat pop-up, pick a display name, and talk without exposing their full wallet in chat.</p></article><article><b>LEADERBOARD</b><p>The public leaderboard tracks wallet, tier, score, time-held boosts, total SOL paid, wins, and losses after settlement.</p></article></div></section>
+      <section className="docs-section"><header><span>08 / PUBLIC RECORD</span><h2>THE ROOM KEEPS RECEIPTS.</h2></header><div className="docs-grid two"><article><b>DRAW HISTORY</b><p>Settled games show the called numbers, winner, rollover, payout, and jackpot result.</p></article><article><b>LEADERBOARD</b><p>The public leaderboard ranks wallets by Bingo wins, total SOL paid, card count, and jackpot wins.</p></article></div></section>
 
       <section className="docs-end"><span>READY?</span><h2>FIND YOUR CARD.</h2><div><Link className="show-button show-button-red" href="/play">Enter Live Game</Link><Link className="show-button show-button-gold" href="/rules">One-Minute Rules</Link></div></section>
       <footer className="show-footer"><ShowBrand /><span>Full rules. Live rounds. Direct SOL settlement.</span><LaunchFooterLinks /></footer>
