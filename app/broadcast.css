@@ -3090,3 +3090,219 @@ body {
     gap: 60px;
   }
 }
+
+/* Final Bingo Pump visual lock */
+:root {
+  --bingo-ink: #111514;
+  --bingo-green: #55df95;
+  --bingo-green-hot: #67f6aa;
+  --bingo-deep: #0d3f2d;
+  --bingo-line: #103f31;
+  --bingo-mint: #e9fff4;
+  --bingo-soft: #f8fffb;
+}
+
+.show-home {
+  background:
+    radial-gradient(circle at 82% 10%, rgba(85, 223, 149, .18), transparent 28rem),
+    radial-gradient(circle at 12% 68%, rgba(85, 223, 149, .10), transparent 24rem),
+    linear-gradient(180deg, #ffffff 0%, #ffffff 42%, #f2fff8 72%, #e9fff4 100%) !important;
+  color: var(--bingo-ink) !important;
+}
+
+.show-home::before,
+.show-home::after,
+.show-home .show-bulbs,
+.show-home .show-spotlights,
+.show-home .show-ticker,
+.show-home .footer-brand-banner,
+.show-home .supplied-market-backdrop {
+  display: none !important;
+}
+
+.show-home .show-nav,
+.show-home .show-footer {
+  background: rgba(255, 255, 255, .96) !important;
+  border-color: var(--bingo-line) !important;
+  color: var(--bingo-ink) !important;
+}
+
+.show-home .show-nav {
+  min-height: 88px !important;
+  box-shadow: 0 1px 0 rgba(16, 63, 49, .12) !important;
+}
+
+.show-home .show-brand-mark {
+  background: var(--bingo-green) !important;
+  border-color: var(--bingo-line) !important;
+  box-shadow: inset 0 0 0 6px #fff, 0 5px 0 var(--bingo-line) !important;
+}
+
+.show-home .show-brand > span:last-child,
+.show-home .show-nav nav > a,
+.show-home .launch-footer-links a,
+.show-home .launch-footer-links span {
+  color: var(--bingo-ink) !important;
+}
+
+.show-home .show-brand em,
+.show-home .show-brand > span:last-child > span {
+  color: var(--bingo-green) !important;
+}
+
+.show-home .wallet-button,
+.show-home .show-button,
+.show-home .launch-ca,
+.show-home .launch-x {
+  min-height: 62px !important;
+  padding: 0 32px !important;
+  border: 3px solid var(--bingo-line) !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  color: var(--bingo-ink) !important;
+  box-shadow: 0 7px 0 var(--bingo-line) !important;
+  font-family: var(--font-space-grotesk), "Space Grotesk", ui-sans-serif, system-ui, sans-serif !important;
+  font-size: .9rem !important;
+  font-weight: 950 !important;
+  letter-spacing: .12em !important;
+}
+
+.show-home .wallet-button,
+.show-home .show-button-green {
+  background: var(--bingo-green) !important;
+}
+
+.show-home .show-hero-actions {
+  gap: 18px !important;
+}
+
+.show-home .show-hero-actions .show-button {
+  min-width: 188px !important;
+}
+
+.show-home .show-button-red {
+  background: #ffffff !important;
+}
+
+.show-home .show-button:hover,
+.show-home .wallet-button:hover,
+.show-home .launch-ca:hover,
+.show-home .launch-x:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 10px 0 var(--bingo-line) !important;
+}
+
+.show-home .show-button:active,
+.show-home .wallet-button:active,
+.show-home .launch-ca:active,
+.show-home .launch-x:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 3px 0 var(--bingo-line) !important;
+}
+
+.show-home .show-hero {
+  border-bottom: 0 !important;
+}
+
+.show-home .show-hero h1,
+.show-home .show-live-call h2,
+.show-home .bingo-how-section h2,
+.show-home .show-final-call h2,
+.show-home .broadcast-leaderboard h2,
+.show-home .roulette-history-board h2,
+.show-home .spectator-board h2 {
+  color: var(--bingo-ink) !important;
+  text-shadow: none !important;
+}
+
+.show-home .show-hero h1 em,
+.show-home .bingo-entry-table strong,
+.show-home .bingo-how-section article > b,
+.show-home .bingo-how-section small,
+.show-home .bingo-call-bubble strong {
+  color: var(--bingo-green) !important;
+}
+
+.show-home .home-live-section,
+.show-home .home-leaderboard-section,
+.show-home #history,
+.show-home .show-final-call,
+.show-home .show-live-call {
+  background: transparent !important;
+}
+
+.show-home .bingo-how-section {
+  background: var(--bingo-mint) !important;
+}
+
+.show-home .bingo-caller-section {
+  background: var(--bingo-deep) !important;
+}
+
+.show-home .spectator-grid > article,
+.show-home .broadcast-leaderboard,
+.show-home .roulette-history-board,
+.show-home .broadcast-table-wrap,
+.show-home .roulette-history-details article,
+.show-home .roulette-history-empty,
+.show-home .roulette-spin,
+.show-home .bingo-fun-card,
+.show-home .bingo-entry-table,
+.show-home .bingo-how-section article {
+  background: #ffffff !important;
+  border-color: var(--bingo-line) !important;
+  color: var(--bingo-ink) !important;
+  box-shadow: 0 8px 0 var(--bingo-line) !important;
+}
+
+.show-home .bingo-fun-card-head,
+.show-home .bingo-entry-table > div:first-child {
+  background: var(--bingo-deep) !important;
+}
+
+.show-home .bingo-fun-card-head b,
+.show-home .bingo-entry-table > div:first-child b {
+  color: var(--bingo-green-hot) !important;
+}
+
+@media (max-width: 920px) {
+  .show-home .show-nav {
+    gap: 12px !important;
+    padding-inline: 14px !important;
+  }
+
+  .show-home .show-nav nav {
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .show-home {
+    background:
+      radial-gradient(circle at 82% 8%, rgba(85, 223, 149, .14), transparent 18rem),
+      linear-gradient(180deg, #ffffff 0%, #f8fffb 58%, #e9fff4 100%) !important;
+  }
+
+  .show-home .show-hero-actions {
+    width: 100% !important;
+    gap: 14px !important;
+  }
+
+  .show-home .show-hero-actions .show-button,
+  .show-home .wallet-button {
+    width: 100% !important;
+    min-height: 60px !important;
+    padding: 0 22px !important;
+    font-size: .86rem !important;
+  }
+
+  .show-home .launch-ca,
+  .show-home .launch-x {
+    min-height: 48px !important;
+    padding: 0 14px !important;
+    border-width: 2px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 0 var(--bingo-line) !important;
+    font-size: .7rem !important;
+  }
+}

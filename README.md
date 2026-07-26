@@ -1,13 +1,13 @@
 # On-Chain Bingo
 
-On-Chain Bingo (`$DILEMMA`) is a Solana bingo game where wallets become live cards.
+On-Chain Bingo (`$BINGO`) is a Solana bingo game where wallets become live cards.
 
 Every 1,000,000 tokens becomes one ticket on the board.
 
 ## Game economy
 
 - Fast rounds run every 15 minutes by default.
-- Eligible wallets hold the configured minimum amount of `$DILEMMA`.
+- Eligible wallets hold the configured minimum amount of `$BINGO`.
 - Every full 1,000,000 tokens becomes one live ticket.
 - Creator fees split 80% to the main bingo pool and 20% to the jackpot pool.
 - The board draws a winning wallet card from eligible tickets.
@@ -29,12 +29,15 @@ Vercel needs only public values:
 
 ```dotenv
 NEXT_PUBLIC_API_URL=https://your-railway-service.up.railway.app
+NEXT_PUBLIC_SITE_URL=https://www.bingopump.fun
+NEXT_PUBLIC_SOLANA_RPC_URL=https://your-scoped-public-rpc.example.com
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
 NEXT_PUBLIC_TOKEN_MINT=your_public_token_mint
 NEXT_PUBLIC_CONTRACT_ADDRESS=your_public_token_mint
 NEXT_PUBLIC_X_URL=https://x.com/your_handle
 NEXT_PUBLIC_COMMUNITY_URL=https://x.com/i/communities/your_community_id
+LAUNCH_STATE=prelaunch
 ```
 
 Never expose a service-role key, wallet keypair, Helius key, or any other secret with a `NEXT_PUBLIC_` prefix.
@@ -74,4 +77,4 @@ MIN_HOLDING_TOKENS=1000000
 - `app/`, `components/`, `lib/` — website and game console
 - `railway/` — wallet authentication, ticket verification, keeper, fee collection, chat, and payout API
 - `supabase/schema.sql` — read-model schema and RLS policies
-- `public/onchain-bingo-logo.svg`, `public/onchain-bingo-og.svg`, `app/icon.jpg`, `app/apple-icon.jpg` — launch metadata and brand assets
+- `public/onchain-bingo-logo.svg`, `public/onchain-bingo-og.svg`, `public/og.png`, `app/icon.jpg`, `app/apple-icon.jpg` — launch metadata and brand assets

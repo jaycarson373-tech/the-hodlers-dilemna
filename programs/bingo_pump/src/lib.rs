@@ -17,7 +17,7 @@ const BPS_DENOMINATOR: u128 = 10_000;
 const DAY_SECONDS: i64 = 86_400;
 
 #[program]
-pub mod holders_dilemna {
+pub mod bingo_pump {
     use super::*;
 
     pub fn initialize(
@@ -543,11 +543,11 @@ pub struct OpenRound<'info> {
     #[account(
         init,
         payer = payer,
-        space = 8 + DilemmaRound::INIT_SPACE,
+        space = 8 + BingoRound::INIT_SPACE,
         seeds = [ROUND_SEED, &round_number.to_le_bytes()],
         bump,
     )]
-    pub round: Account<'info, DilemmaRound>,
+    pub round: Account<'info, BingoRound>,
     pub system_program: Program<'info, System>,
 }
 
@@ -664,7 +664,7 @@ pub struct Vote<'info> {
         seeds = [ROUND_SEED, &round_number.to_le_bytes()],
         bump = round.bump,
     )]
-    pub round: Account<'info, DilemmaRound>,
+    pub round: Account<'info, BingoRound>,
     #[account(
         mut,
         seeds = [POSITION_SEED, voter.key().as_ref()],
@@ -706,7 +706,7 @@ pub struct Settle<'info> {
         seeds = [ROUND_SEED, &round_number.to_le_bytes()],
         bump = round.bump,
     )]
-    pub round: Account<'info, DilemmaRound>,
+    pub round: Account<'info, BingoRound>,
 }
 
 #[derive(Accounts)]
@@ -724,7 +724,7 @@ pub struct Claim<'info> {
         seeds = [ROUND_SEED, &round_number.to_le_bytes()],
         bump = round.bump,
     )]
-    pub round: Account<'info, DilemmaRound>,
+    pub round: Account<'info, BingoRound>,
     #[account(
         seeds = [VOTE_SEED, &round_number.to_le_bytes(), claimant.key().as_ref()],
         bump = vote_record.bump,
@@ -753,7 +753,7 @@ pub struct SweepUnclaimed<'info> {
         seeds = [ROUND_SEED, &round_number.to_le_bytes()],
         bump = round.bump,
     )]
-    pub round: Account<'info, DilemmaRound>,
+    pub round: Account<'info, BingoRound>,
 }
 
 #[account]
@@ -790,7 +790,7 @@ pub struct HolderPosition {
 
 #[account]
 #[derive(InitSpace)]
-pub struct DilemmaRound {
+pub struct BingoRound {
     pub round_number: u64,
     pub opened_at: i64,
     pub closes_at: i64,

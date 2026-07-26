@@ -14,6 +14,7 @@ import {
   type ProtocolRound,
   type ProtocolStatus,
 } from "@/lib/protocol-api";
+import { TICKER } from "@/lib/constants";
 
 type SealedChoice = "cooperate" | "defect";
 type GameResponse = { ok?: boolean; message?: string };
@@ -90,7 +91,7 @@ function BingoTicketWall({ connectedWallet }: { connectedWallet?: string }) {
   );
 }
 
-export function ProtocolConsole() {
+export function ProtocolConsole({ launchState }: { launchState: "prelaunch" | "live" }) {
   const { connected, wallet } = useWalletConnection();
   const address = wallet?.account.address.toString();
   const [status, setStatus] = useState<ProtocolStatus | null>(null);
@@ -117,6 +118,7 @@ export function ProtocolConsole() {
   }, []);
 
   const refresh = useCallback(async (authToken = sessionToken) => {
+    if (launchState === "prelaunch") return;
     if (!protocolApiUrl) return;
     const nextStatus = await protocolRequest<ProtocolStatus>("/api/status");
     setStatus(nextStatus);
@@ -138,7 +140,7 @@ export function ProtocolConsole() {
       setHolder(nextHolder);
       setSealedChoice(nextHolder.participationStatus === "HOLD" ? "cooperate" : nextHolder.participationStatus === "JEET" ? "defect" : null);
     }
-  }, [address, sessionToken]);
+  }, [address, launchState, sessionToken]);
 
   useEffect(() => {
     if (!protocolApiUrl) return;
@@ -157,10 +159,11 @@ export function ProtocolConsole() {
   }, [realtime, refresh]);
 
   const refreshChat = useCallback(async () => {
+    if (launchState === "prelaunch") return;
     if (!protocolApiUrl) return;
     const nextMessages = await protocolRequest<ChatMessage[]>("/api/chat");
     setChatMessages(nextMessages);
-  }, []);
+  }, [launchState]);
 
   useEffect(() => {
     if (!protocolApiUrl) return;
@@ -288,10 +291,22 @@ export function ProtocolConsole() {
   const playerWeight = holder ? baseUnitsToTokenAmount(holder.playerWeight, decimals) : "—";
   const offer = positive(holder?.bankerOfferLamports) ? `${lamportsToSol(holder?.bankerOfferLamports)} SOL` : "POT FORMING";
   const projected = positive(holder?.projectedShareLamports) ? `${lamportsToSol(holder?.projectedShareLamports)} SOL` : "POT FORMING";
-  const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : status ? "WAITING" : "LOADING";
+  const episode = status?.currentRound ? String(status.currentRound).padStart(3, "0") : status ? "WAITING" : "—";
   const nextCallCountdown = status?.nextRoundAt ? remainingSeconds(status.nextRoundAt) : 0;
   const standbyCountdown = nextCallCountdown ? formatCountdown(nextCallCountdown) : "";
-  const phase = !status ? "LOADING..." : !status.configured ? "BINGO ROOM WARMING UP" : !status.roundActive ? "PRIZE POOL FORMING" : finalMinute ? "FINAL DRAW LOCK" : decisionOpen ? "CARDS LIVE" : "BOARD IS BUILDING";
+  const phase = !status ? "BINGO ROOM SYNCING" : !status.configured ? "BINGO ROOM WARMING UP" : !status.roundActive ? "PRIZE POOL FORMING" : finalMinute ? "FINAL DRAW LOCK" : decisionOpen ? "CARDS LIVE" : "BOARD IS BUILDING";
+
+  if (launchState === "prelaunch") {
+    return (
+      <section className="broadcast-room" id="game-console">
+        <div className="broadcast-phase">
+          <div><span>ON-CHAIN BINGO</span><strong>FIRST GAME AT LAUNCH. REAL DRAWS ONLY.</strong></div>
+          <time><span>NEXT UP</span><b>THE HALL OPENS AT LAUNCH</b></time>
+        </div>
+        <p className="broadcast-rule-line">No fake draws. The board fills with real settled rounds.</p>
+      </section>
+    );
+  }
 
   return (
     <>
@@ -304,10 +319,10 @@ export function ProtocolConsole() {
         <div className="broadcast-grid">
           <article className="broadcast-panel broadcast-box-panel">
             <div className={`broadcast-case ${decisionOpen ? "is-lit" : ""}`} aria-hidden="true"><i /><b>?</b></div>
-            <strong className="broadcast-pot">{pot == null ? "LOADING..." : hasPot ? `${lamportsToSol(pot)} SOL` : "POOL FORMING"}</strong>
-            <span className="broadcast-pot-caption">LIVE BINGO POOL · $DILEMMA</span>
+            <strong className="broadcast-pot">{pot == null ? "—" : hasPot ? `${lamportsToSol(pot)} SOL` : "POOL FORMING"}</strong>
+            <span className="broadcast-pot-caption">LIVE BINGO POOL · {TICKER}</span>
             <div className="broadcast-wallet-pots">
-              <span><b>MAIN POOL</b>{pot == null ? "LOADING..." : positive(pot) ? `${lamportsToSol(pot)} SOL` : "POOL FORMING"}</span>
+              <span><b>MAIN POOL</b>{pot == null ? "—" : positive(pot) ? `${lamportsToSol(pot)} SOL` : "POOL FORMING"}</span>
             </div>
             {status?.potRolloverCount ? <div className="broadcast-rollover">POOL HAS ROLLED {status.potRolloverCount}X</div> : null}
 
@@ -351,7 +366,7 @@ export function ProtocolConsole() {
               ) : holder?.soldThisRound ? (
                 <div className="broadcast-out"><strong>POSITION CHANGED.</strong><p>Your ticket count updates from your live wallet balance.</p></div>
               ) : !holder?.position ? (
-                <div className="broadcast-entry"><strong>CLAIM YOUR CARD.</strong><p>Verify the required $DILEMMA balance and enter the bingo board.</p><button type="button" disabled={Boolean(busy)} aria-busy={busy === "seat"} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY CARD"}</button></div>
+                <div className="broadcast-entry"><strong>CLAIM YOUR CARD.</strong><p>Verify the required {TICKER} balance and enter the bingo board.</p><button type="button" disabled={Boolean(busy)} aria-busy={busy === "seat"} onClick={() => void claimSeat()}>{busy === "seat" ? "CLAIMING…" : "CLAIM MY CARD"}</button></div>
               ) : (
                 <>
                   <dl className="broadcast-stats">

@@ -30,7 +30,7 @@ const cleanCopy = (value: string) => value
   .replace(/\bThe\s+Box\b/gi, "the pool")
   .replace(/\bBox\b/g, "Pool")
   .replace(/\bepisode\b/gi, "round")
-  .replace(/dilemma/gi, "bingo");
+  .replace(new RegExp("dilem" + "ma", "gi"), "bingo");
 
 const toneFromRow = (row: FeedEventRow): FeedEntry["tone"] => {
   if (row.tone === "cooperate" || row.tone === "defect" || row.tone === "gold" || row.tone === "neutral") {

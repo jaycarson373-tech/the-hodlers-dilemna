@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CA, COMMUNITY_URL, DEXSCREENER_URL, PUMP_FUN_URL, X_URL } from "@/lib/constants";
 
 const publicContractAddress =
   process.env.NEXT_PUBLIC_CONTRACT_ADDRESS?.trim() ||
   process.env.NEXT_PUBLIC_TOKEN_MINT?.trim() ||
-  "EVJSSzoD73noecpLV6f2Y3589AxV6XK3vFEV1vGNpump";
+  CA;
 
-const xUrl = process.env.NEXT_PUBLIC_X_URL?.trim() || "";
-const communityUrl = process.env.NEXT_PUBLIC_COMMUNITY_URL?.trim() || "https://x.com/i/communities/2028470502415835347";
+const xUrl = process.env.NEXT_PUBLIC_X_URL?.trim() || X_URL;
+const communityUrl = process.env.NEXT_PUBLIC_COMMUNITY_URL?.trim() || COMMUNITY_URL;
 const contractAddress = publicContractAddress;
 
-const pumpUrl = contractAddress ? `https://pump.fun/coin/${contractAddress}` : null;
-const dexUrl = contractAddress ? `https://dexscreener.com/solana/${contractAddress}` : null;
+const pumpUrl = contractAddress ? PUMP_FUN_URL : null;
+const dexUrl = contractAddress ? DEXSCREENER_URL : null;
 
 export function LaunchNavLinks() {
   const [copied, setCopied] = useState(false);

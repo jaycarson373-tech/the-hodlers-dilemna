@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import { SolanaWalletProvider } from "@/components/solana-wallet-provider";
+import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
 import "./broadcast.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://onchainbingo.fun";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL;
 const title = "On-Chain Bingo";
 const description =
   "Fast Solana bingo powered by creator fees. Every 1M tokens becomes a live ticket on the board.";
 const brandIcon = "/onchain-bingo-logo.svg";
-const socialImage = `${siteUrl}/onchain-bingo-og.svg`;
+const socialImage = `${siteUrl}/og.png`;
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   display: "swap",
