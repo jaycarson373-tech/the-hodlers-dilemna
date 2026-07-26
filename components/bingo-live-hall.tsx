@@ -255,9 +255,9 @@ export function BingoLiveHall({
           </div>
           <div className={`live-caller-avatar ${roundLive ? "is-live" : ""}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/bingo-logo.jpg" alt="Bingo caller" width="900" height="900" />
+            <img src="/alon-caller.png" alt="ALON, tonight's Bingo caller" width="400" height="400" />
           </div>
-          <b>YOUR CALLER TONIGHT</b>
+          <b>ALON · YOUR CALLER TONIGHT</b>
           <small>{roundLive ? "LIVE FROM THE ON-CHAIN HALL" : "THE HALL IS GETTING READY"}</small>
         </article>
 
