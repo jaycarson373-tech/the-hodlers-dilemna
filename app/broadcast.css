@@ -3955,10 +3955,7 @@ body {
 }
 
 .show-home {
-  background:
-    radial-gradient(circle at 82% 10%, rgba(85, 223, 149, .18), transparent 28rem),
-    radial-gradient(circle at 12% 68%, rgba(85, 223, 149, .10), transparent 24rem),
-    linear-gradient(180deg, #ffffff 0%, #ffffff 42%, #f2fff8 72%, #e9fff4 100%) !important;
+  background: #fff !important;
   color: var(--bingo-ink) !important;
 }
 
@@ -4130,9 +4127,7 @@ body {
 
 @media (max-width: 620px) {
   .show-home {
-    background:
-      radial-gradient(circle at 82% 8%, rgba(85, 223, 149, .14), transparent 18rem),
-      linear-gradient(180deg, #ffffff 0%, #f8fffb 58%, #e9fff4 100%) !important;
+    background: #fff !important;
   }
 
   .show-home .show-hero-actions {
@@ -4168,6 +4163,30 @@ body {
   background: var(--bingo-deep) !important;
 }
 
+.show-home .show-hero,
+.show-home .show-live-call,
+.show-home .home-leaderboard-section,
+.show-home #history,
+.show-home .show-final-call,
+.show-home .show-footer {
+  background: #fff !important;
+}
+
+.show-home .bingo-live-hall,
+.show-home .bingo-pot-section,
+.broadcast-page,
+.broadcast-page .bingo-live-hall {
+  background: var(--bingo-deep) !important;
+}
+
+.live-caller-avatar {
+  animation: alonCallerIdle 6.4s ease-in-out infinite;
+}
+
+.live-caller-avatar.is-live {
+  animation: alonCallerLive 5.2s ease-in-out infinite;
+}
+
 .show-home .show-brand-mark,
 .broadcast-page .show-brand-mark {
   overflow: hidden !important;
@@ -4199,4 +4218,33 @@ body {
 .broadcast-page .broadcast-footer {
   background: #fff !important;
   color: var(--bingo-ink) !important;
+}
+
+@keyframes alonCallerIdle {
+  0%, 100% {
+    box-shadow: 0 10px 0 #041f16, 0 0 44px rgba(85, 223, 149, .12);
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    box-shadow: 0 12px 0 #041f16, 0 0 58px rgba(85, 223, 149, .2);
+    transform: translateY(-4px) scale(1.008);
+  }
+}
+
+@keyframes alonCallerLive {
+  0%, 100% {
+    box-shadow: 0 10px 0 #041f16, 0 0 48px rgba(85, 223, 149, .16);
+    transform: perspective(900px) rotateY(-2deg) translateY(0);
+  }
+  50% {
+    box-shadow: 0 13px 0 #041f16, 0 0 64px rgba(85, 223, 149, .24);
+    transform: perspective(900px) rotateY(2deg) translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-caller-avatar,
+  .live-caller-avatar.is-live {
+    animation: none !important;
+  }
 }
