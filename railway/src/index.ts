@@ -249,7 +249,7 @@ const isMissingSchemaObject = (error: unknown) => {
 };
 
 const validStatelessChallenge = (message: string, wallet: string) => {
-  const match = message.match(/^(?:Holders Dilemma|On-Chain Bingo)\nSign in to play\.\nWallet: ([1-9A-HJ-NP-Za-km-z]+)\nNonce: ([0-9a-f-]{36})\nExpires: ([^\n]+)$/i);
+  const match = message.match(/^(?:Bingo Pump|On-Chain Bingo)\nSign in to play\.\nWallet: ([1-9A-HJ-NP-Za-km-z]+)\nNonce: ([0-9a-f-]{36})\nExpires: ([^\n]+)$/i);
   if (!match || match[1] !== wallet) return false;
   const expiresAt = new Date(match[3]).getTime();
   return Number.isFinite(expiresAt) && expiresAt >= Date.now() && expiresAt <= Date.now() + 5 * 60_000;
@@ -264,7 +264,7 @@ async function authenticate(req: Request) {
   if (!sessionKey) throw new Error("Wallet authentication is not configured.");
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (!token) throw new Error("Wallet sign-in is required.");
-  const { payload } = await jwtVerify(token, sessionKey, { issuer: "holders-dilemma", audience: "game" });
+  const { payload } = await jwtVerify(token, sessionKey, { issuer: "bingo-pump", audience: "game" });
   if (typeof payload.sub !== "string") throw new Error("Invalid wallet session.");
   const db = requireDb();
   const { data: session, error } = await db
@@ -1095,8 +1095,8 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = new Set([
     env.SITE_ORIGIN,
-    "https://holdersdilemma.fun",
-    "https://www.holdersdilemma.fun",
+    "https://bingopump.fun",
+    "https://www.bingopump.fun",
   ]);
   if (!origin || allowedOrigins.has(origin) || origin.startsWith("http://localhost:")) {
     if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
@@ -1189,7 +1189,7 @@ const readinessResponse = async () => {
   const ok = Object.values(deepChecks).every(Boolean);
   return {
     ok,
-    service: "holders-dilemma-api",
+    service: "bingo-pump-api",
     cluster: clusterName,
     tokenMint: tokenMint?.toBase58() ?? null,
     checks: deepChecks,
@@ -1212,7 +1212,7 @@ const readinessResponse = async () => {
 };
 
 app.get("/", (_req, res) => {
-  res.json({ ok: true, service: "holders-dilemma-api", live: "/health/live", ready: "/health/ready", status: "/api/status" });
+  res.json({ ok: true, service: "bingo-pump-api", live: "/health/live", ready: "/health/ready", status: "/api/status" });
 });
 
 app.get("/health", async (_req, res) => {
@@ -1221,7 +1221,7 @@ app.get("/health", async (_req, res) => {
 });
 
 app.get("/health/live", (_req, res) => {
-  res.json({ ok: true, service: "holders-dilemma-api" });
+  res.json({ ok: true, service: "bingo-pump-api" });
 });
 
 app.get("/health/ready", async (_req, res) => {
@@ -1398,7 +1398,7 @@ app.get("/api/audience-signal/:roundNumber", async (req, res, next) => {
     const roundNumber = z.string().regex(/^\d+$/).parse(req.params.roundNumber);
     const { data: round, error: roundError } = await db.from("rounds").select("status,closes_at,cooperate_weight,defect_weight").eq("round_number", roundNumber).maybeSingle<Pick<DbRound, "status" | "closes_at" | "cooperate_weight" | "defect_weight">>();
     if (roundError) throw roundError;
-    if (!round) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "DILEMMA SIGNAL FORMING" });
+    if (!round) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "BINGO SIGNAL FORMING" });
     if (!isOpenRoundStatus(round.status)) {
       audienceSignalLocks.delete(roundNumber);
       const cooperateWeight = bigintValue(round.cooperate_weight);
@@ -1409,7 +1409,7 @@ app.get("/api/audience-signal/:roundNumber", async (req, res, next) => {
     }
     const secondsRemaining = round.closes_at ? Math.max(0, Math.floor((new Date(round.closes_at).getTime() - Date.now()) / 1_000)) : 0;
     if (secondsRemaining === 0) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "revealing", label: "REVEALING FINAL DECISIONS..." });
-    if (secondsRemaining > env.DECISION_WINDOW_SECONDS) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "DILEMMA SIGNAL FORMING" });
+    if (secondsRemaining > env.DECISION_WINDOW_SECONDS) return res.json({ hodl: null, noHodl: null, sampleSize: 0, phase: "waiting", label: "BINGO SIGNAL FORMING" });
     const { data, error } = await db.from("audience_signals").select("choice").eq("round_number", roundNumber);
     if (error) throw error;
     const total = data?.length ?? 0;
@@ -1492,7 +1492,7 @@ app.post("/api/auth/verify", async (req, res, next) => {
     const { error: consumeError } = await db.from("wallet_auth_nonces").update({ consumed_at: nowIso() }).eq("wallet", wallet);
     if (consumeError && !isMissingSchemaObject(consumeError)) throw consumeError;
     const expiresAt = addSeconds(new Date(), 43_200);
-    const token = await new SignJWT({ wallet }).setProtectedHeader({ alg: "HS256" }).setSubject(wallet).setIssuer("holders-dilemma").setAudience("game").setIssuedAt().setExpirationTime("12h").sign(sessionKey);
+    const token = await new SignJWT({ wallet }).setProtectedHeader({ alg: "HS256" }).setSubject(wallet).setIssuer("bingo-pump").setAudience("game").setIssuedAt().setExpirationTime("12h").sign(sessionKey);
     const { error: sessionError } = await db.from("wallet_sessions").insert({ wallet, token_hash: sha256(token), expires_at: expiresAt });
     if (sessionError && !isMissingSchemaObject(sessionError)) throw sessionError;
     res.json({ token, wallet, expiresIn: 43_200 });

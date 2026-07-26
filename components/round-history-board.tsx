@@ -48,7 +48,7 @@ export function RoundHistoryBoard() {
     <section className="roulette-history-board" aria-labelledby="roulette-history-title">
       <header>
         <span>PREVIOUS DRAWS / ON-CHAIN BINGO</span>
-        <h2 id="roulette-history-title">THE BOARD REMEMBERS.</h2>
+        <h2 id="roulette-history-title">EVERY GAME GETS CALLED.</h2>
         <p>Every settled draw prints a result: winner paid, pool rolled, or jackpot triggered.</p>
       </header>
 
@@ -84,7 +84,7 @@ export function RoundHistoryBoard() {
         </>
       ) : (
         <div className="roulette-history-empty">
-          <strong>{loaded ? "DRAW HISTORY STARTS AFTER THE FIRST REVEAL." : "LOADING THE BOARD..."}</strong>
+          <strong>{loaded ? "DRAW HISTORY STARTS AFTER THE FIRST REVEAL." : "BOARD SYNCING."}</strong>
           <span>No fake draws. The board fills with real settled rounds.</span>
         </div>
       )}

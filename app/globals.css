@@ -2962,7 +2962,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   100% { transform: translate3d(18px, -110px, 0); opacity: 0; }
 }
 
-.loading-screen {
+.sync-screen {
   position: fixed;
   z-index: 1000;
   inset: 0;
@@ -2972,12 +2972,12 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   background: #050506;
 }
 
-.loading-mark-wrap {
+.sync-mark-wrap {
   position: relative;
   width: clamp(150px, 22vw, 270px);
 }
 
-.loading-mark-wrap::before {
+.sync-mark-wrap::before {
   position: absolute;
   inset: 15%;
   border-radius: 50%;
@@ -2986,14 +2986,14 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   content: "";
 }
 
-.loading-screen > span {
+.sync-screen > span {
   margin-top: 24px;
   color: var(--bone-muted);
   font: 600 0.57rem/1 var(--font-mono);
   letter-spacing: 0.18em;
 }
 
-.loading-screen > i {
+.sync-screen > i {
   width: min(260px, 56vw);
   height: 1px;
   margin-top: 18px;
@@ -3001,15 +3001,15 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   background: var(--line);
 }
 
-.loading-screen > i b {
+.sync-screen > i b {
   display: block;
   width: 45%;
   height: 100%;
   background: linear-gradient(90deg, var(--blue), var(--gold), var(--red));
-  animation: loading-scan 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: sync-scan 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes loading-scan {
+@keyframes sync-scan {
   from { transform: translateX(-100%); }
   to { transform: translateX(222%); }
 }
@@ -3040,7 +3040,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 .official-mark-dashboard { width: 25px; height: 25px; }
 .official-mark-wallet { width: 42px; height: 42px; }
 .official-mark-footer { width: 56px; height: 56px; }
-.official-mark-loading { width: 100%; aspect-ratio: 1; }
+.official-mark-sync { width: 100%; aspect-ratio: 1; }
 
 .site-header {
   border-bottom-color: rgba(181, 154, 97, 0.18);
@@ -3489,7 +3489,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   .ambient-wash,
   .page-particles i,
   .hero-logo-aura::before,
-  .loading-screen > i b { animation: none !important; }
+  .sync-screen > i b { animation: none !important; }
   .page-particles { display: none; }
 }
 
@@ -3662,12 +3662,12 @@ body::before {
   box-shadow: none;
 }
 
-.loading-screen {
+.sync-screen {
   background: #ffffff;
   color: #164b3c;
 }
 
-.loading-mark-wrap {
+.sync-mark-wrap {
   width: min(44vw, 260px);
   border: 3px solid #164b3c;
   border-radius: 36px;
@@ -3675,9 +3675,9 @@ body::before {
   box-shadow: 10px 10px 0 #55df9a;
 }
 
-.loading-mark-wrap::before { display: none; }
-.loading-screen > i { background: rgba(22, 75, 60, 0.16); }
-.loading-screen > i b { background: #55df9a; }
+.sync-mark-wrap::before { display: none; }
+.sync-screen > i { background: rgba(22, 75, 60, 0.16); }
+.sync-screen > i b { background: #55df9a; }
 
 .hero {
   min-height: 100svh;
@@ -4697,14 +4697,14 @@ body::before {
   box-shadow: 0 0 14px rgba(255, 231, 165, 0.78);
 }
 
-.loading-screen {
+.sync-screen {
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 231, 165, 0.24), transparent 34%),
     #050101;
   color: var(--stage-gold-hot);
 }
 
-.loading-mark-wrap {
+.sync-mark-wrap {
   position: relative;
   width: min(56vw, 360px);
   aspect-ratio: 1.36;
@@ -4716,11 +4716,11 @@ body::before {
   box-shadow: 0 0 50px rgba(255, 51, 31, 0.32), inset 0 0 28px rgba(244, 189, 66, 0.14);
 }
 
-.loading-mark-wrap .official-mark-loading {
+.sync-mark-wrap .official-mark-sync {
   opacity: 0;
 }
 
-.loading-mark-wrap::after {
+.sync-mark-wrap::after {
   position: absolute;
   inset: 0;
   display: grid;
@@ -4735,11 +4735,11 @@ body::before {
   text-shadow: 0 2px 0 #5d0702, 0 0 24px rgba(255, 212, 100, 0.45);
 }
 
-.loading-screen > i {
+.sync-screen > i {
   background: rgba(255, 231, 165, 0.14);
 }
 
-.loading-screen > i b {
+.sync-screen > i b {
   background: linear-gradient(90deg, var(--stage-red-hot), var(--stage-gold-hot));
 }
 
@@ -5626,7 +5626,7 @@ body * {
 .official-mark-footer img,
 .official-mark-dashboard img,
 .official-mark-wallet img,
-.official-mark-loading img {
+.official-mark-sync img {
   display: none !important;
 }
 
@@ -5634,7 +5634,7 @@ body * {
 .official-mark-footer::after,
 .official-mark-dashboard::after,
 .official-mark-wallet::after,
-.official-mark-loading::after {
+.official-mark-sync::after {
   display: grid;
   width: 100%;
   height: 100%;
@@ -5705,7 +5705,7 @@ body * {
     linear-gradient(180deg, #ff2e2d, #9d080c),
     repeating-linear-gradient(90deg, transparent 0 120px, rgba(255, 255, 255, 0.18) 121px 122px);
   color: var(--show-gold-hot);
-  content: "ON-CHAIN BINGO ★ 1M TOKENS = 1 TICKET ★ $DILEMMA ★ CREATOR FEES FUND THE DRAW ★ JACKPOT SPIN ★";
+  content: "ON-CHAIN BINGO ★ 1M TOKENS = 1 TICKET ★ $BINGO ★ CREATOR FEES FUND THE DRAW ★ JACKPOT SPIN ★";
   font: 950 0.82rem/46px var(--font-mono);
   text-align: center;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 0 12px rgba(255, 234, 167, 0.55);

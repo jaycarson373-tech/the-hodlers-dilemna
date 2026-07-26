@@ -1,12 +1,12 @@
 [package]
-name = "holders-dilemna"
+name = "bingo-pump"
 version = "0.1.0"
-description = "Legacy experimental program source for Holders Dilemma"
+description = "Legacy experimental program source for On-Chain Bingo"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "holders_dilemna"
+name = "bingo_pump"
 
 [features]
 default = []

@@ -10,7 +10,7 @@ Use this for wallet connection, wallet sign-in, `404`, `502`, CORS, or “Banker
 
    ```bash
 NEXT_PUBLIC_API_URL=https://YOUR-SERVICE.up.railway.app \
-SITE_ORIGIN=https://www.holdersdilemma.fun \
+SITE_ORIGIN=https://www.bingopump.fun \
 pnpm preflight:live
    ```
 

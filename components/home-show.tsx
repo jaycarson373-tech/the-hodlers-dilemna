@@ -7,6 +7,7 @@ import { PublicLeaderboardBoard } from "@/components/public-leaderboard-board";
 import { RoundHistoryBoard } from "@/components/round-history-board";
 import { ShowBrand } from "@/components/show-brand";
 import { WalletConnect } from "@/components/wallet-connect";
+import { PUMP_FUN_URL, TICKER } from "@/lib/constants";
 
 const bingoRows = [
   [5, 25, 44, 58, 75],
@@ -34,7 +35,7 @@ function BingoCardPreview({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export function HomeShow() {
+export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" }) {
   return (
     <main className="show-home">
       <div className="show-bulbs" aria-hidden="true" />
@@ -56,9 +57,10 @@ export function HomeShow() {
         <div className="show-hero-copy">
           <p>OLD SCHOOL · ON-CHAIN · ON PUMP.FUN</p>
           <h1 id="show-home-title">EYES DOWN.<br /><em>FEES UP.</em></h1>
-          <span>The classic hall game rebuilt on Solana. Hold $DILEMMA to get your cards — every 1,000,000 tokens is one entry. Numbers get drawn, wallets hit bingo, and creator fees become the prize.</span>
+          <span>The classic hall game rebuilt on Solana. Hold {TICKER} to get your cards — every 1,000,000 tokens is one entry. Numbers get drawn, wallets hit bingo, and creator fees become the prize.</span>
           <div className="show-hero-actions">
-            <Link className="show-button show-button-green" href="/play">BUY $DILEMMA</Link>
+            <a className="show-button show-button-green" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">BUY {TICKER}</a>
+            <Link className="show-button show-button-red" href="/play">ENTER BINGO</Link>
             <Link className="show-button show-button-red" href="/rules">HOW IT WORKS</Link>
           </div>
         </div>
@@ -72,7 +74,7 @@ export function HomeShow() {
       </div>
 
       <section className="home-live-section" id="live-round">
-        <HomeSpectatorBoard />
+        <HomeSpectatorBoard launchState={launchState} />
       </section>
 
       <section className="show-live-call" id="choice">
@@ -80,7 +82,7 @@ export function HomeShow() {
         <h2>Your bag is your<br />book of cards.</h2>
         <div className="bingo-entry-layout">
           <div className="bingo-entry-table" aria-label="Entries per game">
-            <div><b>$DILEMMA HELD</b><b>ENTRIES PER GAME</b></div>
+            <div><b>{TICKER} HELD</b><b>ENTRIES PER GAME</b></div>
             {[
               ["1,000,000", "1 card"],
               ["5,000,000", "5 cards"],
@@ -91,7 +93,7 @@ export function HomeShow() {
           </div>
           <div className="bingo-copy-block">
             <h3>Simple maths, no small print.</h3>
-            <p>One entry per 1,000,000 $DILEMMA. At the start of each game, your wallet balance prints your cards.</p>
+            <p>One entry per 1,000,000 {TICKER}. At the start of each game, your wallet balance prints your cards.</p>
             <p>More tokens means more cards. More cards means more chances when the caller starts pulling numbers.</p>
             <blockquote>No staking. No ticket claim. If you hold, you&apos;re in the hall.</blockquote>
           </div>
@@ -101,9 +103,9 @@ export function HomeShow() {
       <section className="bingo-how-section" id="how-it-works">
         <span>HOW IT WORKS</span>
         <h2>Three steps between<br />you and the pot.</h2>
-        <p>No paper tickets, no dusty community hall. Your wallet is your book of cards — the more $DILEMMA you hold, the more cards you play.</p>
+        <p>No paper tickets, no dusty community hall. Your wallet is your book of cards — the more {TICKER} you hold, the more cards you play.</p>
         <div>
-          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Buy and hold $DILEMMA</h3><p>Every full 1,000,000 tokens gives your wallet one card in the next game.</p></article>
+          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Buy and hold {TICKER}</h3><p>Every full 1,000,000 tokens gives your wallet one card in the next game.</p></article>
           <article><b>◉</b><small>STEP 02 — THE CALLS</small><h3>The cage spins</h3><p>Numbers are called live and matched against every eligible card automatically.</p></article>
           <article><b>♛</b><small>STEP 03 — HOUSE</small><h3>Winner takes the fees</h3><p>The first wallet to complete the pattern wins the funded pot, paid in SOL.</p></article>
         </div>
@@ -123,7 +125,7 @@ export function HomeShow() {
           <div>{calledNumbers.map((number) => <span className={number === 28 ? "is-current" : ""} key={number}>{number}</span>)}</div>
         </div>
         <div className="bingo-live-card-side">
-          <p>YOUR CARD · 4,000,000 $DILEMMA = 4 ENTRIES</p>
+          <p>YOUR CARD · 4,000,000 {TICKER} = 4 ENTRIES</p>
           <BingoCardPreview compact />
         </div>
       </section>
@@ -136,7 +138,7 @@ export function HomeShow() {
         <RoundHistoryBoard />
       </section>
 
-      <section className="show-final-call"><p>THE BOARD IS LIVE.</p><h2>FIND YOUR<br />CARD.</h2><Link className="show-button show-button-green" href="/play">ENTER BINGO</Link></section>
+      <section className="show-final-call"><p>THE HALL OPENS AT LAUNCH.</p><h2>FIND YOUR<br />CARD.</h2><Link className="show-button show-button-green" href="/play">ENTER BINGO</Link></section>
       <footer className="show-footer"><ShowBrand /><span>Fast rounds. Holder cards. Creator-fee prizes.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
     </main>
   );

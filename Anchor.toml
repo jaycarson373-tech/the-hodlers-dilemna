@@ -6,16 +6,16 @@ resolution = true
 skip-lint = false
 
 [programs.mainnet]
-holders_dilemna = "Cw49HSzFECh5HTJN4ZJCirHWTgkbbP7hAGZvmwLFvBjT"
+bingo_pump = "Cw49HSzFECh5HTJN4ZJCirHWTgkbbP7hAGZvmwLFvBjT"
 
 [programs.localnet]
-holders_dilemna = "GT42vQcCtut8XU4z7rm9MAoGrV462xB7qK16CDgMgWha"
+bingo_pump = "GT42vQcCtut8XU4z7rm9MAoGrV462xB7qK16CDgMgWha"
 
 [provider]
 cluster = "mainnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "cargo test -p holders-dilemna"
+test = "cargo test -p bingo-pump"
 
 [hooks]
