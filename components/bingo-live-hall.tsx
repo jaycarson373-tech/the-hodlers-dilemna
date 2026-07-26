@@ -13,6 +13,22 @@ import {
 import { TICKER } from "@/lib/constants";
 
 type HallVariant = "home" | "game";
+type LiveEntry = {
+  wallet: string;
+  snapshotBalance: string;
+  cardCount: number;
+  firstCard: number[];
+};
+type LiveEntriesResponse = {
+  gameNumber: string | null;
+  entries: LiveEntry[];
+};
+type LiveCardsResponse = {
+  gameNumber: string;
+  wallet: string;
+  cardCount: number;
+  cards: Array<{ cardIndex: number; numbers: number[] }>;
+};
 
 const shortWallet = (wallet: string) => `${wallet.slice(0, 4)}…${wallet.slice(-4)}`;
 
@@ -73,20 +89,33 @@ const parseCalledBall = (value: string) => {
 function CardFace({
   wallet,
   cardIndex,
+  serverNumbers,
+  calledNumbers = [],
   compact = false,
 }: {
   wallet: string;
   cardIndex: number;
+  serverNumbers?: number[];
+  calledNumbers?: number[];
   compact?: boolean;
 }) {
-  const numbers = useMemo(() => cardNumbers(wallet, cardIndex), [cardIndex, wallet]);
+  const fallbackNumbers = useMemo(() => cardNumbers(wallet, cardIndex), [cardIndex, wallet]);
+  const numbers = serverNumbers?.map((number) => number === 0 ? "★" : number) ?? fallbackNumbers;
+  const called = useMemo(() => new Set(calledNumbers), [calledNumbers]);
   return (
     <div className={`live-card-face ${compact ? "is-compact" : ""}`}>
       <div className="live-card-head">
         {["B", "I", "N", "G", "O"].map((letter) => <b key={letter}>{letter}</b>)}
       </div>
       <div className="live-card-numbers">
-        {numbers.map((number, index) => <span className={number === "★" ? "is-free" : ""} key={`${number}-${index}`}>{number}</span>)}
+        {numbers.map((number, index) => (
+          <span
+            className={number === "★" ? "is-free" : called.has(Number(number)) ? "is-called" : ""}
+            key={`${number}-${index}`}
+          >
+            {number}
+          </span>
+        ))}
       </div>
       <p>CARD {String(cardIndex + 1).padStart(3, "0")} · {shortWallet(wallet)}</p>
     </div>
@@ -106,6 +135,8 @@ export function BingoLiveHall({
   const { events } = useBingoFeed(18);
   const [status, setStatus] = useState<ProtocolStatus | null>(null);
   const [history, setHistory] = useState<RoundHistoryEntry[]>([]);
+  const [liveEntries, setLiveEntries] = useState<LiveEntry[]>([]);
+  const [serverCards, setServerCards] = useState<Record<string, number[][]>>({});
   const [now, setNow] = useState(() => Date.now());
   const [query, setQuery] = useState("");
   const [selectedWallet, setSelectedWallet] = useState("");
@@ -114,12 +145,14 @@ export function BingoLiveHall({
   const refresh = useCallback(async () => {
     if (launchState !== "live") return;
     try {
-      const [nextStatus, nextHistory] = await Promise.all([
+      const [nextStatus, nextHistory, nextEntries] = await Promise.all([
         protocolRequest<ProtocolStatus>("/api/status"),
         protocolRequest<RoundHistoryEntry[]>("/api/round-history"),
+        protocolRequest<LiveEntriesResponse>("/api/bingo/entries"),
       ]);
       setStatus(nextStatus);
       setHistory(nextHistory);
+      setLiveEntries(nextEntries.entries);
     } catch {
       // The hall remains readable while the live feed reconnects.
     }
@@ -136,10 +169,23 @@ export function BingoLiveHall({
     };
   }, [refresh]);
 
-  const wallets = entries.map((entry) => ({
-    ...entry,
-    tickets: ticketCount(entry.score),
-  }));
+  const wallets = liveEntries.length
+    ? liveEntries.map((entry, index) => ({
+        wallet: entry.wallet,
+        rank: index + 1,
+        score: entry.snapshotBalance,
+        tier: `${entry.cardCount} card${entry.cardCount === 1 ? "" : "s"}`,
+        totalSolAirdropped: "0",
+        wins: 0,
+        losses: 0,
+        tickets: entry.cardCount,
+        firstCard: entry.firstCard,
+      }))
+    : entries.map((entry) => ({
+        ...entry,
+        tickets: ticketCount(entry.score),
+        firstCard: undefined,
+      }));
   const normalizedQuery = query.trim().toLowerCase();
   const matchingWallets = normalizedQuery
     ? wallets.filter((entry) => entry.wallet.toLowerCase().includes(normalizedQuery))
@@ -149,25 +195,41 @@ export function BingoLiveHall({
     ?? matchingWallets[0]
     ?? null;
   const visibleCards = matchingWallets.slice(0, variant === "game" ? 120 : 72);
-  const totalCards = wallets.reduce((total, entry) => total + entry.tickets, 0);
+  const totalCards = status?.totalCards ?? wallets.reduce((total, entry) => total + entry.tickets, 0);
   const round = status?.round;
   const remaining = round?.closesAt
     ? Math.max(0, Math.floor((new Date(round.closesAt).getTime() - now) / 1_000))
     : 0;
-  const pot = status?.boxWalletBalanceLamports ?? round?.potLamports ?? status?.availablePoolLamports;
-  const calledBalls = events
-    .map((event) => parseCalledBall(`${event.event} ${event.detail}`))
+  const pot = round?.potLamports ?? status?.availablePoolLamports ?? status?.boxWalletBalanceLamports;
+  const calledBalls = (round?.calledNumbers?.length
+    ? round.calledNumbers.map((number) => ({
+        letter: ["B", "I", "N", "G", "O"][Math.floor((number - 1) / 15)],
+        number,
+      }))
+    : events.map((event) => parseCalledBall(`${event.event} ${event.detail}`)))
     .filter((ball): ball is { letter: string; number: number } => Boolean(ball))
     .filter((ball, index, list) => list.findIndex((item) => item.letter === ball.letter && item.number === ball.number) === index)
     .slice(0, 12);
-  const currentBall = calledBalls[0] ?? null;
+  const currentBall = calledBalls.at(-1) ?? null;
   const latestSettled = history.find((entry) => entry.status === "settled" || entry.status === "rolled_over");
-  const winnerEvent = events.find((event) => /winner|paid|payout/i.test(`${event.event} ${event.detail}`));
-  const winnerWallet = winnerEvent
-    ? `${winnerEvent.event} ${winnerEvent.detail}`.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/)?.[0]
-    : null;
+  const winnerWallet = round?.winnerWallet ?? latestSettled?.winnerWallet ?? null;
   const roundLive = Boolean(status?.roundActive && remaining > 0);
   const gameLabel = status?.currentRound ? `GAME ${String(status.currentRound).padStart(3, "0")}` : "NEXT GAME";
+
+  useEffect(() => {
+    if (!selected?.wallet || !status?.currentRound || serverCards[selected.wallet]) return;
+    let active = true;
+    void protocolRequest<LiveCardsResponse>(
+      `/api/bingo/cards/${encodeURIComponent(selected.wallet)}?game=${encodeURIComponent(status.currentRound)}&limit=50`,
+    ).then((response) => {
+      if (!active) return;
+      setServerCards((current) => ({
+        ...current,
+        [selected.wallet]: response.cards.map((card) => card.numbers),
+      }));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [selected?.wallet, serverCards, status?.currentRound]);
 
   return (
     <section className={`bingo-live-hall is-${variant}`} id="live-round" aria-labelledby={`live-hall-${variant}`}>
@@ -233,7 +295,12 @@ export function BingoLiveHall({
                 <span>{shortWallet(selected.wallet)}</span>
                 <strong>{selected.tickets} CARD{selected.tickets === 1 ? "" : "S"}</strong>
               </div>
-              <CardFace wallet={selected.wallet} cardIndex={selectedCard} />
+              <CardFace
+                wallet={selected.wallet}
+                cardIndex={selectedCard}
+                serverNumbers={serverCards[selected.wallet]?.[selectedCard] ?? selected.firstCard}
+                calledNumbers={round?.calledNumbers}
+              />
               {selected.tickets > 1 ? (
                 <div className="spectate-card-tabs" aria-label="Select wallet card">
                   {Array.from({ length: Math.min(selected.tickets, 20) }, (_, index) => (
@@ -272,7 +339,13 @@ export function BingoLiveHall({
                 }}
                 type="button"
               >
-                <CardFace compact wallet={entry.wallet} cardIndex={0} />
+                <CardFace
+                  compact
+                  wallet={entry.wallet}
+                  cardIndex={0}
+                  serverNumbers={entry.firstCard}
+                  calledNumbers={round?.calledNumbers}
+                />
                 <span>{shortWallet(entry.wallet)}</span>
                 <strong>{entry.tickets} CARD{entry.tickets === 1 ? "" : "S"}</strong>
               </button>

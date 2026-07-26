@@ -44,11 +44,11 @@ Never expose a service-role key, wallet keypair, Helius key, or any other secret
 
 ## Database
 
-Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates the game state, sealed-choice, snapshot, audit, payout, leaderboard, chat/feed, and Realtime tables.
+Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor. It creates the Bingo game state, private draw seeds, public commitments, holder snapshots, audit log, idempotent payouts, leaderboard, feed, and Realtime tables.
 
 ## Railway keeper/API
 
-Deploy with `railway/` as the service root. Required variables are listed in [`railway/.env.example`](railway/.env.example).
+Deploy from the repository root. Leave Railway Root Directory, custom build command, and custom start command empty; [`Dockerfile`](Dockerfile) and [`railway.json`](railway.json) own the deployment. Required variables are listed in [`railway/.env.example`](railway/.env.example).
 
 ```bash
 cd railway
@@ -63,10 +63,10 @@ Current production defaults:
 ```dotenv
 FEE_COLLECTION_INTERVAL_MS=900000
 ROUND_LENGTH_SECONDS=900
-DECISION_WINDOW_SECONDS=900
-BOX_ALLOCATION_BPS=8000
-BANKER_ALLOCATION_BPS=2000
-AIRDROP_ALLOCATION_BPS=0
+BINGO_CALLS_PER_GAME=20
+BINGO_JACKPOT_ODDS=25
+MAIN_ALLOCATION_BPS=8000
+JACKPOT_ALLOCATION_BPS=2000
 MIN_HOLDING_TOKENS=1000000
 ```
 

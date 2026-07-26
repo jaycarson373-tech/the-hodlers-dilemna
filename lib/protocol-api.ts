@@ -15,6 +15,18 @@ export type ProtocolRound = {
   weightedHodlBps?: number | null;
   forceOpen?: boolean;
   settledAt?: string | null;
+  calledNumbers?: number[];
+  seedCommitment?: string;
+  seedReveal?: string | null;
+  winnerWallet?: string | null;
+  winnerCardIndex?: number | null;
+  winnerCard?: number[] | null;
+  winningCallIndex?: number | null;
+  payoutLamports?: string;
+  jackpotTriggered?: boolean;
+  jackpotPayoutLamports?: string;
+  playerCount?: number;
+  cardCount?: number;
   status: "open" | "settled" | "rolled_over" | "closed";
 };
 
@@ -38,6 +50,10 @@ export type ProtocolStatus = {
   boxWalletBalanceLamports?: string;
   bankerWalletBalanceLamports?: string;
   airdropWalletBalanceLamports?: string;
+  jackpotPoolLamports?: string;
+  callsPerGame?: number;
+  jackpotOdds?: number;
+  totalCards?: number;
   nextRoundAt?: string | null;
   roundActive?: boolean;
   paused?: boolean;
@@ -51,7 +67,7 @@ export type ProtocolStatus = {
 
 export type RoundHistoryEntry = {
   roundNumber: string;
-  result: "HOLD" | "JEET" | "LIVE" | "CLOSED";
+  result: "LIVE" | "CLOSED" | "WINNER" | "ROLLOVER";
   status: ProtocolRound["status"];
   potLamports: string;
   paidLamports: string;
@@ -59,6 +75,11 @@ export type RoundHistoryEntry = {
   holdPercent: number | null;
   jeetPercent: number | null;
   voterCount: number;
+  playerCount?: number;
+  cardCount?: number;
+  winnerWallet?: string | null;
+  jackpotTriggered?: boolean;
+  calledNumbers?: number[];
   openedAt: string | null;
   settledAt: string | null;
 };

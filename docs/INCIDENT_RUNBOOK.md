@@ -1,6 +1,6 @@
 # Wallet and deployment incident runbook
 
-Use this for wallet connection, wallet sign-in, `404`, `502`, CORS, or “Banker call” failures.
+Use this for wallet connection, wallet sign-in, `404`, `502`, CORS, or live Bingo room failures.
 
 ## Five-minute triage
 

@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: brandIcon, type: "image/svg+xml" },
+      { url: brandIcon, type: "image/jpeg" },
     ],
     shortcut: brandIcon,
     apple: brandIcon,

@@ -167,7 +167,7 @@ export function WalletConnect() {
             )}
 
             <p className="wallet-permission-note">
-              Connecting exposes your public address. Signing in asks for one message signature only. Choices are sealed without a wallet transaction; settled payouts arrive directly.
+              Connecting exposes only your public address. Eligible balances enter automatically at the game snapshot; settled prizes are paid directly.
             </p>
             {localError || error ? (
               <p className="wallet-error" role="alert">

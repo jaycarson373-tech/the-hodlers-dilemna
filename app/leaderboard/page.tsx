@@ -7,7 +7,7 @@ import { WalletConnect } from "@/components/wallet-connect";
 
 export const metadata: Metadata = {
   title: "Leaderboard | On-Chain Bingo",
-  description: "The public On-Chain Bingo leaderboard: wallet, ticket score, tier, total SOL paid, wins, and losses.",
+  description: "The public On-Chain Bingo leaderboard: wallet, cards, total SOL paid, wins, and jackpots.",
 };
 
 export default function LeaderboardPage() {

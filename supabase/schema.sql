@@ -622,5 +622,366 @@ do $$ begin
   alter publication supabase_realtime add table public.revealed_choices;
 exception when duplicate_object then null; end $$;
 
+-- ---------------------------------------------------------------------------
+-- Bingo game state
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.bingo_config (
+  id boolean primary key default true check (id),
+  token_mint text not null,
+  cluster text not null default 'mainnet-beta',
+  current_game bigint not null default 0,
+  main_pool_lamports bigint not null default 0,
+  jackpot_pool_lamports bigint not null default 0,
+  game_length_seconds integer not null default 900,
+  calls_per_game integer not null default 12,
+  jackpot_odds integer not null default 25,
+  next_game_at timestamptz,
+  game_active boolean not null default false,
+  paused boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.bingo_games (
+  game_number bigint primary key,
+  status text not null check (status in ('open','drawing','settled','rolled_over','failed')),
+  opened_at timestamptz not null,
+  closes_at timestamptz not null,
+  snapshot_slot bigint not null default 0,
+  seed_commitment text not null,
+  seed_reveal text,
+  called_numbers integer[] not null default '{}',
+  calls_per_game integer not null,
+  player_count integer not null default 0,
+  card_count integer not null default 0,
+  main_pot_lamports bigint not null default 0,
+  jackpot_pot_lamports bigint not null default 0,
+  rollover_lamports bigint not null default 0,
+  winner_wallet text,
+  winner_card_index integer,
+  winner_card integer[],
+  winning_call_index integer,
+  payout_lamports bigint not null default 0,
+  jackpot_triggered boolean not null default false,
+  jackpot_payout_lamports bigint not null default 0,
+  settlement_signature text,
+  settled_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+-- The draw seed remains service-role-only until settlement. The public
+-- commitment is written to bingo_games at game open and the seed is revealed
+-- only after calls and the winner are final.
+create table if not exists public.bingo_game_secrets (
+  game_number bigint primary key references public.bingo_games(game_number) on delete cascade,
+  draw_seed text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.bingo_entries (
+  game_number bigint not null references public.bingo_games(game_number) on delete cascade,
+  wallet text not null,
+  snapshot_balance numeric(40,0) not null,
+  card_count integer not null check (card_count > 0),
+  created_at timestamptz not null default now(),
+  primary key (game_number, wallet)
+);
+
+create table if not exists public.bingo_payouts (
+  game_number bigint not null references public.bingo_games(game_number) on delete cascade,
+  wallet text not null,
+  payout_kind text not null check (payout_kind in ('main','jackpot')),
+  amount_lamports bigint not null check (amount_lamports >= 0),
+  idempotency_key text not null unique,
+  status text not null check (status in ('dry_run','broadcast','confirmed','failed')),
+  transaction_signature text,
+  error_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (game_number, wallet, payout_kind)
+);
+
+alter table public.holders
+  add column if not exists card_count integer not null default 0,
+  add column if not exists bingo_wins integer not null default 0,
+  add column if not exists jackpot_wins integer not null default 0;
+
+create index if not exists bingo_games_status_idx on public.bingo_games (status, closes_at);
+create index if not exists bingo_entries_game_idx on public.bingo_entries (game_number, card_count desc);
+create index if not exists bingo_entries_wallet_idx on public.bingo_entries (wallet, game_number desc);
+create index if not exists bingo_payouts_game_idx on public.bingo_payouts (game_number, status);
+
+create or replace function public.apply_confirmed_bingo_sweep(p_idempotency_key text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  sweep public.audit_log%rowtype;
+begin
+  select * into sweep
+  from public.audit_log
+  where idempotency_key = p_idempotency_key
+  for update;
+
+  if sweep.id is null or sweep.status <> 'confirmed' then
+    raise exception 'sweep is not confirmed';
+  end if;
+  if coalesce((sweep.payload ->> 'bingoCredited')::boolean, false) then
+    return false;
+  end if;
+
+  update public.bingo_config
+  set main_pool_lamports = main_pool_lamports + coalesce((sweep.payload ->> 'mainAmountLamports')::bigint, 0),
+      jackpot_pool_lamports = jackpot_pool_lamports + coalesce((sweep.payload ->> 'jackpotAmountLamports')::bigint, 0),
+      updated_at = now()
+  where id = true;
+
+  update public.audit_log
+  set payload = payload || jsonb_build_object('bingoCredited', true),
+      updated_at = now()
+  where id = sweep.id;
+
+  insert into public.protocol_events (event_type, detail, transaction_signature)
+  values (
+    'BINGO_FEES_COLLECTED',
+    coalesce(sweep.payload ->> 'mainAmountLamports', '0') || ' lamports entered the main draw.',
+    sweep.transaction_signature
+  );
+  return true;
+end;
+$$;
+
+create or replace function public.open_bingo_game(
+  p_game_number bigint,
+  p_opened_at timestamptz,
+  p_closes_at timestamptz,
+  p_snapshot_slot bigint,
+  p_seed text,
+  p_seed_commitment text,
+  p_calls_per_game integer,
+  p_main_pot_lamports bigint,
+  p_jackpot_pot_lamports bigint,
+  p_entries jsonb
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  config public.bingo_config%rowtype;
+  entry jsonb;
+  total_cards integer := 0;
+  player_count integer := 0;
+begin
+  select * into config
+  from public.bingo_config
+  where id = true
+  for update;
+
+  if config.id is null then
+    raise exception 'bingo config is missing';
+  end if;
+  if config.game_active or p_game_number <= config.current_game then
+    return false;
+  end if;
+  if p_main_pot_lamports <= 0 or jsonb_array_length(p_entries) = 0 then
+    return false;
+  end if;
+
+  select count(*)::integer, coalesce(sum((item ->> 'cardCount')::integer), 0)::integer
+  into player_count, total_cards
+  from jsonb_array_elements(p_entries) item;
+
+  insert into public.bingo_games (
+    game_number, status, opened_at, closes_at, snapshot_slot,
+    seed_commitment, called_numbers, calls_per_game, player_count,
+    card_count, main_pot_lamports, jackpot_pot_lamports, updated_at
+  ) values (
+    p_game_number, 'open', p_opened_at, p_closes_at, p_snapshot_slot,
+    p_seed_commitment, '{}', p_calls_per_game, player_count,
+    total_cards, p_main_pot_lamports, p_jackpot_pot_lamports, now()
+  );
+
+  insert into public.bingo_game_secrets (game_number, draw_seed)
+  values (p_game_number, p_seed);
+
+  for entry in select * from jsonb_array_elements(p_entries)
+  loop
+    insert into public.bingo_entries (game_number, wallet, snapshot_balance, card_count)
+    values (
+      p_game_number,
+      entry ->> 'wallet',
+      (entry ->> 'balance')::numeric,
+      (entry ->> 'cardCount')::integer
+    );
+
+    insert into public.holders (
+      wallet, wallet_address, position_amount, token_balance_raw,
+      card_count, leaderboard_score, updated_at
+    ) values (
+      entry ->> 'wallet',
+      entry ->> 'wallet',
+      (entry ->> 'balance')::numeric,
+      (entry ->> 'balance')::numeric,
+      (entry ->> 'cardCount')::integer,
+      (entry ->> 'balance')::numeric,
+      now()
+    )
+    on conflict (wallet) do update set
+      wallet_address = excluded.wallet_address,
+      position_amount = excluded.position_amount,
+      token_balance_raw = excluded.token_balance_raw,
+      card_count = excluded.card_count,
+      leaderboard_score = excluded.leaderboard_score,
+      updated_at = now();
+  end loop;
+
+  update public.bingo_config
+  set current_game = p_game_number,
+      main_pool_lamports = 0,
+      jackpot_pool_lamports = 0,
+      next_game_at = p_closes_at,
+      game_active = true,
+      updated_at = now()
+  where id = true;
+
+  return true;
+end;
+$$;
+
+create or replace function public.finalize_bingo_game(
+  p_game_number bigint,
+  p_called_numbers integer[],
+  p_seed_reveal text,
+  p_winner_wallet text,
+  p_winner_card_index integer,
+  p_winner_card integer[],
+  p_winning_call_index integer,
+  p_main_payout_lamports bigint,
+  p_jackpot_triggered boolean,
+  p_jackpot_payout_lamports bigint,
+  p_settlement_signature text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  game public.bingo_games%rowtype;
+begin
+  select * into game
+  from public.bingo_games
+  where game_number = p_game_number
+  for update;
+
+  if game.game_number is null then
+    raise exception 'bingo game is missing';
+  end if;
+  if game.status in ('settled', 'rolled_over') then
+    return false;
+  end if;
+
+  update public.bingo_games
+  set status = case when p_winner_wallet is null then 'rolled_over' else 'settled' end,
+      seed_reveal = p_seed_reveal,
+      called_numbers = p_called_numbers,
+      rollover_lamports = case when p_winner_wallet is null then game.main_pot_lamports else 0 end,
+      winner_wallet = p_winner_wallet,
+      winner_card_index = p_winner_card_index,
+      winner_card = p_winner_card,
+      winning_call_index = p_winning_call_index,
+      payout_lamports = p_main_payout_lamports,
+      jackpot_triggered = p_jackpot_triggered,
+      jackpot_payout_lamports = p_jackpot_payout_lamports,
+      settlement_signature = p_settlement_signature,
+      settled_at = now(),
+      updated_at = now()
+  where game_number = p_game_number;
+
+  update public.bingo_config
+  set main_pool_lamports = main_pool_lamports
+        + case when p_winner_wallet is null then game.main_pot_lamports else 0 end,
+      jackpot_pool_lamports = jackpot_pool_lamports
+        + case when p_jackpot_triggered then 0 else game.jackpot_pot_lamports end,
+      game_active = false,
+      next_game_at = now(),
+      updated_at = now()
+  where id = true;
+
+  if p_winner_wallet is not null then
+    update public.holders
+    set bingo_wins = bingo_wins + 1,
+        jackpot_wins = jackpot_wins + case when p_jackpot_triggered then 1 else 0 end,
+        total_airdropped_lamports = total_airdropped_lamports
+          + p_main_payout_lamports + p_jackpot_payout_lamports,
+        updated_at = now()
+    where wallet = p_winner_wallet;
+  end if;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.apply_confirmed_bingo_sweep(text) from public;
+revoke all on function public.open_bingo_game(bigint, timestamptz, timestamptz, bigint, text, text, integer, bigint, bigint, jsonb) from public;
+revoke all on function public.finalize_bingo_game(bigint, integer[], text, text, integer, integer[], integer, bigint, boolean, bigint, text) from public;
+revoke execute on function public.apply_confirmed_bingo_sweep(text) from anon, authenticated;
+revoke execute on function public.open_bingo_game(bigint, timestamptz, timestamptz, bigint, text, text, integer, bigint, bigint, jsonb) from anon, authenticated;
+revoke execute on function public.finalize_bingo_game(bigint, integer[], text, text, integer, integer[], integer, bigint, boolean, bigint, text) from anon, authenticated;
+grant execute on function public.apply_confirmed_bingo_sweep(text) to service_role;
+grant execute on function public.open_bingo_game(bigint, timestamptz, timestamptz, bigint, text, text, integer, bigint, bigint, jsonb) to service_role;
+grant execute on function public.finalize_bingo_game(bigint, integer[], text, text, integer, integer[], integer, bigint, boolean, bigint, text) to service_role;
+
+create or replace view public.public_leaderboard
+with (security_invoker = true)
+as
+select
+  row_number() over (
+    order by h.bingo_wins desc, h.total_airdropped_lamports desc, h.position_amount desc, h.wallet asc
+  ) as rank,
+  h.wallet,
+  h.position_amount as score,
+  h.card_count::text || case when h.card_count = 1 then ' card' else ' cards' end as tier,
+  h.total_airdropped_lamports,
+  h.bingo_wins as wins,
+  h.jackpot_wins as losses
+from public.holders h
+where h.position_amount > 0 and h.card_count > 0;
+
+alter table public.bingo_config enable row level security;
+alter table public.bingo_games enable row level security;
+alter table public.bingo_game_secrets enable row level security;
+alter table public.bingo_entries enable row level security;
+alter table public.bingo_payouts enable row level security;
+
+drop policy if exists "public bingo config read" on public.bingo_config;
+create policy "public bingo config read" on public.bingo_config for select using (true);
+drop policy if exists "public bingo games read" on public.bingo_games;
+create policy "public bingo games read" on public.bingo_games for select using (true);
+drop policy if exists "public bingo entries read" on public.bingo_entries;
+create policy "public bingo entries read" on public.bingo_entries for select using (true);
+drop policy if exists "public bingo payouts read" on public.bingo_payouts;
+create policy "public bingo payouts read" on public.bingo_payouts for select using (true);
+
+grant select on public.bingo_config, public.bingo_games, public.bingo_entries, public.bingo_payouts to anon, authenticated;
+grant select on public.public_leaderboard to anon, authenticated;
+
+do $$ begin
+  alter publication supabase_realtime add table public.bingo_config;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.bingo_games;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.bingo_entries;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.bingo_payouts;
+exception when duplicate_object then null; end $$;
+
 -- Make newly added tables and columns immediately visible to PostgREST.
 notify pgrst, 'reload schema';
