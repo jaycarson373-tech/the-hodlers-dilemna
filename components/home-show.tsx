@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { HomeSpectatorBoard } from "@/components/home-spectator-board";
+import { BingoLiveHall } from "@/components/bingo-live-hall";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { PublicLeaderboardBoard } from "@/components/public-leaderboard-board";
 import { RoundHistoryBoard } from "@/components/round-history-board";
@@ -16,8 +16,6 @@ const bingoRows = [
   [9, 29, 32, 59, 74],
   [8, 17, 41, 57, 71],
 ] as const;
-
-const calledNumbers = [59, 4, 17, 72, 43, 31, 65, 3, 45, 56, 28];
 
 function BingoCardPreview({ compact = false }: { compact?: boolean }) {
   return (
@@ -42,11 +40,10 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
       <header className="show-nav">
         <ShowBrand />
         <nav aria-label="Primary navigation">
-          <a href="#live-round">Live Round</a>
-          <a href="#choice">Tickets</a>
-          <a href="#leaderboard">Leaderboard</a>
-          <a href="#history">History</a>
-          <Link href="/docs">Docs</Link>
+          <a href="#how-it-works">How It Works</a>
+          <a href="#choice">Entries</a>
+          <a href="#live-round">Live Hall</a>
+          <a href="#leaderboard">Winners</a>
           <LaunchNavLinks />
           <WalletConnect />
         </nav>
@@ -73,8 +70,15 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         <div>1M TOKENS = 1 TICKET ★ CREATOR FEES FUND THE DRAW ★ 80% MAIN BOARD ★ 20% JACKPOT ★ EVERY ROUND REVEALS A CARD ★</div>
       </div>
 
-      <section className="home-live-section" id="live-round">
-        <HomeSpectatorBoard launchState={launchState} />
+      <section className="bingo-how-section" id="how-it-works">
+        <span>HOW IT WORKS</span>
+        <h2>Three steps between<br />you and the pot.</h2>
+        <p>No paper tickets, no dusty community hall. Your wallet is your book of cards — the more {TICKER} you hold, the more cards you play.</p>
+        <div>
+          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Buy and hold {TICKER}</h3><p>Every full 1,000,000 tokens gives your wallet one card in the next game.</p></article>
+          <article><b>◉</b><small>STEP 02 — THE CALLS</small><h3>The cage spins</h3><p>Numbers are called live and matched against every eligible wallet card automatically.</p></article>
+          <article><b>♛</b><small>STEP 03 — HOUSE</small><h3>Winner takes the fees</h3><p>The winning wallet receives the funded pot in SOL. No claim button.</p></article>
+        </div>
       </section>
 
       <section className="show-live-call" id="choice">
@@ -100,33 +104,19 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         </div>
       </section>
 
-      <section className="bingo-how-section" id="how-it-works">
-        <span>HOW IT WORKS</span>
-        <h2>Three steps between<br />you and the pot.</h2>
-        <p>No paper tickets, no dusty community hall. Your wallet is your book of cards — the more {TICKER} you hold, the more cards you play.</p>
-        <div>
-          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Buy and hold {TICKER}</h3><p>Every full 1,000,000 tokens gives your wallet one card in the next game.</p></article>
-          <article><b>◉</b><small>STEP 02 — THE CALLS</small><h3>The cage spins</h3><p>Numbers are called live and matched against every eligible card automatically.</p></article>
-          <article><b>♛</b><small>STEP 03 — HOUSE</small><h3>Winner takes the fees</h3><p>The first wallet to complete the pattern wins the funded pot, paid in SOL.</p></article>
-        </div>
+      <section className="home-live-section">
+        <BingoLiveHall launchState={launchState} variant="home" />
       </section>
 
-      <section className="bingo-caller-section">
-        <div className="bingo-caller-profile">
-          <div className="bingo-call-bubble"><span>Garden gate...</span><strong>I-28</strong></div>
-          <div className="bingo-avatar-placeholder"><span>3D<br />CALLER</span></div>
-          <b>YOUR CALLER TONIGHT</b>
-          <small>Avatar reveal coming soon</small>
-        </div>
-        <div className="bingo-cage">
-          <div className="bingo-cage-orb"><span>●</span><span>●</span><span>●</span><span>●</span></div>
-          <div className="bingo-ball">I<br /><strong>28</strong></div>
-          <p>CALLED THIS GAME</p>
-          <div>{calledNumbers.map((number) => <span className={number === 28 ? "is-current" : ""} key={number}>{number}</span>)}</div>
-        </div>
-        <div className="bingo-live-card-side">
-          <p>YOUR CARD · 4,000,000 {TICKER} = 4 ENTRIES</p>
-          <BingoCardPreview compact />
+      <section className="bingo-pot-section" id="the-pot">
+        <span>THE POT</span>
+        <h2>Creator fees in.<br />One winner out.</h2>
+        <p>Every funded game puts real creator fees on the live board. The winning wallet is paid directly in SOL.</p>
+        <div>
+          <article><strong>80%</strong><b>MAIN DRAW</b><p>Funds the live game prize.</p></article>
+          <article><strong>20%</strong><b>JACKPOT</b><p>Builds the bonus winner reserve.</p></article>
+          <article><strong>1M</strong><b>TOKENS PER CARD</b><p>More balance, more entries.</p></article>
+          <article><strong>1</strong><b>WINNER</b><p>The settled result is paid in SOL.</p></article>
         </div>
       </section>
 
@@ -138,8 +128,12 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         <RoundHistoryBoard />
       </section>
 
-      <section className="show-final-call"><p>THE HALL OPENS AT LAUNCH.</p><h2>FIND YOUR<br />CARD.</h2><Link className="show-button show-button-green" href="/play">ENTER BINGO</Link></section>
-      <footer className="show-footer"><ShowBrand /><span>Fast games. Wallet cards. Creator-fee prizes.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
+      <section className="show-final-call"><p>THE NEXT GAME IS FILLING.</p><h2>GOT YOUR<br />CARD?</h2><Link className="show-button show-button-green" href="/play">ENTER THE LIVE HALL</Link></section>
+      <div className="bingo-brand-banner">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/bingo-banner.jpg" alt="Bingo.fun" width="1600" height="532" loading="lazy" />
+      </div>
+      <footer className="show-footer"><ShowBrand /><span>Eyes down. Fees up.</span><Link href="/rules">How It Works</Link><Link href="/leaderboard">Winners</Link><LaunchFooterLinks /></footer>
     </main>
   );
 }
