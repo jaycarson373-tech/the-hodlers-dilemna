@@ -32,7 +32,7 @@ export function RulesExperience() {
       {chapters.map(([number, eyebrow, title, copy]) => <section className="rules-chapter" key={number}><div className="rules-chapter-copy"><span>{number} / {eyebrow}</span><h2>{title}</h2><p>{copy}</p></div><RuleVisual number={number} /></section>)}
       <section className="rules-formula"><span>THE WHOLE GAME</span><h2>1M TOKENS = 1 TICKET.<br />ONE BOARD. ONE WINNER.</h2><p>The pressure is simple. Find your card, watch the spin, wait for the reveal.</p></section>
       <section className="rules-one-line"><p>{TICKER}</p><h2>IS YOUR CARD<br />ON THE BOARD?</h2><span>Every fast round turns your wallet into a live bingo ticket.</span><Link className="show-button show-button-red" href="/play">Enter Live Game</Link></section>
-      <footer className="show-footer"><ShowBrand /><span>On-chain bingo. Holder cards. Creator-fee prizes.</span><LaunchFooterLinks /></footer>
+      <footer className="show-footer"><ShowBrand /><span>On-chain bingo. Wallet cards. Creator-fee prizes.</span><LaunchFooterLinks /></footer>
     </main>
   );
 }

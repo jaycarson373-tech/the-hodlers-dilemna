@@ -139,7 +139,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
       </section>
 
       <section className="show-final-call"><p>THE HALL OPENS AT LAUNCH.</p><h2>FIND YOUR<br />CARD.</h2><Link className="show-button show-button-green" href="/play">ENTER BINGO</Link></section>
-      <footer className="show-footer"><ShowBrand /><span>Fast rounds. Holder cards. Creator-fee prizes.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
+      <footer className="show-footer"><ShowBrand /><span>Fast games. Wallet cards. Creator-fee prizes.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
     </main>
   );
 }
