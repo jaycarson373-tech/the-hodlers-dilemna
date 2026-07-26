@@ -1,6 +1,6 @@
 # On-Chain Bingo
 
-On-Chain Bingo (`$DILEMMA`) is a Solana holder game where wallets become live bingo cards.
+On-Chain Bingo (`$DILEMMA`) is a Solana bingo game where wallets become live cards.
 
 Every 1,000,000 tokens becomes one ticket on the board.
 
@@ -72,6 +72,6 @@ MIN_HOLDING_TOKENS=1000000
 ## Structure
 
 - `app/`, `components/`, `lib/` — website and game console
-- `railway/` — wallet authentication, holder verification, keeper, fee collection, chat, and payout API
+- `railway/` — wallet authentication, ticket verification, keeper, fee collection, chat, and payout API
 - `supabase/schema.sql` — read-model schema and RLS policies
-- `public/holders-dilemma-logo.png`, `public/holders-dilemma-banner.png`, `public/holders-dilemma-og.png`, `app/icon.jpg`, `app/apple-icon.jpg` — launch metadata and brand assets
+- `public/onchain-bingo-logo.svg`, `public/onchain-bingo-og.svg`, `app/icon.jpg`, `app/apple-icon.jpg` — launch metadata and brand assets

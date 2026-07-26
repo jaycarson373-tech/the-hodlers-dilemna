@@ -13,7 +13,7 @@ type FeedEventRow = {
   occurred_at: string;
 };
 
-export type DilemmaFeedItem = FeedEntry & { id: string };
+export type BingoFeedItem = FeedEntry & { id: string };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const supabasePublishableKey = (
@@ -48,7 +48,7 @@ const formatEventTime = (value: string) => new Intl.DateTimeFormat("en", {
   hour12: false,
 }).format(new Date(value));
 
-const toFeedItem = (row: FeedEventRow): DilemmaFeedItem => ({
+const toFeedItem = (row: FeedEventRow): BingoFeedItem => ({
   id: row.id,
   time: formatEventTime(row.occurred_at),
   event: cleanCopy(row.title || titleFromType(row.event_type)),
@@ -56,8 +56,8 @@ const toFeedItem = (row: FeedEventRow): DilemmaFeedItem => ({
   tone: toneFromRow(row),
 });
 
-export function useDilemmaFeed(limit = 8) {
-  const [events, setEvents] = useState<DilemmaFeedItem[]>([]);
+export function useBingoFeed(limit = 8) {
+  const [events, setEvents] = useState<BingoFeedItem[]>([]);
 
   const client = useMemo(() => {
     if (!supabaseUrl || !supabasePublishableKey) return null;
@@ -87,7 +87,7 @@ export function useDilemmaFeed(limit = 8) {
       });
 
     const channel = client
-      .channel("dilemma-feed")
+      .channel("bingo-feed")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "feed_events" },

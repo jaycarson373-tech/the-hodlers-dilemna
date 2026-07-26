@@ -3178,7 +3178,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 .button:hover { transform: translateY(-2px); }
 .button-primary:hover { box-shadow: 0 12px 30px rgba(111, 148, 183, 0.18); }
 
-.live-dilemma-section {
+.live-bingo-section {
   z-index: 3;
   margin-top: clamp(-58px, -4vw, -34px);
   padding-bottom: clamp(100px, 10vw, 160px);
@@ -3434,7 +3434,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   .hero-logo-stage { width: 100%; margin: 4px auto 0; }
   .hero-logo-aura { width: min(76vw, 570px); min-width: 0; }
   .hero-logo-orbit { width: min(80vw, 605px); }
-  .live-dilemma-section { margin-top: -34px; }
+  .live-bingo-section { margin-top: -34px; }
   .live-pot-and-signals { grid-template-columns: 0.8fr 1.2fr; }
 }
 
@@ -3460,7 +3460,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
   .hero-logo-aura { width: min(92vw, 430px); }
   .hero-logo-orbit { width: min(96vw, 455px); }
   .hero-logo-caption { margin-top: -1%; }
-  .live-dilemma-section { margin-top: -18px; padding-right: 12px; padding-left: 12px; }
+  .live-bingo-section { margin-top: -18px; padding-right: 12px; padding-left: 12px; }
   .live-protocol-panel { padding: 17px; }
   .panel-topline { align-items: flex-start; }
   .live-panel-brand { max-width: 58%; line-height: 1.4; }
@@ -3494,7 +3494,7 @@ tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
 }
 
 /* -------------------------------------------------------------------------- */
-/* Holders Dilemma — official mint identity                                   */
+/* On-Chain Bingo — official mint identity                                    */
 /* -------------------------------------------------------------------------- */
 
 :root {
@@ -4514,7 +4514,7 @@ tbody tr:hover { background: #f5fff9; }
   .contract-strip code { grid-column: 1 / -1; grid-row: 2; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 }
 
-/* Holders Dilemma broadcast rebrand */
+/* On-Chain Bingo broadcast system */
 :root {
   --ink: #050101;
   --ink-soft: #120504;
@@ -5898,7 +5898,7 @@ body * {
   font-size: 0.86rem !important;
 }
 
-.live-dilemma-section,
+.live-bingo-section,
 .content-section,
 .betrayal-section,
 .protocol-console,
@@ -6384,7 +6384,7 @@ th,
   letter-spacing: 0.18em !important;
 }
 
-.live-dilemma-section {
+.live-bingo-section {
   padding-top: clamp(96px, 10vw, 135px) !important;
   padding-bottom: clamp(90px, 10vw, 135px) !important;
 }

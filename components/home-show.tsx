@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { FooterBanner } from "@/components/footer-banner";
 import { HomeSpectatorBoard } from "@/components/home-spectator-board";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { PublicLeaderboardBoard } from "@/components/public-leaderboard-board";
@@ -38,10 +37,6 @@ function BingoCardPreview({ compact = false }: { compact?: boolean }) {
 export function HomeShow() {
   return (
     <main className="show-home">
-      <div className="supplied-market-backdrop" aria-hidden="true">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/holders-dilemma-market-bg.jpg" alt="" decoding="async" fetchPriority="high" />
-      </div>
       <div className="show-bulbs" aria-hidden="true" />
       <header className="show-nav">
         <ShowBrand />
@@ -96,9 +91,9 @@ export function HomeShow() {
           </div>
           <div className="bingo-copy-block">
             <h3>Simple maths, no small print.</h3>
-            <p>One entry per 1,000,000 $DILEMMA. A snapshot is taken at the start of each game — whatever is in your wallet at that moment is how many cards you&apos;re playing.</p>
-            <p>Sell before the snapshot and you&apos;re playing fewer cards. Hold through it and every game is another free shot at the pot.</p>
-            <blockquote>Every game is free to enter for holders. The house doesn&apos;t win here — the winner does.</blockquote>
+            <p>One entry per 1,000,000 $DILEMMA. At the start of each game, your wallet balance prints your cards.</p>
+            <p>More tokens means more cards. More cards means more chances when the caller starts pulling numbers.</p>
+            <blockquote>No staking. No ticket claim. If you hold, you&apos;re in the hall.</blockquote>
           </div>
         </div>
       </section>
@@ -106,11 +101,11 @@ export function HomeShow() {
       <section className="bingo-how-section" id="how-it-works">
         <span>HOW IT WORKS</span>
         <h2>Three steps between<br />you and the pot.</h2>
-        <p>No tickets, no dabbers, no draughty community hall. Your wallet is your book of cards — the more $DILEMMA you hold, the more cards you play every single game.</p>
+        <p>No paper tickets, no dusty community hall. Your wallet is your book of cards — the more $DILEMMA you hold, the more cards you play.</p>
         <div>
-          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Buy and hold $DILEMMA</h3><p>Every 1,000,000 tokens in your wallet at the game snapshot equals one entry. No staking, no claiming — just hold.</p></article>
-          <article><b>◉</b><small>STEP 02 — THE DRAW</small><h3>The cage spins</h3><p>Numbers are called live and matched against holder cards automatically. Eyes down, the chain handles the rest.</p></article>
-          <article><b>♛</b><small>STEP 03 — HOUSE</small><h3>Winner takes the fees</h3><p>Creator fees from the game period become the prize. First wallet to complete the card gets paid straight to their wallet.</p></article>
+          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Buy and hold $DILEMMA</h3><p>Every full 1,000,000 tokens gives your wallet one card in the next game.</p></article>
+          <article><b>◉</b><small>STEP 02 — THE CALLS</small><h3>The cage spins</h3><p>Numbers are called live and matched against every eligible card automatically.</p></article>
+          <article><b>♛</b><small>STEP 03 — HOUSE</small><h3>Winner takes the fees</h3><p>The first wallet to complete the pattern wins the funded pot, paid in SOL.</p></article>
         </div>
       </section>
 
@@ -143,7 +138,6 @@ export function HomeShow() {
 
       <section className="show-final-call"><p>THE BOARD IS LIVE.</p><h2>FIND YOUR<br />CARD.</h2><Link className="show-button show-button-green" href="/play">ENTER BINGO</Link></section>
       <footer className="show-footer"><ShowBrand /><span>Fast rounds. Holder cards. Creator-fee prizes.</span><Link href="/rules">Rules</Link><Link href="/docs">Docs</Link><LaunchFooterLinks /></footer>
-      <FooterBanner />
     </main>
   );
 }

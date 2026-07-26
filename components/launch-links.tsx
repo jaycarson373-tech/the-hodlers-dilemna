@@ -7,7 +7,7 @@ const publicContractAddress =
   process.env.NEXT_PUBLIC_TOKEN_MINT?.trim() ||
   "EVJSSzoD73noecpLV6f2Y3589AxV6XK3vFEV1vGNpump";
 
-const xUrl = process.env.NEXT_PUBLIC_X_URL?.trim() || "https://x.com/HoldersDilemma";
+const xUrl = process.env.NEXT_PUBLIC_X_URL?.trim() || "";
 const communityUrl = process.env.NEXT_PUBLIC_COMMUNITY_URL?.trim() || "https://x.com/i/communities/2028470502415835347";
 const contractAddress = publicContractAddress;
 

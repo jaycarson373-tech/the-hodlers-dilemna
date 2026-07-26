@@ -3,7 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { useWalletConnection } from "@solana/react-hooks";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDilemmaFeed } from "@/components/use-dilemma-feed";
+import { useBingoFeed } from "@/components/use-bingo-feed";
 import { usePublicLeaderboard } from "@/components/use-public-leaderboard";
 import {
   baseUnitsToTokenAmount,
@@ -109,7 +109,7 @@ export function ProtocolConsole() {
   const [chatName, setChatName] = useState("Player");
   const [chatDraft, setChatDraft] = useState("");
   const previousRound = useRef<ProtocolRound | null>(null);
-  const { events } = useDilemmaFeed(8);
+  const { events } = useBingoFeed(8);
 
   const realtime = useMemo(() => {
     if (!supabaseUrl || !supabaseKey) return null;
@@ -184,13 +184,13 @@ export function ProtocolConsole() {
       setMessage("");
       setError("");
       if (!address || !protocolApiUrl) { setSessionToken(""); return; }
-      const stored = window.sessionStorage.getItem(`holders-dilemma-session:${address}`) ?? "";
+      const stored = window.sessionStorage.getItem(`onchain-bingo-session:${address}`) ?? "";
       if (!stored) { setSessionToken(""); return; }
       try {
         await protocolRequest("/api/auth/session", undefined, stored);
         setSessionToken(stored);
       } catch {
-        window.sessionStorage.removeItem(`holders-dilemma-session:${address}`);
+        window.sessionStorage.removeItem(`onchain-bingo-session:${address}`);
         setSessionToken("");
       }
     });
@@ -208,7 +208,7 @@ export function ProtocolConsole() {
         body: JSON.stringify({ wallet: address, message: challenge.message, signature: base64FromBytes(signature) }),
       });
       setSessionToken(verified.token);
-      window.sessionStorage.setItem(`holders-dilemma-session:${address}`, verified.token);
+      window.sessionStorage.setItem(`onchain-bingo-session:${address}`, verified.token);
       setMessage("CARD VERIFIED — YOUR TICKET IS READY.");
       await refresh(verified.token);
       return verified.token;

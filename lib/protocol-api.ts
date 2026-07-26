@@ -100,13 +100,13 @@ const publicGameError = (message?: string) => {
   if (
     /api|railway|supabase|token_mint|database|configured|configuration|next_public|health|column|relation|schema|fetch|request failed|network/i.test(text)
   ) {
-    return "The live dilemma could not be completed. Try again.";
+    return "The live bingo room could not be completed. Try again.";
   }
-  return text || "No live result available yet. Waiting for the next dilemma.";
+  return text || "No live result available yet. Waiting for the next draw.";
 };
 
 export async function protocolRequest<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
-  if (!protocolApiUrl) throw new Error("The live dilemma could not be completed. Try again.");
+  if (!protocolApiUrl) throw new Error("The live bingo room could not be completed. Try again.");
   const requestUrl = `${protocolApiUrl}${path}`;
   const response = await fetch(requestUrl, {
     ...init,
@@ -116,7 +116,7 @@ export async function protocolRequest<T>(path: string, init?: RequestInit, token
       ...init?.headers,
     },
   }).catch(() => {
-    throw new Error("The live dilemma could not be completed. Try again.");
+    throw new Error("The live bingo room could not be completed. Try again.");
   });
   const body = (await response.json().catch(() => ({}))) as T & ApiError;
   if (!response.ok) {

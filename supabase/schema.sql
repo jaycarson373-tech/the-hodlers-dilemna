@@ -1,4 +1,4 @@
--- Holders Dilemma mainnet game model.
+-- On-Chain Bingo mainnet game model.
 -- Railway is the only writer; the public site reads this state.
 
 create extension if not exists pgcrypto;
@@ -94,7 +94,7 @@ create table if not exists public.protocol_events (
   occurred_at timestamptz not null default now()
 );
 
--- Public, presentation-safe event stream for the Dilemma Feed. The worker may
+-- Public, presentation-safe event stream for the Bingo Feed. The worker may
 -- continue writing protocol_events; the trigger below mirrors only display
 -- fields and keeps infrastructure details out of the browser-facing table.
 create table if not exists public.feed_events (
@@ -204,7 +204,7 @@ create table if not exists public.worker_state (
   updated_at timestamptz not null default now()
 );
 
--- Bring any earlier preview tables up to the production column contract.
+-- Bring any earlier launch tables up to the production column contract.
 -- ADD COLUMN IF NOT EXISTS keeps this safe to run repeatedly.
 alter table public.protocol_config
   add column if not exists id boolean default true,
@@ -309,7 +309,7 @@ alter table public.worker_state
   add column if not exists last_processed_round bigint default 0,
   add column if not exists updated_at timestamptz default now();
 
--- Normalize the legacy preview schema without dropping player or round data.
+-- Normalize the legacy launch schema without dropping player or round data.
 update public.protocol_config
 set id = coalesce(id, singleton, true),
     singleton = coalesce(singleton, id, true),
@@ -476,7 +476,7 @@ alter table public.holders
   add column if not exists losses integer not null default 0,
   add column if not exists total_airdropped_lamports bigint not null default 0;
 
--- Older preview schemas used different reward-claim columns. Do not let that
+-- Older launch schemas used different reward-claim columns. Do not let that
 -- optional backfill abort the launch migration.
 do $$
 begin
