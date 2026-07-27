@@ -8,7 +8,7 @@ import "./broadcast.css";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL;
 const title = "Bingo.fun — On-Chain Bingo";
 const description =
-  "Fast Solana bingo powered by creator fees. Every 1M tokens becomes a live ticket on the board.";
+  "Live Solana bingo powered by creator fees. Every 1M tokens prints a card; every full house pays in SOL.";
 const brandIcon = "/bingo-logo.jpg";
 const socialImage = `${siteUrl}/og.png`;
 const spaceGrotesk = Space_Grotesk({

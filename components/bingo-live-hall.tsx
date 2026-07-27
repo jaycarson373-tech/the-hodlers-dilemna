@@ -42,7 +42,31 @@ const numericScore = (score: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const ticketCount = (score: string) => Math.max(1, Math.floor(numericScore(score) / 1_000_000) || 1);
+const safeCardCount = (value: unknown, maximum = Number.MAX_SAFE_INTEGER) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(Math.max(0, maximum), Math.max(0, Math.floor(parsed)));
+};
+const ticketCount = (score: string, tokensPerCard: number, cardCap: number) => (
+  safeCardCount(Math.floor(numericScore(score) / Math.max(1, tokensPerCard)), cardCap)
+);
+const cardCountFromRawBalance = (
+  rawBalance: string,
+  tokensPerCard: string,
+  decimals: number,
+  cardCap: number,
+) => {
+  try {
+    const [whole = "0", fractional = ""] = tokensPerCard.trim().split(".");
+    const normalizedFraction = fractional.slice(0, decimals).padEnd(decimals, "0");
+    const price = BigInt(`${whole || "0"}${normalizedFraction}` || "0");
+    if (price <= 0n) return 0;
+    const count = BigInt(rawBalance) / price;
+    return safeCardCount(count > BigInt(Number.MAX_SAFE_INTEGER) ? Number.MAX_SAFE_INTEGER : Number(count), cardCap);
+  } catch {
+    return 0;
+  }
+};
 const cageBalls = Array.from({ length: 50 }, (_, index) => index);
 
 const hashSeed = (value: string) => {
@@ -222,23 +246,43 @@ export function BingoLiveHall({
     }
   };
 
+  const tokensPerCard = Math.max(1, Number(status?.minHoldingTokens ?? 1_000_000));
+  const cardCap = status?.tokenSupplyRaw
+    ? cardCountFromRawBalance(
+        (BigInt(status.tokenSupplyRaw) / 20n).toString(),
+        status.minHoldingTokens ?? "1000000",
+        status.tokenDecimals ?? 6,
+        Number.MAX_SAFE_INTEGER,
+      )
+    : Math.max(1, Math.floor((1_000_000_000 * 0.05) / tokensPerCard));
   const wallets = liveEntries.length
-    ? liveEntries.map((entry, index) => ({
+    ? liveEntries.map((entry, index) => {
+        const balanceTickets = cardCountFromRawBalance(
+          entry.snapshotBalance,
+          status?.minHoldingTokens ?? "1000000",
+          status?.tokenDecimals ?? 6,
+          cardCap,
+        );
+        const tickets = status?.minHoldingTokens && status?.tokenDecimals !== undefined
+          ? balanceTickets
+          : safeCardCount(entry.cardCount, cardCap);
+        return {
         wallet: entry.wallet,
         rank: index + 1,
         score: entry.snapshotBalance,
-        tier: `${entry.cardCount} card${entry.cardCount === 1 ? "" : "s"}`,
+        tier: `${tickets} card${tickets === 1 ? "" : "s"}`,
         totalSolAirdropped: "0",
         wins: 0,
         losses: 0,
-        tickets: entry.cardCount,
+        tickets,
         firstCard: entry.firstCard,
-      }))
+        };
+      })
     : entries.map((entry) => ({
         ...entry,
-        tickets: ticketCount(entry.score),
+        tickets: ticketCount(entry.score, tokensPerCard, cardCap),
         firstCard: undefined,
-      }));
+      })).filter((entry) => entry.tickets > 0);
   const normalizedQuery = query.trim().toLowerCase();
   const matchingWallets = normalizedQuery
     ? wallets.filter((entry) => entry.wallet.toLowerCase().includes(normalizedQuery))
@@ -248,7 +292,13 @@ export function BingoLiveHall({
     ?? matchingWallets[0]
     ?? null;
   const visibleCards = matchingWallets.slice(0, variant === "game" ? 120 : 72);
-  const totalCards = status?.totalCards ?? wallets.reduce((total, entry) => total + entry.tickets, 0);
+  const walletCardTotal = wallets.reduce((total, entry) => total + entry.tickets, 0);
+  const statusCardCeiling = cardCap * Math.max(0, Number(status?.activeHolders ?? 0));
+  const totalCards = wallets.length
+    ? walletCardTotal
+    : statusCardCeiling
+      ? Math.min(Math.max(0, Number(status?.totalCards ?? 0)), statusCardCeiling)
+      : 0;
   const round = status?.round;
   const remaining = round?.closesAt
     ? Math.max(0, Math.floor((new Date(round.closesAt).getTime() - now) / 1_000))
@@ -270,10 +320,10 @@ export function BingoLiveHall({
   const roundStatus = String(round?.status ?? "").toLowerCase();
   const roundLive = Boolean(["open", "drawing"].includes(roundStatus) && (status?.roundActive || remaining > 0 || calledBalls.length));
   const gameLabel = status?.currentRound ? `GAME ${String(status.currentRound).padStart(3, "0")}` : "NEXT GAME";
-  const hallTitle = roundLive ? "Eyes down. The draw is live." : "Cards are loading in.";
+  const hallTitle = roundLive ? "Eyes down. Every card is live." : "Eyes down. The next draw is locking in.";
   const hallSubtitle = roundLive
-    ? "ALON is calling balls now. Search a wallet, open its card book, and watch the board light up."
-    : "The hall is taking entries. When the cage starts, every card updates live.";
+    ? "ALON is calling the numbers. Find any wallet, open its book, and watch every hit land in real time."
+    : "Eligible wallets are locking into the next draw. Find a wallet now and follow its cards from the first call.";
 
   useEffect(() => {
     if (!selected?.wallet || !status?.currentRound || serverCards[selected.wallet]) return;
@@ -300,8 +350,8 @@ export function BingoLiveHall({
 
       <div className="live-hall-stats" aria-label="Live bingo status">
         <div><span>GAME</span><strong>{gameLabel}</strong></div>
-        <div><span>TIME</span><strong>{roundLive ? remaining > 0 ? formatClock(remaining) : "LIVE" : "STANDBY"}</strong></div>
-        <div><span>LIVE POT</span><strong>{pot && Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "FORMING"}</strong></div>
+        <div><span>TIME</span><strong>{roundLive ? remaining > 0 ? formatClock(remaining) : "LIVE" : "NEXT DRAW"}</strong></div>
+        <div><span>LIVE POT</span><strong>{pot && Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POT BUILDING"}</strong></div>
         <div><span>WALLETS</span><strong>{wallets.length ? wallets.length.toLocaleString() : "—"}</strong></div>
         <div><span>CARDS</span><strong>{totalCards ? totalCards.toLocaleString() : "—"}</strong></div>
       </div>
@@ -309,7 +359,7 @@ export function BingoLiveHall({
       <div className="live-hall-stage">
         <article className="live-caller">
           <div className="live-call-bubble">
-            <span>{currentBall ? "ALON CALLS" : roundLive ? "NEXT BALL" : "CALLER STANDBY"}</span>
+            <span>{currentBall ? "ALON CALLS" : roundLive ? "NEXT BALL" : "ALON IS READY"}</span>
             <strong>{currentBall ? `${currentBall.letter}-${currentBall.number}` : roundLive ? "SPINNING" : "EYES DOWN"}</strong>
             <em>{currentBall ? "Check your card." : "The next number is coming."}</em>
           </div>
@@ -318,7 +368,7 @@ export function BingoLiveHall({
             <img src="/alon-caller.png" alt="ALON, tonight's Bingo caller" width="400" height="400" />
           </div>
           <b>ALON · YOUR CALLER TONIGHT</b>
-          <small>{roundLive ? "LIVE FROM THE ON-CHAIN HALL" : "THE HALL IS GETTING READY"}</small>
+          <small>{roundLive ? "LIVE FROM THE ON-CHAIN HALL" : "THE NEXT BOARD IS LOCKING IN"}</small>
         </article>
 
         <article className="live-cage-column" aria-label="Bingo number cage">
@@ -338,6 +388,9 @@ export function BingoLiveHall({
             <span className="live-cage-pick-path" aria-hidden="true">
               {currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}
             </span>
+            <span className="live-cage-axle" aria-hidden="true" />
+            <span className="live-cage-crank" aria-hidden="true" />
+            <span className="live-cage-stand" aria-hidden="true" />
           </div>
           <div className={`live-ball-chute ${currentBall ? "has-ball" : ""}`} aria-hidden="true" key={`chute-${currentBallKey}`}>
             <span>{currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}</span>
@@ -357,7 +410,7 @@ export function BingoLiveHall({
                     {ball.letter}-{ball.number}
                   </span>
                 ))
-              : <small>Real calls appear here.</small>}
+              : <small>The first call lands when the draw opens.</small>}
           </div>
         </article>
 
@@ -402,15 +455,15 @@ export function BingoLiveHall({
               ) : null}
             </>
           ) : (
-            <div className="live-card-empty">Wallet cards appear when eligible balances enter the hall.</div>
+            <div className="live-card-empty">Enter an eligible wallet to open its live book of cards.</div>
           )}
         </article>
       </div>
 
       <div className="wallet-card-wall">
         <header>
-          <div><span>EVERY WALLET IN THE HALL</span><h3>{wallets.length ? `${wallets.length.toLocaleString()} BOOKS OF CARDS` : "THE BOARD IS READY"}</h3></div>
-          <p>Tap any wallet to zoom into its cards.</p>
+          <div><span>EVERY WALLET IN THE HALL</span><h3>{wallets.length ? `${wallets.length.toLocaleString()} BOOKS IN PLAY` : "YOUR PLACE ON THE BOARD"}</h3></div>
+          <p>Pick a wallet. Open its book. Follow every call.</p>
         </header>
         {visibleCards.length ? (
           <div className="wallet-card-wall-grid">
@@ -438,15 +491,15 @@ export function BingoLiveHall({
             ))}
           </div>
         ) : (
-          <div className="wallet-card-wall-empty">FIRST GAME AT LAUNCH. REAL CARDS ONLY.</div>
+          <div className="wallet-card-wall-empty">THE FIRST ELIGIBLE WALLETS PRINT THE OPENING BOARD.</div>
         )}
       </div>
 
       <div className="live-settlement-strip">
-        <div><span>LAST WINNER</span><strong>{winnerWallet ? shortWallet(winnerWallet) : latestSettled ? "RESULT SETTLED" : "AWAITING FIRST WINNER"}</strong></div>
-        <div><span>LAST PAID</span><strong>{latestSettled && Number(latestSettled.paidLamports) > 0 ? `${lamportsToSol(latestSettled.paidLamports)} SOL` : "AWAITING PAYOUT"}</strong></div>
-        <div><span>FEES COLLECTED</span><strong>{pot && Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POOL FORMING"}</strong></div>
-        <div><span>STATUS</span><strong>{roundLive ? "DRAWING LIVE" : launchState === "prelaunch" ? "LAUNCH QUEUED" : "NEXT GAME FILLING"}</strong></div>
+        <div><span>LAST WINNER</span><strong>{winnerWallet ? shortWallet(winnerWallet) : latestSettled ? "RESULT SETTLED" : "FIRST WINNER PENDING"}</strong></div>
+        <div><span>LAST PAID</span><strong>{latestSettled && Number(latestSettled.paidLamports) > 0 ? `${lamportsToSol(latestSettled.paidLamports)} SOL` : "FIRST PAYOUT PENDING"}</strong></div>
+        <div><span>FEES COLLECTED</span><strong>{pot && Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POT BUILDING"}</strong></div>
+        <div><span>STATUS</span><strong>{roundLive ? "DRAWING LIVE" : launchState === "prelaunch" ? "HALL OPENS AT LAUNCH" : "ENTRIES LOCKING"}</strong></div>
       </div>
 
       <p className="live-hall-proof">{TICKER} eligibility and settled payouts come from the live protocol feed. No fake draws.</p>
@@ -465,7 +518,7 @@ export function BingoLiveHall({
                 <b>{message.title || "Player"}</b>
                 <span>{message.detail}</span>
               </p>
-            )) : <p><b>ALON</b><span>Chat opens when the first players enter the hall.</span></p>}
+            )) : <p><b>ALON</b><span>The hall is open. Eyes down for the first call.</span></p>}
           </div>
           <form onSubmit={submitChat}>
             <input value={chatName} onChange={(event) => setChatName(event.target.value)} maxLength={24} placeholder="Name" aria-label="Chat name" />

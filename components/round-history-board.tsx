@@ -49,7 +49,7 @@ export function RoundHistoryBoard() {
       <header>
         <span>PREVIOUS DRAWS / ON-CHAIN BINGO</span>
         <h2 id="roulette-history-title">EVERY GAME GETS CALLED.</h2>
-        <p>Every settled draw prints a result: winner paid, pool rolled, or jackpot triggered.</p>
+        <p>Every settled draw leaves a receipt: calls made, card hit, wallet paid.</p>
       </header>
 
       {visibleRounds.length ? (
@@ -84,8 +84,8 @@ export function RoundHistoryBoard() {
         </>
       ) : (
         <div className="roulette-history-empty">
-          <strong>{loaded ? "DRAW HISTORY STARTS AFTER THE FIRST REVEAL." : "BOARD SYNCING."}</strong>
-          <span>No fake draws. The board fills with real settled rounds.</span>
+          <strong>{loaded ? "THE FIRST DRAW WRITES THE FIRST LINE." : "VERIFYING THE BOARD."}</strong>
+          <span>No staged winners. Only settled, verifiable draws appear here.</span>
         </div>
       )}
     </section>

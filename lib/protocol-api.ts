@@ -36,6 +36,7 @@ export type ProtocolStatus = {
   programId: string;
   tokenMint: string | null;
   tokenDecimals?: number;
+  tokenSupplyRaw?: string;
   currentRound?: string;
   availablePoolLamports?: string;
   roundLengthSeconds?: string;

@@ -402,8 +402,24 @@ function isEligibleBingoBalance(balance: bigint, minimum: bigint, maxEligible: b
   return balance >= minimum && (!maxEligible || balance <= maxEligible);
 }
 
+function bingoCardCap(totalSupply: bigint, cardPrice: bigint) {
+  if (totalSupply <= 0n || cardPrice <= 0n) return 0;
+  return cardCountForBalance(totalSupply / 20n, cardPrice);
+}
+
 function eligibleBingoCardCount(balance: bigint, cardPrice: bigint) {
-  return Math.min(cardCountForBalance(balance, cardPrice), 50);
+  return cardCountForBalance(balance, cardPrice);
+}
+
+function safeStoredBingoCardCount(value: unknown, cardCap: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(Math.max(0, cardCap), Math.max(0, Math.floor(parsed)));
+}
+
+function safeStoredGameCardCount(cardCount: unknown, playerCount: unknown, cardCap: number) {
+  const players = Math.max(0, Math.floor(Number(playerCount) || 0));
+  return Math.min(Math.max(0, Math.floor(Number(cardCount) || 0)), players * Math.max(0, cardCap));
 }
 
 async function fetchMintHolders() {
@@ -1150,11 +1166,13 @@ async function settleBingoGame(config: BingoConfig, game: BingoGame) {
   ]);
   if (secretError || entriesError) throw secretError ?? entriesError;
 
+  const supply = await tokenSupplyInfo();
+  const cardCap = bingoCardCap(supply.amount, minimumHoldingBaseUnits(supply.decimals));
   const calls = generateDrawOrder(secret.draw_seed, gameNumber).slice(0, Number(game.calls_per_game));
   const entries: BingoEntry[] = ((entryRows ?? []) as BingoEntryRow[]).map((entry) => ({
     wallet: entry.wallet,
-    cardCount: Number(entry.card_count),
-  }));
+    cardCount: safeStoredBingoCardCount(entry.card_count, cardCap),
+  })).filter((entry) => entry.cardCount > 0);
   const winner = selectWinningCard(secret.draw_seed, gameNumber, entries, calls);
   const mainPot = bigintValue(game.main_pot_lamports);
   const jackpotPot = bigintValue(game.jackpot_pot_lamports);
@@ -1776,7 +1794,9 @@ app.get("/api/status", async (_req, res, next) => {
     }
     const config = await ensureBingoConfig();
     const game = await fetchCurrentBingoGame(config);
-    const decimals = await tokenSupplyDecimals();
+    const supply = await tokenSupplyInfo();
+    const decimals = supply.decimals;
+    const cardCap = bingoCardCap(supply.amount, minimumHoldingBaseUnits(decimals));
     const activeMainPot = game && ["open", "drawing"].includes(game.status)
       ? bigintValue(game.main_pot_lamports)
       : 0n;
@@ -1791,6 +1811,7 @@ app.get("/api/status", async (_req, res, next) => {
       programId: "supabase-bingo-engine",
       tokenMint: tokenMint.toBase58(),
       tokenDecimals: decimals,
+      tokenSupplyRaw: supply.amount.toString(),
       currentRound: String(config.current_game),
       availablePoolLamports: trackedMainPool.toString(),
       jackpotPoolLamports: trackedJackpotPool.toString(),
@@ -1808,7 +1829,7 @@ app.get("/api/status", async (_req, res, next) => {
       roundActive: config.game_active,
       paused: config.paused,
       activeHolders: game?.player_count ?? 0,
-      totalCards: game?.card_count ?? 0,
+      totalCards: game ? safeStoredGameCardCount(game.card_count, game.player_count, cardCap) : 0,
       round: game ? {
         roundNumber: String(game.game_number),
         openedAt: game.opened_at,
@@ -1818,7 +1839,7 @@ app.get("/api/status", async (_req, res, next) => {
         remainingLamports: String(game.rollover_lamports),
         cooperatePercent: null,
         defectPercent: null,
-        voterCount: Number(game.card_count),
+        voterCount: safeStoredGameCardCount(game.card_count, game.player_count, cardCap),
         status: ["open", "drawing"].includes(game.status)
           ? "open"
           : game.status === "rolled_over"
@@ -1837,7 +1858,7 @@ app.get("/api/status", async (_req, res, next) => {
         jackpotTriggered: game.jackpot_triggered,
         jackpotPayoutLamports: String(game.jackpot_payout_lamports),
         playerCount: game.player_count,
-        cardCount: game.card_count,
+        cardCount: safeStoredGameCardCount(game.card_count, game.player_count, cardCap),
         settledAt: game.settled_at,
       } : null,
     });
@@ -1883,6 +1904,8 @@ app.get("/api/round-history", async (_req, res, next) => {
       return res.json([]);
     }
     if (error) throw error;
+    const supply = await tokenSupplyInfo();
+    const cardCap = bingoCardCap(supply.amount, minimumHoldingBaseUnits(supply.decimals));
     res.json((data ?? []).map((game) => ({
       roundNumber: String(game.game_number),
       result: ["open", "drawing"].includes(game.status)
@@ -1902,9 +1925,9 @@ app.get("/api/round-history", async (_req, res, next) => {
       rolloverLamports: String(game.rollover_lamports),
       holdPercent: null,
       jeetPercent: null,
-      voterCount: Number(game.card_count),
+      voterCount: safeStoredGameCardCount(game.card_count, game.player_count, cardCap),
       playerCount: Number(game.player_count),
-      cardCount: Number(game.card_count),
+      cardCount: safeStoredGameCardCount(game.card_count, game.player_count, cardCap),
       winnerWallet: game.winner_wallet,
       jackpotTriggered: Boolean(game.jackpot_triggered),
       calledNumbers: game.called_numbers ?? [],
@@ -1932,14 +1955,16 @@ app.get("/api/bingo/entries", async (_req, res, next) => {
         .single<{ draw_seed: string }>(),
     ]);
     if (entriesError || secretError) throw entriesError ?? secretError;
+    const supply = await tokenSupplyInfo();
+    const cardCap = bingoCardCap(supply.amount, minimumHoldingBaseUnits(supply.decimals));
     res.json({
       gameNumber: String(game.game_number),
       entries: ((rows ?? []) as BingoEntryRow[]).map((entry) => ({
         wallet: entry.wallet,
         snapshotBalance: String(entry.snapshot_balance),
-        cardCount: Number(entry.card_count),
+        cardCount: safeStoredBingoCardCount(entry.card_count, cardCap),
         firstCard: generateBingoCard(secret.draw_seed, String(game.game_number), entry.wallet, 0),
-      })),
+      })).filter((entry) => entry.cardCount > 0),
     });
   } catch (error) { next(error); }
 });
@@ -1965,12 +1990,15 @@ app.get("/api/bingo/cards/:wallet", async (req, res, next) => {
     if (entryError || secretError) throw entryError ?? secretError;
     if (!entry || !secret) return res.status(404).json({ error: "This wallet has no cards in that game." });
     const requestedLimit = z.coerce.number().int().min(1).max(200).default(50).parse(req.query.limit);
-    const cardCount = Math.min(Number(entry.card_count), requestedLimit);
+    const supply = await tokenSupplyInfo();
+    const cardCap = bingoCardCap(supply.amount, minimumHoldingBaseUnits(supply.decimals));
+    const storedCardCount = safeStoredBingoCardCount(entry.card_count, cardCap);
+    const cardCount = Math.min(storedCardCount, requestedLimit);
     res.json({
       gameNumber,
       wallet,
       snapshotBalance: String(entry.snapshot_balance),
-      cardCount: Number(entry.card_count),
+      cardCount: storedCardCount,
       cards: Array.from({ length: cardCount }, (_, cardIndex) => ({
         cardIndex,
         numbers: generateBingoCard(secret.draw_seed, gameNumber, wallet, cardIndex),
