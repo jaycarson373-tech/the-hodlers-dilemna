@@ -1,7 +1,7 @@
 "use client";
 
 import { useWalletConnection } from "@solana/react-hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useBingoFeed } from "@/components/use-bingo-feed";
 import { usePublicLeaderboard } from "@/components/use-public-leaderboard";
 import {
@@ -28,6 +28,12 @@ type LiveCardsResponse = {
   wallet: string;
   cardCount: number;
   cards: Array<{ cardIndex: number; numbers: number[] }>;
+};
+type ChatMessage = {
+  id: string;
+  title: string | null;
+  detail: string;
+  occurred_at: string;
 };
 
 const shortWallet = (wallet: string) => `${wallet.slice(0, 4)}…${wallet.slice(-4)}`;
@@ -141,6 +147,11 @@ export function BingoLiveHall({
   const [query, setQuery] = useState("");
   const [selectedWallet, setSelectedWallet] = useState("");
   const [selectedCard, setSelectedCard] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatName, setChatName] = useState("");
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     if (launchState !== "live") return;
@@ -168,6 +179,44 @@ export function BingoLiveHall({
       window.clearInterval(clockTimer);
     };
   }, [refresh]);
+
+  const refreshChat = useCallback(async () => {
+    try {
+      setChatMessages(await protocolRequest<ChatMessage[]>("/api/chat"));
+    } catch {
+      // Chat is non-critical; keep the live hall running.
+    }
+  }, []);
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void refreshChat(), 0);
+    const timer = window.setInterval(() => void refreshChat(), 6_000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, [refreshChat]);
+
+  const submitChat = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = chatName.trim();
+    const message = chatDraft.trim();
+    if (!name || !message || chatBusy) return;
+    setChatBusy(true);
+    try {
+      await protocolRequest<{ ok: true; message: ChatMessage }>("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name, message }),
+      });
+      setChatDraft("");
+      await refreshChat();
+    } catch {
+      // Preserve the draft so it can be retried.
+    } finally {
+      setChatBusy(false);
+    }
+  };
 
   const wallets = liveEntries.length
     ? liveEntries.map((entry, index) => ({
@@ -265,7 +314,10 @@ export function BingoLiveHall({
           <div className={`live-cage-machine ${roundLive ? "is-spinning" : ""}`}>
             <i /><i /><i /><i /><i /><i />
           </div>
-          <div className="live-current-ball">
+          <div className={`live-ball-chute ${currentBall ? "has-ball" : ""}`} aria-hidden="true">
+            <span>{currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}</span>
+          </div>
+          <div className={`live-current-ball ${currentBall ? "has-ball" : ""}`}>
             <span>{currentBall?.letter ?? "•"}</span>
             <strong>{currentBall?.number ?? "—"}</strong>
           </div>
@@ -364,6 +416,30 @@ export function BingoLiveHall({
       </div>
 
       <p className="live-hall-proof">{TICKER} eligibility and settled payouts come from the live protocol feed. No fake draws.</p>
+      <button className="broadcast-chat-button" type="button" onClick={() => setChatOpen((open) => !open)}>
+        LIVE CHAT
+      </button>
+      {chatOpen ? (
+        <aside className="broadcast-chat-popover" aria-label="Live bingo chat">
+          <header>
+            <span>LIVE HALL CHAT</span>
+            <button type="button" onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
+          </header>
+          <div className="broadcast-chat-log">
+            {chatMessages.length ? chatMessages.map((message) => (
+              <p key={message.id}>
+                <b>{message.title || "Player"}</b>
+                <span>{message.detail}</span>
+              </p>
+            )) : <p><b>ALON</b><span>Chat opens when the first players enter the hall.</span></p>}
+          </div>
+          <form onSubmit={submitChat}>
+            <input value={chatName} onChange={(event) => setChatName(event.target.value)} maxLength={24} placeholder="Name" aria-label="Chat name" />
+            <textarea value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} maxLength={160} placeholder="Say something in the hall" aria-label="Chat message" />
+            <button disabled={chatBusy || !chatName.trim() || !chatDraft.trim()} type="submit">{chatBusy ? "SENDING…" : "SEND"}</button>
+          </form>
+        </aside>
+      ) : null}
     </section>
   );
 }

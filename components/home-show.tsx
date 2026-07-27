@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { BingoLiveHall } from "@/components/bingo-live-hall";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { PublicLeaderboardBoard } from "@/components/public-leaderboard-board";
 import { RoundHistoryBoard } from "@/components/round-history-board";
 import { ShowBrand } from "@/components/show-brand";
-import { WalletConnect } from "@/components/wallet-connect";
 import { PUMP_FUN_URL, TICKER } from "@/lib/constants";
 
 const bingoRows = [
@@ -45,7 +43,6 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
           <a href="#live-round">Live Hall</a>
           <a href="#leaderboard">Winners</a>
           <LaunchNavLinks />
-          <WalletConnect />
         </nav>
       </header>
 
@@ -102,10 +99,6 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
             <blockquote>No staking. No ticket claim. If you hold, you&apos;re in the hall.</blockquote>
           </div>
         </div>
-      </section>
-
-      <section className="home-live-section">
-        <BingoLiveHall launchState={launchState} variant="home" />
       </section>
 
       <section className="bingo-pot-section" id="the-pot">

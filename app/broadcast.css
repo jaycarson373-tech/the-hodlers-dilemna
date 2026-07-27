@@ -1372,6 +1372,7 @@ body {
   position: relative;
   width: min(310px, 76vw);
   aspect-ratio: 1;
+  overflow: hidden;
   border: 8px solid var(--bingo-green);
   border-radius: 50%;
   box-shadow: inset 0 0 0 4px rgba(255,255,255,.15), 0 0 52px rgba(85,223,149,.1);
@@ -1403,14 +1404,15 @@ body {
   border-radius: 50%;
   background: var(--bingo-green);
   box-shadow: inset 0 0 10px rgba(255,255,255,.45);
+  animation: bingoBallTumble 2.4s ease-in-out infinite;
 }
 
-.live-cage-machine i:nth-child(1) { top: 25%; left: 23%; }
-.live-cage-machine i:nth-child(2) { top: 54%; left: 18%; }
-.live-cage-machine i:nth-child(3) { top: 68%; left: 48%; }
-.live-cage-machine i:nth-child(4) { top: 22%; right: 18%; }
-.live-cage-machine i:nth-child(5) { top: 49%; right: 23%; }
-.live-cage-machine i:nth-child(6) { top: 42%; left: 44%; background: #fff; }
+.live-cage-machine i:nth-child(1) { top: 25%; left: 23%; animation-delay: -.1s; }
+.live-cage-machine i:nth-child(2) { top: 54%; left: 18%; animation-delay: -.45s; }
+.live-cage-machine i:nth-child(3) { top: 68%; left: 48%; animation-delay: -.82s; }
+.live-cage-machine i:nth-child(4) { top: 22%; right: 18%; animation-delay: -1.15s; }
+.live-cage-machine i:nth-child(5) { top: 49%; right: 23%; animation-delay: -1.5s; }
+.live-cage-machine i:nth-child(6) { top: 42%; left: 44%; background: #fff; animation-delay: -1.9s; }
 
 .live-cage-machine.is-spinning {
   animation: bingoCageSpin 8s linear infinite;
@@ -1427,6 +1429,38 @@ body {
   background: #fff;
   color: var(--bingo-line);
   box-shadow: 0 9px 0 #041f16;
+}
+
+.live-current-ball.has-ball {
+  animation: bingoPickedBall 1.2s cubic-bezier(.2,.9,.2,1) both;
+}
+
+.live-ball-chute {
+  position: relative;
+  width: 108px;
+  height: 54px;
+  margin-top: 18px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.live-ball-chute.has-ball {
+  opacity: 1;
+}
+
+.live-ball-chute span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 5px solid var(--bingo-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--bingo-line);
+  font: 900 .82rem/1 var(--font-ibm-plex-mono), monospace;
+  box-shadow: 0 8px 0 #041f16;
+  animation: bingoBallDrop .95s cubic-bezier(.15,.9,.25,1) both;
 }
 
 .live-current-ball span {
@@ -1860,6 +1894,25 @@ body {
 
 @keyframes bingoCageSpin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes bingoBallTumble {
+  0%, 100% { transform: translate3d(0,0,0) scale(1); }
+  25% { transform: translate3d(18px,-14px,0) scale(1.04); }
+  50% { transform: translate3d(-10px,18px,0) scale(.96); }
+  75% { transform: translate3d(14px,10px,0) scale(1.02); }
+}
+
+@keyframes bingoBallDrop {
+  from { opacity: 0; transform: translate3d(0,-44px,0) scale(.72) rotate(-16deg); }
+  60% { opacity: 1; transform: translate3d(0,8px,0) scale(1.04) rotate(4deg); }
+  to { opacity: 1; transform: translate3d(0,0,0) scale(1) rotate(0deg); }
+}
+
+@keyframes bingoPickedBall {
+  0% { transform: translateY(-18px) scale(.86); filter: brightness(1); }
+  60% { transform: translateY(4px) scale(1.08); filter: brightness(1.12); }
+  100% { transform: translateY(0) scale(1); filter: brightness(1); }
 }
 
 @keyframes bingoCallerTurn {

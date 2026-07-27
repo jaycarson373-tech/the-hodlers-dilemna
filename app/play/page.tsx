@@ -3,7 +3,6 @@ import Link from "next/link";
 import { BingoLiveHall } from "@/components/bingo-live-hall";
 import { ShowBrand } from "@/components/show-brand";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
-import { WalletConnect } from "@/components/wallet-connect";
 import { TICKER } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -18,7 +17,7 @@ export default function PlayPage() {
       <div className="broadcast-bulbs" aria-hidden="true" />
       <header className="broadcast-nav">
         <ShowBrand />
-        <nav aria-label="Game room navigation"><Link href="/">Home</Link><Link href="/rules">How It Works</Link><Link href="/leaderboard">Winners</Link><LaunchNavLinks /><WalletConnect /></nav>
+        <nav aria-label="Game room navigation"><Link href="/">Home</Link><Link href="/rules">How It Works</Link><Link href="/leaderboard">Winners</Link><LaunchNavLinks /></nav>
       </header>
       <BingoLiveHall launchState={launchState} variant="game" />
       <footer className="broadcast-footer">

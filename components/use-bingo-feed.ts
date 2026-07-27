@@ -23,10 +23,13 @@ const supabasePublishableKey = (
 
 const titleFromType = (value: string) => value.replaceAll("_", " ");
 const cleanCopy = (value: string) => value
-  .replace(new RegExp(["Hodl", "or", "No", "Hodl"].join(" ") + "\\.fun", "gi"), "On-Chain Bingo")
-  .replace(/NO\s+HODL|JEET|HODL|\bHOLD\b|\bHodl\b/gi, "card")
+  .replace(/Hodl\s+or\s+No\s+Hodl\.fun/gi, "On-Chain Bingo")
+  .replace(/Holders?\s+Dilemmas?\.fun/gi, "On-Chain Bingo")
+  .replace(/Holders?\s+Dilemmas?/gi, "On-Chain Bingo")
+  .replace(/\bDilemmas?\b/gi, "Bingo")
+  .replace(/\bNO\s+HODL\b|\bJEET\b|\bHODL\b|\bHOLD\b|\bHodl\b/gi, "card")
   .replace(/\bSELL\b/gi, "card")
-  .replace(/\bBanker'?s?\b/gi, "spinner")
+  .replace(/\bBanker'?s?\b/gi, "caller")
   .replace(/\bThe\s+Box\b/gi, "the pool")
   .replace(/\bBox\b/g, "Pool")
   .replace(/\bepisode\b/gi, "round")
@@ -36,7 +39,7 @@ const toneFromRow = (row: FeedEventRow): FeedEntry["tone"] => {
   if (row.tone === "cooperate" || row.tone === "defect" || row.tone === "gold" || row.tone === "neutral") {
     return row.tone;
   }
-  if (/ROLL|DEFECT|SELL|JEET|NO_HODL|CLOSED/i.test(row.event_type)) return "defect";
+  if (/ROLL|DEFECT|SELL|JEET|NO_HODL|CLOSED/i.test(row.event_type)) return "gold";
   if (/OPEN|HODL|PAID|SETTLED/i.test(row.event_type)) return "cooperate";
   if (/FEE|POT|SWEEP|BONUS/i.test(row.event_type)) return "gold";
   return "neutral";

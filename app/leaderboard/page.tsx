@@ -3,7 +3,6 @@ import Link from "next/link";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { PublicLeaderboardBoard } from "@/components/public-leaderboard-board";
 import { ShowBrand } from "@/components/show-brand";
-import { WalletConnect } from "@/components/wallet-connect";
 
 export const metadata: Metadata = {
   title: "Leaderboard | On-Chain Bingo",
@@ -22,7 +21,6 @@ export default function LeaderboardPage() {
           <Link href="/rules">Rules</Link>
           <Link href="/docs">Docs</Link>
           <LaunchNavLinks />
-          <WalletConnect />
         </nav>
       </header>
       <PublicLeaderboardBoard limit={50} />
