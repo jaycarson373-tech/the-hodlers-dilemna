@@ -53,7 +53,11 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
           <h1 id="show-home-title">EYES DOWN.<br /><em>FEES UP.</em></h1>
           <span>The classic hall game rebuilt on Solana. Hold {TICKER} to get your cards — every 1,000,000 tokens is one entry. Numbers get drawn, wallets hit bingo, and creator fees become the prize.</span>
           <div className="show-hero-actions">
-            <a className="show-button show-button-green" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">BUY {TICKER}</a>
+            {PUMP_FUN_URL ? (
+              <a className="show-button show-button-green" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">BUY {TICKER}</a>
+            ) : (
+              <span className="show-button show-button-green is-disabled">CA SOON</span>
+            )}
             <Link className="show-button show-button-red" href="/play">ENTER BINGO</Link>
             <Link className="show-button show-button-red" href="/rules">HOW IT WORKS</Link>
           </div>
