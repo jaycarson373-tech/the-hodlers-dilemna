@@ -67,8 +67,6 @@ const cardCountFromRawBalance = (
     return 0;
   }
 };
-const cageBalls = Array.from({ length: 50 }, (_, index) => index);
-
 const hashSeed = (value: string) => {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -77,6 +75,24 @@ const hashSeed = (value: string) => {
   }
   return hash >>> 0;
 };
+
+const cageBalls = (() => {
+  const rowCounts = [11, 10, 9, 8, 7, 5];
+  let number = 1;
+
+  return rowCounts.flatMap((count, row) => (
+    Array.from({ length: count }, (_, column) => {
+      const seed = hashSeed(`cage-ball:${number}`);
+      const jitterX = ((seed >>> 6) % 7) / 10 - 0.3;
+      const jitterY = ((seed >>> 12) % 5) / 10 - 0.2;
+      const x = 50 + (column - (count - 1) / 2) * 6.8 + (row % 2 ? 1.7 : 0) + jitterX;
+      const y = 82 - row * 8.15 + jitterY;
+      const ball = { number, seed, x, y, row };
+      number += 1;
+      return ball;
+    })
+  ));
+})();
 
 const cardNumbers = (wallet: string, cardIndex: number) => {
   let seed = hashSeed(`${wallet}:${cardIndex}`);
@@ -399,29 +415,33 @@ export function BingoLiveHall({
 
         <article className="live-cage-column" aria-label="Bingo number cage">
           <div className={`live-cage-machine ${roundLive ? "is-spinning" : ""} ${currentBall ? "has-picked-ball" : ""}`} key={`cage-${currentBallKey}`}>
+            <div className="live-cage-drum" aria-hidden="true">
             {cageBalls.map((ball) => {
-              const seed = hashSeed(`cage-ball:${ball}`);
+              const { number, seed, x, y, row } = ball;
               return (
                 <i
-                  aria-hidden="true"
-                  key={ball}
+                  key={number}
                   style={{
-                    "--ball-index": ball,
-                    "--ball-x": `${14 + (seed % 72)}%`,
-                    "--ball-y": `${55 + ((seed >>> 8) % 31)}%`,
-                    "--ball-hop-x": `${-44 + ((seed >>> 14) % 88)}px`,
-                    "--ball-hop-y": `${-56 - ((seed >>> 20) % 62)}px`,
-                    "--ball-return-x": `${36 - ((seed >>> 5) % 72)}px`,
-                    "--ball-mid-y": `${-24 - ((seed >>> 11) % 28)}px`,
+                    "--ball-index": number,
+                    "--ball-x": `${x}%`,
+                    "--ball-y": `${y}%`,
+                    "--ball-hop-x": `${-34 + ((seed >>> 14) % 68)}px`,
+                    "--ball-hop-y": `${-62 - ((seed >>> 20) % 70)}px`,
+                    "--ball-return-x": `${28 - ((seed >>> 5) % 56)}px`,
+                    "--ball-mid-y": `${-28 - ((seed >>> 11) % 42)}px`,
                     "--ball-delay": `${-((seed >>> 18) % 17) / 5}s`,
+                    "--ball-layer": row + 2,
                   } as CSSProperties}
-                />
+                >
+                  <span>{number}</span>
+                </i>
               );
             })}
+              <span className="live-cage-axle" aria-hidden="true" />
+            </div>
             <span className="live-cage-pick-path" aria-hidden="true">
               {currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}
             </span>
-            <span className="live-cage-axle" aria-hidden="true" />
             <span className="live-cage-crank" aria-hidden="true" />
             <span className="live-cage-stand" aria-hidden="true" />
           </div>
