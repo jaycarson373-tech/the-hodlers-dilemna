@@ -1387,21 +1387,30 @@ body {
 
 .live-cage-machine {
   position: relative;
-  width: min(270px, 70vw);
+  width: min(310px, 74vw);
   aspect-ratio: 1;
-  overflow: hidden;
-  border: 8px solid var(--bingo-green);
+  overflow: visible;
+  border: 9px solid var(--bingo-green);
   border-radius: 50%;
-  box-shadow: inset 0 0 0 4px rgba(255,255,255,.15), 0 0 52px rgba(85,223,149,.1);
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255,255,255,.32), transparent 0 8%, transparent 20%),
+    radial-gradient(circle at 50% 50%, rgba(85, 223, 149, .18), transparent 62%),
+    rgba(4, 31, 22, .42);
+  box-shadow:
+    inset 0 0 0 4px rgba(255,255,255,.16),
+    inset 0 0 44px rgba(85,223,149,.15),
+    0 13px 0 #041f16,
+    0 0 52px rgba(85,223,149,.16);
 }
 
 .live-cage-machine::before,
 .live-cage-machine::after {
   position: absolute;
-  inset: 20px;
-  border: 6px solid var(--bingo-green);
+  inset: 22px;
+  border: 5px solid rgba(85, 223, 149, .88);
   border-radius: 50%;
   content: "";
+  pointer-events: none;
 }
 
 .live-cage-machine::before {
@@ -1412,27 +1421,45 @@ body {
   transform: rotate(66deg) scaleX(.42);
 }
 
+.live-cage-machine .live-cage-pick-path::before,
+.live-cage-machine .live-cage-pick-path::after {
+  position: absolute;
+  content: "";
+}
+
 .live-cage-machine i {
   position: absolute;
   z-index: 2;
-  width: 34px;
-  height: 34px;
-  border: 3px solid rgba(255,255,255,.65);
+  left: var(--ball-x);
+  top: var(--ball-y);
+  width: clamp(17px, 2.15vw, 28px);
+  height: clamp(17px, 2.15vw, 28px);
+  border: 2px solid rgba(255,255,255,.78);
   border-radius: 50%;
-  background: var(--bingo-green);
-  box-shadow: inset 0 0 10px rgba(255,255,255,.45);
-  animation: bingoBallTumble 2.4s ease-in-out infinite;
+  background:
+    radial-gradient(circle at 30% 25%, #fff 0 10%, transparent 11%),
+    linear-gradient(135deg, #f8fff9, #51e992 52%, #0d7b48);
+  box-shadow:
+    inset -3px -4px 8px rgba(4,31,22,.22),
+    0 2px 0 rgba(4,31,22,.45);
+  animation: bingoBallTumble 2.2s ease-in-out infinite;
+  animation-delay: var(--ball-delay);
+  transform: translate(-50%, -50%);
 }
 
-.live-cage-machine i:nth-child(1) { top: 25%; left: 23%; animation-delay: -.1s; }
-.live-cage-machine i:nth-child(2) { top: 54%; left: 18%; animation-delay: -.45s; }
-.live-cage-machine i:nth-child(3) { top: 68%; left: 48%; animation-delay: -.82s; }
-.live-cage-machine i:nth-child(4) { top: 22%; right: 18%; animation-delay: -1.15s; }
-.live-cage-machine i:nth-child(5) { top: 49%; right: 23%; animation-delay: -1.5s; }
-.live-cage-machine i:nth-child(6) { top: 42%; left: 44%; background: #fff; animation-delay: -1.9s; }
+.live-cage-machine i:nth-child(3n) {
+  background:
+    radial-gradient(circle at 30% 25%, #fff 0 10%, transparent 11%),
+    linear-gradient(135deg, #fff, #f4fff8 54%, #d9fff0);
+}
+
+.live-cage-machine i:nth-child(5n) {
+  width: clamp(14px, 1.9vw, 24px);
+  height: clamp(14px, 1.9vw, 24px);
+}
 
 .live-cage-machine.is-spinning {
-  animation: bingoCageSpin 8s linear infinite;
+  animation: bingoCageSpin 5.2s linear infinite;
 }
 
 .live-cage-machine.has-picked-ball i {
@@ -1445,11 +1472,11 @@ body {
 .live-cage-pick-path {
   position: absolute;
   z-index: 4;
-  left: 50%;
-  bottom: 16px;
+  left: 104%;
+  bottom: 40%;
   display: grid;
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   place-items: center;
   border: 4px solid #dfffee;
   border-radius: 50%;
@@ -1458,7 +1485,7 @@ body {
   font: 950 .72rem/1 var(--font-ibm-plex-mono), monospace;
   opacity: 0;
   box-shadow: 0 6px 0 #041f16, 0 0 26px rgba(85, 223, 149, .32);
-  transform: translate(-50%, 0) scale(.72);
+  transform: translate(-40px, -60px) scale(.72);
   pointer-events: none;
 }
 
@@ -1485,11 +1512,14 @@ body {
 
 .live-ball-chute {
   position: relative;
-  width: 136px;
-  height: 60px;
-  margin-top: 16px;
+  width: 172px;
+  height: 66px;
+  margin-top: 24px;
+  border: 4px solid rgba(85,223,149,.62);
   border-radius: 999px;
-  opacity: 0;
+  background: rgba(4,31,22,.72);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.08), 0 7px 0 #041f16;
+  border-radius: 999px;
   pointer-events: none;
 }
 
@@ -1499,14 +1529,15 @@ body {
 
 .live-ball-chute span {
   position: absolute;
-  inset: 0;
+  inset: 7px auto 7px 7px;
   display: grid;
+  width: 52px;
   place-items: center;
   border: 5px solid var(--bingo-line);
-  border-radius: 999px;
+  border-radius: 50%;
   background: #fff;
   color: var(--bingo-line);
-  font: 900 .95rem/1 var(--font-ibm-plex-mono), monospace;
+  font: 900 .78rem/1 var(--font-ibm-plex-mono), monospace;
   box-shadow: 0 8px 0 #041f16;
   animation: bingoBallDrop .95s cubic-bezier(.15,.9,.25,1) both;
 }
@@ -1967,10 +1998,10 @@ body {
 }
 
 @keyframes bingoBallTumble {
-  0%, 100% { transform: translate3d(0,0,0) scale(1); }
-  25% { transform: translate3d(18px,-14px,0) scale(1.04); }
-  50% { transform: translate3d(-10px,18px,0) scale(.96); }
-  75% { transform: translate3d(14px,10px,0) scale(1.02); }
+  0%, 100% { transform: translate(-50%, -50%) translate3d(0,0,0) scale(1); }
+  25% { transform: translate(-50%, -50%) translate3d(18px,-14px,0) scale(1.04); }
+  50% { transform: translate(-50%, -50%) translate3d(-10px,18px,0) scale(.96); }
+  75% { transform: translate(-50%, -50%) translate3d(14px,10px,0) scale(1.02); }
 }
 
 @keyframes bingoCageScatter {
@@ -1982,24 +2013,24 @@ body {
 @keyframes bingoBallSelect {
   0% {
     opacity: 0;
-    transform: translate(-50%, -72px) scale(.55) rotate(-28deg);
+    transform: translate(-170px, -58px) scale(.58) rotate(-28deg);
   }
   20% {
     opacity: 1;
   }
   62% {
     opacity: 1;
-    transform: translate(-50%, 18px) scale(1.08) rotate(12deg);
+    transform: translate(-28px, -20px) scale(1.08) rotate(12deg);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, 78px) scale(.92) rotate(0deg);
+    transform: translate(18px, 56px) scale(.92) rotate(0deg);
   }
 }
 
 @keyframes bingoBallDrop {
-  from { opacity: 0; transform: translate3d(0,-44px,0) scale(.72) rotate(-16deg); }
-  60% { opacity: 1; transform: translate3d(0,8px,0) scale(1.04) rotate(4deg); }
+  from { opacity: 0; transform: translate3d(110px,-74px,0) scale(.72) rotate(-42deg); }
+  60% { opacity: 1; transform: translate3d(64px,5px,0) scale(1.04) rotate(18deg); }
   to { opacity: 1; transform: translate3d(0,0,0) scale(1) rotate(0deg); }
 }
 
@@ -4633,5 +4664,43 @@ body {
     margin-top: 18px !important;
     padding: 15px 16px !important;
     line-height: 1.45 !important;
+  }
+}
+
+/* Launch-critical Bingo fixes: remove wasted hero/game whitespace and keep live state readable. */
+.show-home .show-hero {
+  min-height: auto !important;
+  padding-top: clamp(34px, 5vw, 74px) !important;
+  padding-bottom: clamp(42px, 6vw, 86px) !important;
+}
+
+.broadcast-page .bingo-live-hall.is-game {
+  min-height: auto !important;
+  padding-top: clamp(22px, 4vw, 54px) !important;
+}
+
+.broadcast-page .live-hall-heading {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 700px) {
+  .broadcast-page .bingo-live-hall {
+    padding-top: 18px !important;
+  }
+
+  .broadcast-page .bingo-live-hall.is-game {
+    padding-top: 14px !important;
+  }
+
+  .broadcast-page .live-hall-heading h2 {
+    font-size: clamp(2.25rem, 11vw, 3.8rem) !important;
+  }
+
+  .live-cage-machine {
+    width: min(250px, 68vw);
+  }
+
+  .live-ball-chute {
+    width: 150px;
   }
 }

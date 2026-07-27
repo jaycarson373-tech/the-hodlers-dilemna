@@ -362,15 +362,19 @@ async function requireSameWallet(req: Request, expected: string) {
   }
 }
 
-async function tokenSupplyDecimals() {
-  if (!tokenMint) return 6;
+async function tokenSupplyInfo() {
+  if (!tokenMint) return { amount: 0n, decimals: 6 };
   try {
     const supply = await connection.getTokenSupply(tokenMint, "confirmed");
-    return supply.value.decimals;
+    return { amount: BigInt(supply.value.amount), decimals: supply.value.decimals };
   } catch (error) {
-    console.error("token decimals unavailable; using default decimals", error);
-    return 6;
+    console.error("token supply unavailable; using default decimals", error);
+    return { amount: 0n, decimals: 6 };
   }
+}
+
+async function tokenSupplyDecimals() {
+  return (await tokenSupplyInfo()).decimals;
 }
 
 async function walletTokenBalance(wallet: PublicKey) {
@@ -388,6 +392,18 @@ async function walletTokenBalance(wallet: PublicKey) {
 
 function minimumHoldingBaseUnits(decimals: number) {
   return tokenAmountStringToBaseUnits(env.MIN_HOLDING_TOKENS, decimals);
+}
+
+function maxEligibleBalanceBaseUnits(totalSupply: bigint) {
+  return totalSupply > 0n ? totalSupply / 20n : null;
+}
+
+function isEligibleBingoBalance(balance: bigint, minimum: bigint, maxEligible: bigint | null) {
+  return balance >= minimum && (!maxEligible || balance <= maxEligible);
+}
+
+function eligibleBingoCardCount(balance: bigint, cardPrice: bigint) {
+  return Math.min(cardCountForBalance(balance, cardPrice), 50);
 }
 
 async function fetchMintHolders() {
@@ -775,8 +791,10 @@ function publicRoundHistory(round: DbRoundHistory) {
 async function syncHolder(wallet: PublicKey) {
   const db = requireDb();
   const balance = await walletTokenBalance(wallet);
+  const supply = await tokenSupplyInfo();
   const minimumHolding = minimumHoldingBaseUnits(balance.decimals);
-  const eligibleAmount = balance.amount >= minimumHolding ? balance.amount : 0n;
+  const maxEligible = maxEligibleBalanceBaseUnits(supply.amount);
+  const eligibleAmount = isEligibleBingoBalance(balance.amount, minimumHolding, maxEligible) ? balance.amount : 0n;
   const walletAddress = wallet.toBase58();
 
   // A wallet below the entry threshold does not need a database row. Returning
@@ -829,7 +847,7 @@ async function syncHolder(wallet: PublicKey) {
     wallet: walletAddress,
     position_amount: eligibleAmount.toString(),
     token_balance_raw: eligibleAmount.toString(),
-    card_count: cardCountForBalance(eligibleAmount, minimumHolding),
+    card_count: eligibleBingoCardCount(eligibleAmount, minimumHolding),
     leaderboard_score: eligibleAmount.toString(),
     supply_bps: 0,
     streak_started_at: streakStartedAt,
@@ -1029,13 +1047,16 @@ async function sendBingoPayout(
 async function openBingoGame(config: BingoConfig) {
   const db = requireDb();
   const balances = await fetchMintHolders();
-  const decimals = await tokenSupplyDecimals();
+  const supply = await tokenSupplyInfo();
+  const decimals = supply.decimals;
   const cardPrice = minimumHoldingBaseUnits(decimals);
+  const maxEligible = maxEligibleBalanceBaseUnits(supply.amount);
   const entries = Array.from(balances.entries())
+    .filter(([, balance]) => isEligibleBingoBalance(balance, cardPrice, maxEligible))
     .map(([wallet, balance]) => ({
       wallet,
       balance,
-      cardCount: cardCountForBalance(balance, cardPrice),
+      cardCount: eligibleBingoCardCount(balance, cardPrice),
     }))
     .filter((entry) => entry.cardCount > 0);
 
@@ -1221,8 +1242,10 @@ async function openRound(config: DbConfig) {
   const pot = bigintValue(config.available_pool_lamports);
   const forceOpen = Number(config.failed_round_count ?? 0) >= 3;
   const onChainBalances = await fetchMintHolders();
-  const decimals = await tokenSupplyDecimals();
+  const supply = await tokenSupplyInfo();
+  const decimals = supply.decimals;
   const minimum = minimumHoldingBaseUnits(decimals);
+  const maxEligible = maxEligibleBalanceBaseUnits(supply.amount);
   const { data: holderRows, error: holderError } = await db.from("holders").select("wallet,streak_started_at");
   if (holderError) throw holderError;
   const holderByWallet = new Map((holderRows ?? []).map((holder) => [holder.wallet, holder]));
@@ -1239,7 +1262,7 @@ async function openRound(config: DbConfig) {
         .map((row: { wallet: string }) => row.wallet));
     }
   }
-  const eligible = Array.from(onChainBalances.entries()).filter(([wallet, balance]) => balance >= minimum && (!survivorSet || survivorSet.has(wallet)));
+  const eligible = Array.from(onChainBalances.entries()).filter(([wallet, balance]) => isEligibleBingoBalance(balance, minimum, maxEligible) && (!survivorSet || survivorSet.has(wallet)));
   const weighted = eligible.map(([wallet, balance]) => {
     const streakStartedAt = holderByWallet.get(wallet)?.streak_started_at ?? openedAt.toISOString();
     const multiplier = multiplierBps(streakStartedAt);
