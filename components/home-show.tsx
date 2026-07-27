@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
-import { LaunchFooterLinks } from "@/components/launch-links";
+import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { PublicLeaderboardBoard } from "@/components/public-leaderboard-board";
 import { RoundHistoryBoard } from "@/components/round-history-board";
 import { ShowBrand } from "@/components/show-brand";
@@ -53,6 +53,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
           <a href="#choice">Entries</a>
           <Link href="/play">Play Live</Link>
           <a href="#leaderboard">Winners</a>
+          <LaunchNavLinks forceCaSoon />
           {PUMP_FUN_URL ? <a className="show-nav-buy" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">Buy {TICKER}</a> : null}
         </nav>
       </header>
@@ -64,9 +65,9 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
           <h1 id="show-home-title">EYES DOWN.<br /><em>FEES UP.</em></h1>
           <span>The classic hall game, rebuilt on Solana. Every 1,000,000 {TICKER} prints one live card. ALON calls the numbers. The winning wallet takes the creator-fee prize in SOL.</span>
           <form className="show-hero-search" onSubmit={findCards}>
-            <label htmlFor="hero-wallet">CHECK YOUR BOOK</label>
             <div>
               <input
+                aria-label="Find your cards by wallet address"
                 id="hero-wallet"
                 onChange={(event) => setWalletQuery(event.target.value)}
                 placeholder="Paste your Solana wallet…"
@@ -151,7 +152,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
       <section className="show-final-call"><p>THE CAGE NEVER STAYS QUIET.</p><h2>WILL YOUR<br />CARD HIT?</h2><Link className="show-button show-button-green" href="/play">WATCH THE NEXT DRAW</Link></section>
       <div className="bingo-brand-banner">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/bingo-banner.jpg" alt="Bingo.fun" width="1600" height="532" loading="lazy" />
+        <img src="/bingo-banner.jpg" alt="Bingo Pump" width="1600" height="532" loading="lazy" />
       </div>
       <footer className="show-footer"><ShowBrand /><span>Eyes down. Fees up.</span><Link href="/rules">How It Works</Link><Link href="/leaderboard">Winners</Link><LaunchFooterLinks /></footer>
     </main>

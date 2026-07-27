@@ -2287,6 +2287,195 @@ body {
   }
 }
 
+/* Final launch authority: compact mobile chrome and mathematically clean cards. */
+.show-home .show-nav {
+  height: 68px !important;
+  min-height: 68px !important;
+  padding: 0 clamp(14px, 3vw, 30px) !important;
+}
+
+.show-home .show-brand-word {
+  display: flex !important;
+  flex-direction: column !important;
+  font-size: .88rem !important;
+  line-height: .9 !important;
+  white-space: nowrap !important;
+}
+
+.show-home .show-brand-word > span {
+  font-size: .42rem !important;
+  margin-top: 5px !important;
+}
+
+.show-home .show-hero-search {
+  margin-top: 2px !important;
+}
+
+.show-home .bingo-fun-card-grid {
+  border: 2px solid var(--bingo-ink) !important;
+  border-radius: 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  overflow: hidden !important;
+}
+
+.show-home .bingo-fun-card-grid span {
+  align-items: center !important;
+  aspect-ratio: 1 !important;
+  background-color: #fff !important;
+  border: 0 !important;
+  border-bottom: 1.5px solid var(--bingo-ink) !important;
+  border-radius: 0 !important;
+  border-right: 1.5px solid var(--bingo-ink) !important;
+  display: flex !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.show-home .bingo-fun-card-grid span:nth-child(5n) {
+  border-right: 0 !important;
+}
+
+.show-home .bingo-fun-card-grid span:nth-child(n + 21) {
+  border-bottom: 0 !important;
+}
+
+.show-home .bingo-fun-card-grid .is-daubed {
+  background-color: #fff !important;
+  background-image: radial-gradient(circle at center, var(--bingo-mint) 0 47%, transparent 49%) !important;
+}
+
+.show-home .bingo-entry-table {
+  overflow: hidden !important;
+}
+
+.show-home .bingo-entry-table > div {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+}
+
+.show-home .bingo-entry-table > div > * {
+  align-items: center !important;
+  display: flex !important;
+  min-width: 0 !important;
+}
+
+.show-home .show-enter-bingo {
+  will-change: transform, box-shadow;
+}
+
+@media (max-width: 760px) {
+  .show-home .show-nav,
+  .rules-nav,
+  .broadcast-nav {
+    align-items: center !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    padding: 0 10px !important;
+  }
+
+  .show-home .show-brand {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .show-home .show-brand-mark {
+    flex: 0 0 34px !important;
+    height: 34px !important;
+    width: 34px !important;
+  }
+
+  .show-home .show-brand-word {
+    display: flex !important;
+    font-size: .7rem !important;
+  }
+
+  .show-home .show-brand-word > span {
+    display: none !important;
+  }
+
+  .show-home .show-nav nav {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    max-width: none !important;
+    width: auto !important;
+  }
+
+  .show-home .show-nav nav > a:not(.launch-x),
+  .show-home .show-nav nav > .show-nav-buy {
+    display: none !important;
+  }
+
+  .show-home .launch-x,
+  .show-home .launch-ca {
+    box-shadow: none !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .show-home .launch-x {
+    display: inline-flex !important;
+    min-width: 36px !important;
+    width: 36px !important;
+  }
+
+  .show-home .launch-ca {
+    display: inline-flex !important;
+    min-width: 78px !important;
+    padding: 0 9px !important;
+    width: auto !important;
+  }
+
+  .show-home .show-hero {
+    gap: 30px !important;
+    padding: 34px 16px 44px !important;
+  }
+
+  .show-home .bingo-fun-card {
+    max-width: 410px !important;
+    padding: 14px !important;
+  }
+
+  .show-home .bingo-fun-card-head {
+    padding: 14px 0 !important;
+  }
+
+  .show-home .bingo-fun-card-grid span {
+    font-size: clamp(.72rem, 3.7vw, 1rem) !important;
+  }
+
+  .show-home .bingo-entry-table b,
+  .show-home .bingo-entry-table span,
+  .show-home .bingo-entry-table strong {
+    font-size: clamp(.62rem, 2.8vw, .82rem) !important;
+    padding: 14px 12px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .show-home .show-nav,
+  .rules-nav,
+  .broadcast-nav {
+    height: 54px !important;
+    min-height: 54px !important;
+  }
+
+  .show-home .show-brand-word {
+    font-size: .62rem !important;
+  }
+
+  .show-home .launch-ca {
+    min-width: 70px !important;
+    padding-inline: 7px !important;
+  }
+}
+
 /* 2026 launch polish — reference-matched landing page and compact live hall. */
 .show-home {
   --bingo-ink: #073d2d;

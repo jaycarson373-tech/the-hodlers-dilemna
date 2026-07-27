@@ -6,7 +6,7 @@ import "./globals.css";
 import "./broadcast.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL;
-const title = "Bingo.fun — On-Chain Bingo";
+const title = "Bingo Pump — On-Chain Bingo";
 const description =
   "Live Solana bingo powered by creator fees. Every 1M tokens prints a card; every full house pays in SOL.";
 const brandIcon = "/bingo-logo.jpg";
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: siteUrl,
-    siteName: "Bingo.fun",
+    siteName: "Bingo Pump",
     title,
     description,
     images: [{ url: socialImage, width: 1200, height: 630, alt: title }],
