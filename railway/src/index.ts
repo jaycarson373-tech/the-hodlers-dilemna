@@ -1975,11 +1975,10 @@ app.post("/api/chat", async (req, res, next) => {
   try {
     const db = requireDb();
     const body = z.object({
-      wallet: z.string(),
+      wallet: z.string().optional(),
       name: z.string().trim().min(1).max(24),
       message: z.string().trim().min(1).max(160),
     }).parse(req.body);
-    await requireSameWallet(req, body.wallet);
     const name = body.name.replace(/[^\w .!?-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24) || "Player";
     const detail = body.message.replace(/[^\w .,!?'\"$%:;()-]/g, "").replace(/\s+/g, " ").trim().slice(0, 160);
     const { data, error } = await db
