@@ -4248,3 +4248,72 @@ body {
     animation: none !important;
   }
 }
+
+/* Keep the public landing page dense enough to read in one viewport. */
+.show-home .show-hero {
+  min-height: 0 !important;
+  padding-top: clamp(46px, 5vw, 72px) !important;
+  padding-bottom: clamp(52px, 5.5vw, 82px) !important;
+}
+
+.show-home .home-leaderboard-section {
+  padding-top: clamp(46px, 5vw, 72px) !important;
+  padding-bottom: clamp(46px, 5vw, 72px) !important;
+}
+
+.show-home .home-leaderboard-section .broadcast-leaderboard {
+  min-height: 0 !important;
+  padding: clamp(26px, 3.5vw, 44px) !important;
+}
+
+.show-home .broadcast-no-ranking {
+  min-height: 0 !important;
+  margin-top: 22px !important;
+  padding: 18px 20px !important;
+}
+
+@media (max-width: 620px) {
+  .show-home .show-hero {
+    gap: 34px !important;
+    min-height: 0 !important;
+    padding: 30px 0 42px !important;
+  }
+
+  .show-home .show-hero h1 {
+    margin: 18px 0 !important;
+  }
+
+  .show-home .show-hero-copy > span {
+    font-size: 1rem !important;
+    line-height: 1.42 !important;
+  }
+
+  .show-home .show-hero-actions {
+    margin-top: 24px !important;
+  }
+
+  .show-home .home-leaderboard-section {
+    padding: 34px 0 40px !important;
+  }
+
+  .show-home .home-leaderboard-section .broadcast-leaderboard {
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 24px 18px 26px !important;
+  }
+
+  .show-home .broadcast-leaderboard h2 {
+    margin: 8px 0 !important;
+  }
+
+  .show-home .broadcast-leaderboard header p {
+    margin-top: 8px !important;
+    line-height: 1.45 !important;
+  }
+
+  .show-home .broadcast-no-ranking {
+    margin-top: 18px !important;
+    padding: 15px 16px !important;
+    line-height: 1.45 !important;
+  }
+}
