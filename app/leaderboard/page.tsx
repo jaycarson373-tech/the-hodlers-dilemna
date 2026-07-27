@@ -18,8 +18,7 @@ export default function LeaderboardPage() {
         <nav aria-label="Leaderboard navigation">
           <Link href="/">Home</Link>
           <Link href="/play">Game</Link>
-          <Link href="/rules">Rules</Link>
-          <Link href="/docs">Docs</Link>
+          <Link href="/#how-it-works">How It Works</Link>
           <LaunchNavLinks />
         </nav>
       </header>
