@@ -1,7 +1,8 @@
 "use client";
 
+import { type FormEvent, useState } from "react";
 import Link from "next/link";
-import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
+import { LaunchFooterLinks } from "@/components/launch-links";
 import { PublicLeaderboardBoard } from "@/components/public-leaderboard-board";
 import { RoundHistoryBoard } from "@/components/round-history-board";
 import { ShowBrand } from "@/components/show-brand";
@@ -32,6 +33,16 @@ function BingoCardPreview({ compact = false }: { compact?: boolean }) {
 }
 
 export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" }) {
+  void launchState;
+  const [walletQuery, setWalletQuery] = useState("");
+
+  const findCards = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const wallet = walletQuery.trim();
+    if (!wallet) return;
+    window.location.assign(`/play?wallet=${encodeURIComponent(wallet)}`);
+  };
+
   return (
     <main className="show-home">
       <div className="show-bulbs" aria-hidden="true" />
@@ -40,9 +51,9 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         <nav aria-label="Primary navigation">
           <a href="#how-it-works">How It Works</a>
           <a href="#choice">Entries</a>
-          <a href="#live-round">Live Hall</a>
+          <Link href="/play">Play Live</Link>
           <a href="#leaderboard">Winners</a>
-          <LaunchNavLinks />
+          {PUMP_FUN_URL ? <a className="show-nav-buy" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">Buy {TICKER}</a> : null}
         </nav>
       </header>
 
@@ -51,14 +62,26 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         <div className="show-hero-copy">
           <p>OLD SCHOOL · ON-CHAIN · ON PUMP.FUN</p>
           <h1 id="show-home-title">EYES DOWN.<br /><em>FEES UP.</em></h1>
-          <span>Solana bingo with real stakes. Every 1,000,000 {TICKER} prints one card. ALON calls the numbers live. The winning wallet takes the creator-fee prize in SOL.</span>
+          <span>The classic hall game, rebuilt on Solana. Every 1,000,000 {TICKER} prints one live card. ALON calls the numbers. The winning wallet takes the creator-fee prize in SOL.</span>
+          <form className="show-hero-search" onSubmit={findCards}>
+            <label htmlFor="hero-wallet">CHECK YOUR BOOK</label>
+            <div>
+              <input
+                id="hero-wallet"
+                onChange={(event) => setWalletQuery(event.target.value)}
+                placeholder="Paste your Solana wallet…"
+                value={walletQuery}
+              />
+              <button disabled={!walletQuery.trim()} type="submit">FIND MY CARDS</button>
+            </div>
+          </form>
           <div className="show-hero-actions">
+            <Link className="show-button show-button-green show-enter-bingo" href="/play">ENTER BINGO</Link>
             {PUMP_FUN_URL ? (
               <a className="show-button show-button-green" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">BUY {TICKER}</a>
             ) : (
               <span className="show-button show-button-green is-disabled">CA SOON</span>
             )}
-            <Link className="show-button show-button-red" href="/play">ENTER BINGO</Link>
             <Link className="show-button show-button-red" href="/rules">HOW IT WORKS</Link>
           </div>
         </div>
