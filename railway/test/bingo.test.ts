@@ -63,6 +63,9 @@ test("selects the first completed card deterministically", () => {
 test("converts balance to one card per threshold", () => {
   assert.equal(cardCountForBalance(999_999n, 1_000_000n), 0);
   assert.equal(cardCountForBalance(5_999_999n, 1_000_000n), 5);
+  assert.equal(cardCountForBalance(199_999n, 200_000n), 0);
+  assert.equal(cardCountForBalance(869_607_838_589n, 200_000_000_000n), 4);
+  assert.equal(cardCountForBalance(353_134_727_201n, 200_000_000_000n), 1);
 });
 
 test("commitments, jackpot roll, and number labels are stable", () => {
