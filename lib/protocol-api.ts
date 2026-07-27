@@ -80,6 +80,7 @@ export type RoundHistoryEntry = {
   cardCount?: number;
   winnerWallet?: string | null;
   jackpotTriggered?: boolean;
+  settlementSignature?: string | null;
   calledNumbers?: number[];
   openedAt: string | null;
   settledAt: string | null;

@@ -17,6 +17,16 @@ const resultDetail = (entry: RoundHistoryEntry) => {
   return "Draw closed";
 };
 
+const validSolanaSignature = (value?: string | null) => (
+  value && /^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(value) ? value : null
+);
+
+const formatDuration = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Math.round(seconds % 60);
+  return minutes > 0 ? `${minutes}m ${String(remainder).padStart(2, "0")}s` : `${remainder}s`;
+};
+
 export function RoundHistoryBoard() {
   const [rounds, setRounds] = useState<RoundHistoryEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -41,9 +51,17 @@ export function RoundHistoryBoard() {
     };
   }, [refresh]);
 
-  const visibleRounds = rounds.slice(0, 24);
+  const visibleRounds = rounds.slice(0, 12);
   const settledRounds = rounds.filter((round) => round.result === "ROLLOVER" || round.result === "WINNER" || round.result === "CLOSED");
   const lastSettled = settledRounds[0];
+  const completedDurations = settledRounds.flatMap((round) => {
+    if (!round.openedAt || !round.settledAt) return [];
+    const duration = (new Date(round.settledAt).getTime() - new Date(round.openedAt).getTime()) / 1_000;
+    return Number.isFinite(duration) && duration > 0 ? [duration] : [];
+  });
+  const averageDuration = completedDurations.length
+    ? formatDuration(completedDurations.reduce((total, duration) => total + duration, 0) / completedDurations.length)
+    : null;
   const totalPaidLamports = settledRounds.reduce((total, round) => {
     try {
       return total + BigInt(round.paidLamports || "0");
@@ -69,6 +87,9 @@ export function RoundHistoryBoard() {
                 <strong>{resultLabel(entry)}</strong>
                 <span>{entry.result === "WINNER" && entry.winnerWallet ? entry.winnerWallet.slice(0, 4) + "…" + entry.winnerWallet.slice(-4) : entry.result === "ROLLOVER" ? "NO FULL HOUSE" : "DRAW ACTIVE"}</span>
                 <em>{Number(entry.paidLamports) > 0 ? `${lamportsToSol(entry.paidLamports)} SOL PAID` : entry.result === "ROLLOVER" ? `${lamportsToSol(entry.rolloverLamports)} SOL ROLLED` : "RESULT PENDING"}</em>
+                {validSolanaSignature(entry.settlementSignature) ? (
+                  <a href={`https://solscan.io/tx/${entry.settlementSignature}`} target="_blank" rel="noreferrer">SOLSCAN ↗</a>
+                ) : null}
               </article>
             ))}
           </div>
@@ -88,6 +109,11 @@ export function RoundHistoryBoard() {
               <span>LATEST PAYOUT</span>
               <strong>{lastSettled && Number(lastSettled.paidLamports) > 0 ? `${lamportsToSol(lastSettled.paidLamports)} SOL` : "NONE YET"}</strong>
               <p>{lastSettled ? resultDetail(lastSettled) : "The first winner writes the first receipt."}</p>
+            </article>
+            <article>
+              <span>AVERAGE DRAW</span>
+              <strong>{averageDuration ?? "PENDING"}</strong>
+              <p>Measured from real completed games.</p>
             </article>
             <article>
               <span>LIVE BOARD</span>

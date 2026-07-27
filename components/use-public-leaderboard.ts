@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import type { LeaderboardEntry } from "@/lib/experiment-data";
+import { protocolRequest } from "@/lib/protocol-api";
 
 type LeaderboardRow = {
   rank: number | string;
@@ -52,26 +53,26 @@ export function usePublicLeaderboard(limit = 25) {
   }, []);
 
   useEffect(() => {
-    if (!client) return;
     let active = true;
 
     const refresh = async () => {
-      const { data, error } = await client
-        .from("public_leaderboard")
-        .select("rank,wallet,score,tier,total_airdropped_lamports,wins,losses")
-        .order("rank", { ascending: true })
-        .limit(limit);
-
-      if (!active) return;
-      if (error) {
-        console.error("Public leaderboard load failed", error);
-        return;
+      try {
+        const data = await protocolRequest<LeaderboardRow[]>("/api/leaderboard");
+        if (active) setEntries(data.slice(0, limit).map(toLeaderboardEntry));
+      } catch (error) {
+        if (active) console.error("Public leaderboard load failed", error);
       }
-
-      setEntries((data as LeaderboardRow[]).map(toLeaderboardEntry));
     };
 
     void refresh();
+    const interval = window.setInterval(() => void refresh(), 20_000);
+    if (!client) {
+      return () => {
+        active = false;
+        window.clearInterval(interval);
+      };
+    }
+
     const channel = client
       .channel("public-leaderboard")
       .on(
@@ -85,6 +86,7 @@ export function usePublicLeaderboard(limit = 25) {
 
     return () => {
       active = false;
+      window.clearInterval(interval);
       void client.removeChannel(channel);
     };
   }, [client, limit]);

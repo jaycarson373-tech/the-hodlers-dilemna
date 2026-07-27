@@ -20,6 +20,7 @@ import {
   cardCountForBalance,
   generateBingoCard,
   generateDrawOrder,
+  isWithinSupplyEligibilityCap,
   jackpotHits,
   numberLabel,
   seedCommitment,
@@ -48,6 +49,10 @@ const envSchema = z.object({
   KEEPER_KEYPAIR_BASE64: z.string().optional(),
   PUMP_CREATOR_PRIVATE_KEY: z.string().optional(),
   PUMP_CREATOR_KEYPAIR_BASE64: z.string().optional(),
+  BINGO_PRIVATE_KEY: z.string().optional(),
+  BINGO_KEYPAIR_BASE64: z.string().optional(),
+  BOX_PRIVATE_KEY: z.string().optional(),
+  BOX_KEYPAIR_BASE64: z.string().optional(),
   JACKPOT_PRIVATE_KEY: z.string().optional(),
   JACKPOT_KEYPAIR_BASE64: z.string().optional(),
   BANKER_PRIVATE_KEY: z.string().optional(),
@@ -112,14 +117,19 @@ function optionalKeypair(name: string, value?: string) {
 
 const keeperPrivateKey = env.KEEPER_PRIVATE_KEY ?? env.KEEPER_KEYPAIR_BASE64;
 const pumpCreatorPrivateKey = env.PUMP_CREATOR_PRIVATE_KEY ?? env.PUMP_CREATOR_KEYPAIR_BASE64;
+const boxPrivateKey = env.BINGO_PRIVATE_KEY
+  ?? env.BINGO_KEYPAIR_BASE64
+  ?? env.BOX_PRIVATE_KEY
+  ?? env.BOX_KEYPAIR_BASE64;
 const jackpotPrivateKey = env.JACKPOT_PRIVATE_KEY
   ?? env.JACKPOT_KEYPAIR_BASE64
   ?? env.BANKER_PRIVATE_KEY
   ?? env.BANKER_KEYPAIR_BASE64;
 const keeper = optionalKeypair("KEEPER_PRIVATE_KEY", keeperPrivateKey);
 const pumpCreator = optionalKeypair("PUMP_CREATOR_PRIVATE_KEY", pumpCreatorPrivateKey);
+const boxSigner = optionalKeypair("BINGO_PRIVATE_KEY", boxPrivateKey);
 const jackpotSigner = optionalKeypair("JACKPOT_PRIVATE_KEY", jackpotPrivateKey);
-const boxPayoutWallet = pumpCreator ?? keeper;
+const boxPayoutWallet = boxSigner ?? pumpCreator ?? keeper;
 const optionalPublicKey = (name: string, value?: string) => {
   if (!value) return undefined;
   try { return new PublicKey(value); }
@@ -140,7 +150,7 @@ if (jackpotSigner && jackpotWalletAddress && !jackpotSigner.publicKey.equals(jac
   keypairWarnings.push("JACKPOT_PRIVATE_KEY does not match JACKPOT_WALLET_ADDRESS.");
 }
 if (boxPayoutWallet && boxWalletAddress && !boxPayoutWallet.publicKey.equals(boxWalletAddress)) {
-  keypairWarnings.push("The pot payout key does not match BOX_WALLET_ADDRESS.");
+  keypairWarnings.push("BINGO_PRIVATE_KEY does not match BOX_WALLET_ADDRESS.");
 }
 const pumpSdk = new OnlinePumpSdk(connection);
 
@@ -1590,8 +1600,9 @@ async function collectPumpCreatorFees() {
     const amount = BigInt(available.toString());
     if (amount <= 0n) return;
     const jackpotAmount = (amount * BigInt(jackpotAllocationBps)) / 10_000n;
-    if (jackpotAmount > 0n && !jackpotWalletAddress) throw new Error("Jackpot wallet is not configured.");
     const mainAmount = amount - jackpotAmount;
+    if (mainAmount > 0n && !boxWalletAddress) throw new Error("Main pool wallet is not configured.");
+    if (jackpotAmount > 0n && !jackpotWalletAddress) throw new Error("Jackpot wallet is not configured.");
     await writeAudit({ idempotencyKey, action: "creator_fee_sweep", status: "dry_run", amountLamports: amount, payload: {
       creator: pumpCreator.publicKey.toBase58(),
       mainWallet: boxWalletAddress?.toBase58(),
@@ -1636,6 +1647,9 @@ async function collectPumpCreatorFees() {
       lastValidBlockHeight: latest.lastValidBlockHeight,
     }).add(
       ...collectInstructions,
+      ...(mainAmount > 0n && boxWalletAddress && !pumpCreator.publicKey.equals(boxWalletAddress)
+        ? [SystemProgram.transfer({ fromPubkey: pumpCreator.publicKey, toPubkey: boxWalletAddress, lamports: mainAmount })]
+        : []),
       ...(jackpotAmount > 0n && jackpotWalletAddress && !pumpCreator.publicKey.equals(jackpotWalletAddress)
         ? [SystemProgram.transfer({ fromPubkey: pumpCreator.publicKey, toPubkey: jackpotWalletAddress, lamports: jackpotAmount })]
         : []),
@@ -1891,13 +1905,24 @@ app.get("/api/leaderboard", async (_req, res, next) => {
       .from("public_leaderboard")
       .select("rank,wallet,score,tier,total_airdropped_lamports,wins,losses")
       .order("rank", { ascending: true })
-      .limit(50);
+      .limit(500);
     if (error && isMissingSchemaObject(error)) {
       console.error("leaderboard unavailable until database migration completes", error);
       return res.json([]);
     }
     if (error) throw error;
-    res.json(data ?? []);
+    const supply = await tokenSupplyInfo();
+    const eligible = (data ?? [])
+      .filter((row) => {
+        try {
+          return isWithinSupplyEligibilityCap(bigintValue(row.score), supply.amount);
+        } catch {
+          return false;
+        }
+      })
+      .slice(0, 50)
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+    res.json(eligible);
   } catch (error) { next(error); }
 });
 
@@ -1915,7 +1940,7 @@ app.get("/api/round-history", async (_req, res, next) => {
     if (!supabase) return res.json([]);
     const { data, error } = await supabase
       .from("bingo_games")
-      .select("game_number,status,opened_at,main_pot_lamports,rollover_lamports,player_count,card_count,winner_wallet,payout_lamports,jackpot_triggered,jackpot_payout_lamports,called_numbers,settled_at")
+      .select("game_number,status,opened_at,main_pot_lamports,rollover_lamports,player_count,card_count,winner_wallet,payout_lamports,jackpot_triggered,jackpot_payout_lamports,called_numbers,settlement_signature,settled_at")
       .order("game_number", { ascending: false })
       .limit(32);
     if (error && isMissingSchemaObject(error)) {
@@ -1950,6 +1975,7 @@ app.get("/api/round-history", async (_req, res, next) => {
       cardCount: safeStoredGameCardCount(game.card_count, game.player_count, cardCap),
       winnerWallet: game.winner_wallet,
       jackpotTriggered: Boolean(game.jackpot_triggered),
+      settlementSignature: game.settlement_signature,
       calledNumbers: game.called_numbers ?? [],
       openedAt: game.opened_at,
       settledAt: game.settled_at,

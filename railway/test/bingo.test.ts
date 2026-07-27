@@ -6,6 +6,7 @@ import {
   cardHasBingo,
   generateBingoCard,
   generateDrawOrder,
+  isWithinSupplyEligibilityCap,
   jackpotHits,
   numberLabel,
   seedCommitment,
@@ -66,6 +67,13 @@ test("converts balance to one card per threshold", () => {
   assert.equal(cardCountForBalance(199_999n, 200_000n), 0);
   assert.equal(cardCountForBalance(869_607_838_589n, 200_000_000_000n), 4);
   assert.equal(cardCountForBalance(353_134_727_201n, 200_000_000_000n), 1);
+});
+
+test("excludes balances above five percent of supply", () => {
+  const supply = 1_000_000_000_000_000n;
+  assert.equal(isWithinSupplyEligibilityCap(50_000_000_000_000n, supply), true);
+  assert.equal(isWithinSupplyEligibilityCap(50_000_000_000_001n, supply), false);
+  assert.equal(isWithinSupplyEligibilityCap(996_000_000_000_000n, supply), false);
 });
 
 test("commitments, jackpot roll, and number labels are stable", () => {

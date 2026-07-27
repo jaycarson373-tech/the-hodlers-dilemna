@@ -143,6 +143,11 @@ export function cardCountForBalance(balanceBaseUnits: bigint, cardPriceBaseUnits
   return Number(count);
 }
 
+export function isWithinSupplyEligibilityCap(balanceBaseUnits: bigint, totalSupplyBaseUnits: bigint) {
+  if (balanceBaseUnits < 0n || totalSupplyBaseUnits <= 0n) return false;
+  return balanceBaseUnits <= totalSupplyBaseUnits / 20n;
+}
+
 export function jackpotHits(seed: string, gameNumber: string, odds: number) {
   if (!Number.isSafeInteger(odds) || odds < 1) throw new Error("Jackpot odds must be a positive integer.");
   const roll = deterministicUint32(seed, `jackpot:${gameNumber}`, 0) % odds;
