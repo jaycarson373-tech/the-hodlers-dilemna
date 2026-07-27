@@ -2819,82 +2819,158 @@ body {
 }
 
 .broadcast-page .live-cage-machine {
-  background: radial-gradient(circle at 50% 75%, rgba(85, 227, 157, 0.14), transparent 58%) !important;
-  border: 5px solid var(--mint, #55e39d) !important;
+  background: transparent !important;
+  border: 0 !important;
   border-radius: 50% !important;
-  box-shadow: inset 0 0 0 4px #0b5a40, 0 0 36px rgba(85, 227, 157, 0.14) !important;
-  height: 260px !important;
-  margin: 10px auto 80px !important;
+  box-shadow: none !important;
+  height: 274px !important;
+  margin: 10px auto 96px !important;
   overflow: visible !important;
   position: relative !important;
-  width: 260px !important;
+  width: 274px !important;
 }
 
 .broadcast-page .live-cage-machine::before,
 .broadcast-page .live-cage-machine::after {
-  border: 2px solid rgba(85, 227, 157, 0.68);
+  background:
+    radial-gradient(circle at 34% 28%, #d9fff0 0 12%, transparent 13%),
+    linear-gradient(145deg, #67efa9, #168258 72%);
+  border: 5px solid #073c2b;
   border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.26), 0 4px 0 #031f16;
   content: "";
+  height: 34px;
   pointer-events: none;
   position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
   z-index: 1;
 }
 
 .broadcast-page .live-cage-machine::before {
-  inset: 5% 24%;
+  left: -14px;
 }
 
 .broadcast-page .live-cage-machine::after {
-  inset: 24% 5%;
+  right: -14px;
 }
 
-.broadcast-page .live-cage-machine i {
-  background: #f7fff9 !important;
-  border: 2px solid #0b593e !important;
+.broadcast-page .live-cage-drum {
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255,255,255,.22), transparent 0 8%, transparent 32%),
+    radial-gradient(circle at 50% 84%, rgba(85,227,157,.24), transparent 48%),
+    linear-gradient(150deg, rgba(213,255,236,.08), rgba(4,39,28,.16) 52%, rgba(1,19,13,.5));
+  border: 9px solid #0a5239;
   border-radius: 50% !important;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.22) !important;
-  height: 18px !important;
+  box-shadow:
+    inset 0 0 0 3px rgba(113,246,178,.4),
+    inset 0 -22px 36px rgba(1,18,12,.46),
+    0 8px 0 #03251a,
+    0 14px 28px rgba(0,0,0,.34) !important;
+  inset: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: 2;
+}
+
+.broadcast-page .live-cage-drum::before {
+  background:
+    linear-gradient(118deg, transparent 15%, rgba(229,255,243,.16) 28%, transparent 40%),
+    radial-gradient(circle at 40% 28%, rgba(255,255,255,.11), transparent 35%);
+  border: 1px solid rgba(194,255,225,.18);
+  border-radius: 50%;
+  content: "";
+  inset: 10px;
+  pointer-events: none;
+  position: absolute;
+  z-index: 50;
+}
+
+.broadcast-page .live-cage-drum i {
+  align-items: center;
+  background:
+    radial-gradient(circle at 31% 24%, #fff 0 8%, transparent 9%),
+    linear-gradient(145deg, #fcfffd 5%, #d8f8e7 50%, #8bcfae) !important;
+  border: 1.5px solid #083b2b !important;
   left: var(--ball-x) !important;
+  box-shadow:
+    inset -3px -4px 5px rgba(4,50,34,.24),
+    inset 2px 2px 3px rgba(255,255,255,.58),
+    0 3px 4px rgba(0,0,0,.36) !important;
+  display: flex;
+  height: 20px !important;
+  justify-content: center;
+  overflow: hidden;
   position: absolute !important;
   top: var(--ball-y) !important;
   transform: translate(-50%, -50%) !important;
-  width: 18px !important;
-  z-index: 2 !important;
+  width: 20px !important;
+  z-index: var(--ball-layer) !important;
 }
 
-.broadcast-page .live-cage-machine i:nth-of-type(3n) {
-  background: var(--mint, #55e39d) !important;
+.broadcast-page .live-cage-drum i span {
+  align-items: center;
+  background: rgba(255,255,255,.78);
+  border-radius: 50%;
+  color: #073625;
+  display: flex;
+  font: 900 7px/1 var(--font-ibm-plex-mono), monospace;
+  height: 13px;
+  justify-content: center;
+  letter-spacing: -.05em;
+  width: 13px;
 }
 
-.broadcast-page .live-cage-machine.is-spinning i {
-  animation: bingoBallGravity 1.15s cubic-bezier(.35,.05,.55,.95) infinite !important;
+.broadcast-page .live-cage-drum i:nth-of-type(3n) {
+  background:
+    radial-gradient(circle at 31% 24%, #fff 0 8%, transparent 9%),
+    linear-gradient(145deg, #8bffc2 5%, #4fe59b 52%, #16845b) !important;
+}
+
+.broadcast-page .live-cage-machine:not(.is-spinning) .live-cage-drum i {
+  animation: none !important;
+}
+
+.broadcast-page .live-cage-machine.is-spinning .live-cage-drum i {
+  animation: bingoBallGravity 1.42s cubic-bezier(.38,.04,.52,.98) infinite !important;
   animation-delay: var(--ball-delay) !important;
 }
 
-.broadcast-page .live-cage-machine.is-spinning::before {
-  animation: bingoMeshTurn 1.5s linear infinite;
-}
-
-.broadcast-page .live-cage-machine.is-spinning::after {
-  animation: bingoMeshTurn 1.25s linear infinite reverse;
+.broadcast-page .live-cage-machine.is-spinning .live-cage-drum {
+  animation: bingoDrumPulse 1.42s ease-in-out infinite;
 }
 
 @keyframes bingoBallGravity {
-  0%, 100% { transform: translate(-50%, -50%) translate(0, 0) rotate(0); }
-  23% { transform: translate(-50%, -50%) translate(var(--ball-hop-x), var(--ball-hop-y)) rotate(90deg); }
-  52% { transform: translate(-50%, -50%) translate(var(--ball-return-x), var(--ball-mid-y)) rotate(190deg); }
-  78% { transform: translate(-50%, -50%) translate(var(--ball-return-x), -10px) rotate(280deg); }
+  0%, 100% { transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(1, .96); }
+  10% { transform: translate(-50%, -50%) translate(0, -7px) rotate(28deg) scale(.98, 1.02); }
+  34% { transform: translate(-50%, -50%) translate(var(--ball-hop-x), var(--ball-hop-y)) rotate(142deg) scale(1); }
+  58% { transform: translate(-50%, -50%) translate(var(--ball-return-x), var(--ball-mid-y)) rotate(238deg) scale(1); }
+  82% { transform: translate(-50%, -50%) translate(0, -3px) rotate(332deg) scale(.98, 1.02); }
+  91% { transform: translate(-50%, -50%) translate(0, 2px) rotate(350deg) scale(1.03, .91); }
 }
 
-@keyframes bingoMeshTurn {
-  to { transform: rotate(360deg); }
+@keyframes bingoDrumPulse {
+  0%, 100% { box-shadow: inset 0 0 0 3px rgba(113,246,178,.4), inset 0 -22px 36px rgba(1,18,12,.46), 0 8px 0 #03251a, 0 14px 28px rgba(0,0,0,.34); }
+  50% { box-shadow: inset 0 0 0 3px rgba(113,246,178,.54), inset 0 -16px 42px rgba(25,135,89,.28), 0 8px 0 #03251a, 0 14px 32px rgba(0,0,0,.4); }
 }
 
-.broadcast-page .live-cage-axle,
 .broadcast-page .live-cage-crank,
 .broadcast-page .live-cage-stand {
   background: var(--mint, #55e39d) !important;
   border-color: #0b5a40 !important;
+}
+
+.broadcast-page .live-cage-axle {
+  background:
+    radial-gradient(circle at 34% 28%, #d9fff0 0 11%, transparent 12%),
+    linear-gradient(145deg, #69efaa, #18875d 72%) !important;
+  border: 4px solid #073c2b !important;
+  border-radius: 50% !important;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.2), 0 4px 0 #031f16 !important;
+  height: 32px !important;
+  width: 32px !important;
+  z-index: 60 !important;
 }
 
 .broadcast-page .live-ball-chute:not(.has-ball),
