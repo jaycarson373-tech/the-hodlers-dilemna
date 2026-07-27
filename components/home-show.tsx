@@ -93,7 +93,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
               ["5,000,000", "5 cards"],
               ["10,000,000", "10 cards"],
               ["50,000,000", "50 cards"],
-              ["100,000,000", "100 cards"],
+              ["Above 5% supply", "not eligible"],
             ].map(([held, entries]) => <div key={held}><span>{held}</span><strong>{entries}</strong></div>)}
           </div>
           <div className="bingo-copy-block">

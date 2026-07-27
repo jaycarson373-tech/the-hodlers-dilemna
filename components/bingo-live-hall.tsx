@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useBingoFeed } from "@/components/use-bingo-feed";
 import { usePublicLeaderboard } from "@/components/use-public-leaderboard";
 import {
@@ -43,6 +43,7 @@ const numericScore = (score: string) => {
 };
 
 const ticketCount = (score: string) => Math.max(1, Math.floor(numericScore(score) / 1_000_000) || 1);
+const cageBalls = Array.from({ length: 50 }, (_, index) => index);
 
 const hashSeed = (value: string) => {
   let hash = 2166136261;
@@ -266,8 +267,13 @@ export function BingoLiveHall({
   const currentBallKey = currentBall ? `${currentBall.letter}-${currentBall.number}` : "waiting";
   const latestSettled = history.find((entry) => entry.status === "settled" || entry.status === "rolled_over");
   const winnerWallet = round?.winnerWallet ?? latestSettled?.winnerWallet ?? null;
-  const roundLive = Boolean(status?.roundActive && remaining > 0);
+  const roundStatus = String(round?.status ?? "").toLowerCase();
+  const roundLive = Boolean(["open", "drawing"].includes(roundStatus) && (status?.roundActive || remaining > 0 || calledBalls.length));
   const gameLabel = status?.currentRound ? `GAME ${String(status.currentRound).padStart(3, "0")}` : "NEXT GAME";
+  const hallTitle = roundLive ? "Eyes down. The draw is live." : "Cards are loading in.";
+  const hallSubtitle = roundLive
+    ? "ALON is calling balls now. Search a wallet, open its card book, and watch the board light up."
+    : "The hall is taking entries. When the cage starts, every card updates live.";
 
   useEffect(() => {
     if (!selected?.wallet || !status?.currentRound || serverCards[selected.wallet]) return;
@@ -288,13 +294,13 @@ export function BingoLiveHall({
     <section className={`bingo-live-hall is-${variant}`} id="live-round" aria-labelledby={`live-hall-${variant}`}>
       <header className="live-hall-heading">
         <span>THE LIVE HALL</span>
-        <h2 id={`live-hall-${variant}`}>{roundLive ? "Eyes down. The draw is live." : "The next game is filling."}</h2>
-        <p>Search any wallet, open its book of cards, and watch every call land across the hall.</p>
+        <h2 id={`live-hall-${variant}`}>{hallTitle}</h2>
+        <p>{hallSubtitle}</p>
       </header>
 
       <div className="live-hall-stats" aria-label="Live bingo status">
         <div><span>GAME</span><strong>{gameLabel}</strong></div>
-        <div><span>TIME</span><strong>{roundLive ? formatClock(remaining) : "WAITING"}</strong></div>
+        <div><span>TIME</span><strong>{roundLive ? remaining > 0 ? formatClock(remaining) : "LIVE" : "STANDBY"}</strong></div>
         <div><span>LIVE POT</span><strong>{pot && Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "FORMING"}</strong></div>
         <div><span>WALLETS</span><strong>{wallets.length ? wallets.length.toLocaleString() : "—"}</strong></div>
         <div><span>CARDS</span><strong>{totalCards ? totalCards.toLocaleString() : "—"}</strong></div>
@@ -317,7 +323,18 @@ export function BingoLiveHall({
 
         <article className="live-cage-column" aria-label="Bingo number cage">
           <div className={`live-cage-machine ${roundLive ? "is-spinning" : ""} ${currentBall ? "has-picked-ball" : ""}`} key={`cage-${currentBallKey}`}>
-            <i /><i /><i /><i /><i /><i />
+            {cageBalls.map((ball) => (
+              <i
+                aria-hidden="true"
+                key={ball}
+                style={{
+                  "--ball-index": ball,
+                  "--ball-x": `${12 + ((ball * 37) % 76)}%`,
+                  "--ball-y": `${12 + ((ball * 53) % 76)}%`,
+                  "--ball-delay": `${-(ball % 17) / 5}s`,
+                } as CSSProperties}
+              />
+            ))}
             <span className="live-cage-pick-path" aria-hidden="true">
               {currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}
             </span>
