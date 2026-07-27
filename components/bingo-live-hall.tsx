@@ -304,21 +304,21 @@ export function BingoLiveHall({
     ? Math.max(0, Math.floor((new Date(round.closesAt).getTime() - now) / 1_000))
     : 0;
   const pot = round?.potLamports ?? status?.availablePoolLamports ?? status?.boxWalletBalanceLamports;
-  const calledBalls = (round?.calledNumbers?.length
+  const allCalledBalls = (round?.calledNumbers?.length
     ? round.calledNumbers.map((number) => ({
         letter: ["B", "I", "N", "G", "O"][Math.floor((number - 1) / 15)],
         number,
       }))
     : events.map((event) => parseCalledBall(`${event.event} ${event.detail}`)))
     .filter((ball): ball is { letter: string; number: number } => Boolean(ball))
-    .filter((ball, index, list) => list.findIndex((item) => item.letter === ball.letter && item.number === ball.number) === index)
-    .slice(0, 12);
-  const currentBall = calledBalls.at(-1) ?? null;
+    .filter((ball, index, list) => list.findIndex((item) => item.letter === ball.letter && item.number === ball.number) === index);
+  const currentBall = allCalledBalls.at(-1) ?? null;
+  const visibleCalledBalls = allCalledBalls.slice(-12);
   const currentBallKey = currentBall ? `${currentBall.letter}-${currentBall.number}` : "waiting";
   const latestSettled = history.find((entry) => entry.status === "settled" || entry.status === "rolled_over");
   const winnerWallet = round?.winnerWallet ?? latestSettled?.winnerWallet ?? null;
   const roundStatus = String(round?.status ?? "").toLowerCase();
-  const roundLive = Boolean(["open", "drawing"].includes(roundStatus) && (status?.roundActive || remaining > 0 || calledBalls.length));
+  const roundLive = Boolean(["open", "drawing"].includes(roundStatus) && (status?.roundActive || remaining > 0 || allCalledBalls.length));
   const gameLabel = status?.currentRound ? `GAME ${String(status.currentRound).padStart(3, "0")}` : "NEXT GAME";
   const hallTitle = roundLive ? "Eyes down. Every card is live." : "Eyes down. The next draw is locking in.";
   const hallSubtitle = roundLive
@@ -401,8 +401,8 @@ export function BingoLiveHall({
           </div>
           <p>CALLED THIS GAME</p>
           <div className="live-called-numbers">
-            {calledBalls.length
-              ? calledBalls.map((ball) => (
+            {visibleCalledBalls.length
+              ? visibleCalledBalls.map((ball) => (
                   <span
                     className={ball.number === currentBall?.number ? "is-current" : ""}
                     key={`${ball.letter}-${ball.number}`}
