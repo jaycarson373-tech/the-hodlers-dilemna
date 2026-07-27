@@ -370,8 +370,9 @@ export function BingoLiveHall({
   useEffect(() => {
     if (!selected?.wallet || !status?.currentRound || serverCards[selected.wallet]) return;
     let active = true;
+    const requestedCards = Math.max(1, Math.min(selected.tickets, 200));
     void protocolRequest<LiveCardsResponse>(
-      `/api/bingo/cards/${encodeURIComponent(selected.wallet)}?game=${encodeURIComponent(status.currentRound)}&limit=50`,
+      `/api/bingo/cards/${encodeURIComponent(selected.wallet)}?game=${encodeURIComponent(status.currentRound)}&limit=${requestedCards}`,
     ).then((response) => {
       if (!active) return;
       setServerCards((current) => ({
@@ -504,7 +505,7 @@ export function BingoLiveHall({
               />
               {selected.tickets > 1 ? (
                 <div className="spectate-card-tabs" aria-label="Select wallet card">
-                  {Array.from({ length: Math.min(selected.tickets, 20) }, (_, index) => (
+                  {Array.from({ length: Math.min(selected.tickets, serverCards[selected.wallet]?.length ?? selected.tickets, 50) }, (_, index) => (
                     <button
                       className={index === selectedCard ? "is-active" : ""}
                       key={index}

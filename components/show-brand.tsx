@@ -8,7 +8,7 @@ export function ShowBrand({ href = "/" }: { href?: string }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bingo-logo.jpg" alt="" width="900" height="900" decoding="async" />
       </span>
-      <span>BINGO<em>.FUN</em><span>{TICKER}</span></span>
+      <span className="show-brand-word">BINGO<em>.PUMP</em><span>{TICKER}</span></span>
     </Link>
   );
 }

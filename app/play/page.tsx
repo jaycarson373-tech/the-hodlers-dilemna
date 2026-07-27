@@ -4,7 +4,7 @@ import { ShowBrand } from "@/components/show-brand";
 import { TICKER } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Live Hall | Bingo.fun",
+  title: "Live Hall | Bingo Pump",
   description: `Enter the live Solana bingo board. Every 1M ${TICKER} becomes a ticket.`,
 };
 
