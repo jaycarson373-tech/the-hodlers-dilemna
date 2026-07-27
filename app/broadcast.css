@@ -4251,9 +4251,51 @@ body {
 
 /* Keep the public landing page dense enough to read in one viewport. */
 .show-home .show-hero {
+  height: auto !important;
   min-height: 0 !important;
+  align-items: start !important;
   padding-top: clamp(46px, 5vw, 72px) !important;
   padding-bottom: clamp(52px, 5.5vw, 82px) !important;
+}
+
+.show-home .show-hero::before,
+.show-home .show-hero::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
+.show-home .show-hero-copy,
+.show-home .bingo-hero-card-wrap {
+  align-self: start !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  transform: none !important;
+}
+
+.show-home .launch-x {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+.show-home .roulette-history-board > header {
+  display: block !important;
+  max-width: none !important;
+  text-align: center !important;
+}
+
+.show-home .roulette-history-board > header > span {
+  justify-content: center !important;
+}
+
+.show-home .roulette-history-board > header > h2,
+.show-home .roulette-history-board > header > p {
+  margin-right: auto !important;
+  margin-left: auto !important;
+  text-align: center !important;
 }
 
 .show-home .home-leaderboard-section {
