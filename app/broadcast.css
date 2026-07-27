@@ -4303,6 +4303,107 @@ body {
   padding-bottom: clamp(46px, 5vw, 72px) !important;
 }
 
+/* Launch nav lock: keep CA/X controls readable and off the hero card. */
+.show-home .show-nav nav,
+.broadcast-nav nav,
+.rules-nav nav {
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+}
+
+.show-home .launch-ca,
+.show-home .launch-x,
+.broadcast-nav .launch-ca,
+.broadcast-nav .launch-x,
+.rules-nav .launch-ca,
+.rules-nav .launch-x {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+.show-home .launch-ca {
+  min-width: 116px !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+.show-home .launch-x {
+  width: 66px !important;
+  min-width: 66px !important;
+  padding: 0 !important;
+}
+
+@media (max-width: 720px) {
+  .show-home .show-nav,
+  .rules-nav,
+  .broadcast-nav {
+    align-items: flex-start !important;
+    min-height: 118px !important;
+    padding: 10px 12px 12px !important;
+  }
+
+  .show-home .show-nav nav,
+  .rules-nav nav,
+  .broadcast-nav nav {
+    max-width: calc(100% - 48px) !important;
+    gap: 8px !important;
+  }
+
+  .show-home .launch-ca,
+  .show-home .launch-x,
+  .show-home .wallet-button {
+    min-height: 44px !important;
+    border-width: 2px !important;
+    box-shadow: 0 4px 0 var(--bingo-line) !important;
+    font-size: .62rem !important;
+  }
+
+  .show-home .launch-ca {
+    width: 92px !important;
+    min-width: 92px !important;
+    padding: 0 8px !important;
+  }
+
+  .show-home .launch-x {
+    width: 48px !important;
+    min-width: 48px !important;
+  }
+
+  .show-home .wallet-button {
+    width: 118px !important;
+    max-width: 118px !important;
+    padding: 0 10px !important;
+  }
+
+  .show-home .show-hero {
+    padding-top: 28px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .show-home .show-nav,
+  .rules-nav,
+  .broadcast-nav {
+    min-height: 166px !important;
+  }
+
+  .show-home .show-nav nav,
+  .rules-nav nav,
+  .broadcast-nav nav {
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  .show-home .wallet-button {
+    width: 100% !important;
+    max-width: none !important;
+  }
+}
+
 .show-home .home-leaderboard-section .broadcast-leaderboard {
   min-height: 0 !important;
   padding: clamp(26px, 3.5vw, 44px) !important;
