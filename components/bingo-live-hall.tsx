@@ -316,8 +316,11 @@ export function BingoLiveHall({
         </article>
 
         <article className="live-cage-column" aria-label="Bingo number cage">
-          <div className={`live-cage-machine ${roundLive ? "is-spinning" : ""}`}>
+          <div className={`live-cage-machine ${roundLive ? "is-spinning" : ""} ${currentBall ? "has-picked-ball" : ""}`} key={`cage-${currentBallKey}`}>
             <i /><i /><i /><i /><i /><i />
+            <span className="live-cage-pick-path" aria-hidden="true">
+              {currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}
+            </span>
           </div>
           <div className={`live-ball-chute ${currentBall ? "has-ball" : ""}`} aria-hidden="true" key={`chute-${currentBallKey}`}>
             <span>{currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}</span>
