@@ -9,7 +9,7 @@ import {
   type ProtocolStatus,
   type RoundHistoryEntry,
 } from "@/lib/protocol-api";
-import { TICKER } from "@/lib/constants";
+import { CA } from "@/lib/constants";
 
 type HallVariant = "home" | "game";
 type LiveEntry = {
@@ -175,6 +175,8 @@ export function BingoLiveHall({
   const [query, setQuery] = useState("");
   const [selectedWallet, setSelectedWallet] = useState("");
   const [selectedCard, setSelectedCard] = useState(0);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [caCopied, setCaCopied] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatName, setChatName] = useState("");
@@ -207,6 +209,14 @@ export function BingoLiveHall({
       window.clearInterval(clockTimer);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const wallet = new URLSearchParams(window.location.search).get("wallet")?.trim();
+    const timer = window.setTimeout(() => {
+      if (wallet) setQuery(wallet);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const refreshChat = useCallback(async () => {
     try {
@@ -255,8 +265,24 @@ export function BingoLiveHall({
         Number.MAX_SAFE_INTEGER,
       )
     : Math.max(1, Math.floor((1_000_000_000 * 0.05) / tokensPerCard));
-  const wallets = liveEntries.length
-    ? liveEntries.map((entry, index) => {
+  const maxEligibleRaw = (() => {
+    try {
+      return status?.tokenSupplyRaw ? BigInt(status.tokenSupplyRaw) / 20n : null;
+    } catch {
+      return null;
+    }
+  })();
+  const eligibleLiveEntries = maxEligibleRaw === null
+    ? liveEntries
+    : liveEntries.filter((entry) => {
+        try {
+          return BigInt(entry.snapshotBalance) <= maxEligibleRaw;
+        } catch {
+          return false;
+        }
+      });
+  const wallets = eligibleLiveEntries.length
+    ? eligibleLiveEntries.map((entry, index) => {
         const balanceTickets = cardCountFromRawBalance(
           entry.snapshotBalance,
           status?.minHoldingTokens ?? "1000000",
@@ -277,7 +303,7 @@ export function BingoLiveHall({
         tickets,
         firstCard: entry.firstCard,
         };
-      })
+      }).filter((entry) => entry.tickets > 0)
     : entries.map((entry) => ({
         ...entry,
         tickets: ticketCount(entry.score, tokensPerCard, cardCap),
@@ -289,7 +315,7 @@ export function BingoLiveHall({
     : wallets;
   const effectiveSelectedWallet = selectedWallet || "";
   const selected = wallets.find((entry) => entry.wallet === effectiveSelectedWallet)
-    ?? matchingWallets[0]
+    ?? (normalizedQuery ? matchingWallets[0] : null)
     ?? null;
   const visibleCards = matchingWallets.slice(0, variant === "game" ? 120 : 72);
   const walletCardTotal = wallets.reduce((total, entry) => total + entry.tickets, 0);
@@ -373,18 +399,25 @@ export function BingoLiveHall({
 
         <article className="live-cage-column" aria-label="Bingo number cage">
           <div className={`live-cage-machine ${roundLive ? "is-spinning" : ""} ${currentBall ? "has-picked-ball" : ""}`} key={`cage-${currentBallKey}`}>
-            {cageBalls.map((ball) => (
-              <i
-                aria-hidden="true"
-                key={ball}
-                style={{
-                  "--ball-index": ball,
-                  "--ball-x": `${12 + ((ball * 37) % 76)}%`,
-                  "--ball-y": `${12 + ((ball * 53) % 76)}%`,
-                  "--ball-delay": `${-(ball % 17) / 5}s`,
-                } as CSSProperties}
-              />
-            ))}
+            {cageBalls.map((ball) => {
+              const seed = hashSeed(`cage-ball:${ball}`);
+              return (
+                <i
+                  aria-hidden="true"
+                  key={ball}
+                  style={{
+                    "--ball-index": ball,
+                    "--ball-x": `${14 + (seed % 72)}%`,
+                    "--ball-y": `${55 + ((seed >>> 8) % 31)}%`,
+                    "--ball-hop-x": `${-44 + ((seed >>> 14) % 88)}px`,
+                    "--ball-hop-y": `${-56 - ((seed >>> 20) % 62)}px`,
+                    "--ball-return-x": `${36 - ((seed >>> 5) % 72)}px`,
+                    "--ball-mid-y": `${-24 - ((seed >>> 11) % 28)}px`,
+                    "--ball-delay": `${-((seed >>> 18) % 17) / 5}s`,
+                  } as CSSProperties}
+                />
+              );
+            })}
             <span className="live-cage-pick-path" aria-hidden="true">
               {currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}
             </span>
@@ -412,11 +445,20 @@ export function BingoLiveHall({
                 ))
               : <small>The first call lands when the draw opens.</small>}
           </div>
+          <div className="live-hall-actions">
+            <strong>{roundLive ? `NEXT CALL · ${remaining > 0 ? formatClock(remaining) : "LIVE"}` : "EYES DOWN"}</strong>
+            <span>{roundLive ? "SPIN · LIVE" : "CAGE READY"}</span>
+            <a href="#wallet-board">FULL BOARD</a>
+          </div>
         </article>
 
         <article className="live-spectate-card">
           <label>
-            <span>SPECTATE A WALLET</span>
+            <span>TAKE A SEAT</span>
+            <strong>Find your book of cards</strong>
+            <small>Paste a wallet to open every card it brought into this game.</small>
+          </label>
+          <div className="spectate-search-row">
             <input
               value={query}
               onChange={(event) => {
@@ -425,7 +467,8 @@ export function BingoLiveHall({
               }}
               placeholder="Paste wallet address"
             />
-          </label>
+            <button type="button" onClick={() => setSelectedWallet(matchingWallets[0]?.wallet ?? "")}>FIND MY CARDS</button>
+          </div>
           {selected ? (
             <>
               <div className="spectate-card-meta">
@@ -460,7 +503,7 @@ export function BingoLiveHall({
         </article>
       </div>
 
-      <div className="wallet-card-wall">
+      <div className="wallet-card-wall" id="wallet-board">
         <header>
           <div><span>EVERY WALLET IN THE HALL</span><h3>{wallets.length ? `${wallets.length.toLocaleString()} BOOKS IN PLAY` : "YOUR PLACE ON THE BOARD"}</h3></div>
           <p>Pick a wallet. Open its book. Follow every call.</p>
@@ -502,10 +545,33 @@ export function BingoLiveHall({
         <div><span>STATUS</span><strong>{roundLive ? "DRAWING LIVE" : launchState === "prelaunch" ? "HALL OPENS AT LAUNCH" : "ENTRIES LOCKING"}</strong></div>
       </div>
 
-      <p className="live-hall-proof">{TICKER} eligibility and settled payouts come from the live protocol feed. No fake draws.</p>
-      <button className="broadcast-chat-button" type="button" onClick={() => setChatOpen((open) => !open)}>
-        LIVE CHAT
+      <button
+        className="live-hall-ca"
+        type="button"
+        onClick={async () => {
+          if (!CA) return;
+          await navigator.clipboard.writeText(CA);
+          setCaCopied(true);
+          window.setTimeout(() => setCaCopied(false), 1600);
+        }}
+      >
+        {CA ? caCopied ? "CA COPIED" : `CA · ${shortWallet(CA)}` : "CA · SOON"}
       </button>
+      <div className="hall-corner-controls">
+        <button className="live-rules-button" type="button" onClick={() => setRulesOpen((open) => !open)} aria-label="How Bingo works">?</button>
+        <button className="broadcast-chat-button" type="button" onClick={() => setChatOpen((open) => !open)}>CHAT</button>
+      </div>
+      {rulesOpen ? (
+        <aside className="live-rules-popover" aria-label="How Bingo works">
+          <header><span>HOW THE HALL WORKS</span><button type="button" onClick={() => setRulesOpen(false)} aria-label="Close rules">×</button></header>
+          <ol>
+            <li><b>HOLD.</b><span>Every complete {tokensPerCard.toLocaleString()} tokens prints one card.</span></li>
+            <li><b>EYES DOWN.</b><span>ALON calls verifiable numbers and every card marks itself.</span></li>
+            <li><b>FULL HOUSE.</b><span>The first complete card wins the funded SOL prize.</span></li>
+            <li><b>PAID.</b><span>The protocol settles directly to the winning wallet.</span></li>
+          </ol>
+        </aside>
+      ) : null}
       {chatOpen ? (
         <aside className="broadcast-chat-popover" aria-label="Live bingo chat">
           <header>
