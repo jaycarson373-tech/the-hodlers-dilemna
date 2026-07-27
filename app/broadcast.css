@@ -6107,3 +6107,94 @@ body {
     margin-top: 88px;
   }
 }
+
+/* Homepage Bingo authority: keep legacy broadcast colors from hiding live content. */
+.show-home .bingo-entry-table > div:not(:first-child) span {
+  color: var(--bingo-ink) !important;
+}
+
+.show-home .bingo-entry-table > div:not(:first-child) strong {
+  color: #078a55 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.show-home .broadcast-leaderboard,
+.show-home .broadcast-leaderboard header,
+.show-home .broadcast-leaderboard header > span,
+.show-home .broadcast-leaderboard header > h2,
+.show-home .broadcast-leaderboard header > p,
+.show-home .broadcast-leaderboard th,
+.show-home .broadcast-leaderboard td,
+.show-home .broadcast-no-ranking {
+  color: var(--bingo-ink) !important;
+}
+
+.show-home .broadcast-leaderboard header > span,
+.show-home .broadcast-leaderboard th {
+  color: #078a55 !important;
+}
+
+.show-home .broadcast-table-wrap td {
+  background: #fff !important;
+  border-bottom: 1px solid rgba(7, 68, 47, .18) !important;
+}
+
+.show-home .broadcast-table-wrap tbody tr:nth-child(even) td {
+  background: var(--bingo-mint) !important;
+}
+
+.show-home .broadcast-no-ranking {
+  border: 2px solid var(--bingo-line) !important;
+  background: var(--bingo-mint) !important;
+  font-weight: 850 !important;
+  opacity: 1 !important;
+}
+
+.show-home .roulette-spin {
+  gap: 6px !important;
+}
+
+.show-home .roulette-spin em {
+  color: #078a55 !important;
+  font: 850 .62rem/1.25 var(--terminal) !important;
+  font-style: normal !important;
+  letter-spacing: .08em !important;
+}
+
+.show-home .roulette-history-details {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.show-home .roulette-history-details span,
+.show-home .roulette-history-details strong,
+.show-home .roulette-history-details p {
+  color: var(--bingo-ink) !important;
+}
+
+.show-home .roulette-history-details span {
+  color: #078a55 !important;
+}
+
+@media (max-width: 760px) {
+  .show-home .roulette-history-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .show-home .bingo-entry-table b,
+  .show-home .bingo-entry-table span,
+  .show-home .bingo-entry-table strong {
+    padding: 16px 14px !important;
+    font-size: .9rem !important;
+  }
+
+  .show-home .bingo-entry-table b {
+    font-size: .62rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .show-home .roulette-history-details {
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -83,7 +83,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
             ) : (
               <span className="show-button show-button-green is-disabled">CA SOON</span>
             )}
-            <Link className="show-button show-button-red" href="/rules">HOW IT WORKS</Link>
+            <a className="show-button show-button-red" href="#how-it-works">HOW IT WORKS</a>
           </div>
         </div>
         <div className="bingo-hero-card-wrap">
@@ -154,7 +154,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bingo-banner.jpg" alt="Bingo Pump" width="1600" height="532" loading="lazy" />
       </div>
-      <footer className="show-footer"><ShowBrand /><span>Eyes down. Fees up.</span><Link href="/rules">How It Works</Link><Link href="/leaderboard">Winners</Link><LaunchFooterLinks /></footer>
+      <footer className="show-footer"><ShowBrand /><span>Eyes down. Fees up.</span><a href="#how-it-works">How It Works</a><Link href="/leaderboard">Winners</Link><LaunchFooterLinks /></footer>
     </main>
   );
 }

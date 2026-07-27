@@ -1,12 +1,5 @@
-import type { Metadata } from "next";
-import { DocsExperience } from "@/components/docs-experience";
-
-export const metadata: Metadata = {
-  title: "Documentation | On-Chain Bingo",
-  description: "The complete On-Chain Bingo rules, tickets, creator-fee pools, jackpot rounds, and payout documentation.",
-  alternates: { canonical: "/docs" },
-};
+import { redirect } from "next/navigation";
 
 export default function DocsPage() {
-  return <DocsExperience />;
+  redirect("/#how-it-works");
 }
