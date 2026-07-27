@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default function PlayPage() {
-  const launchState = process.env.LAUNCH_STATE === "live" ? "live" : "prelaunch";
+  const launchState = "live" as const;
   return (
     <main className="broadcast-page">
       <div className="broadcast-bulbs" aria-hidden="true" />

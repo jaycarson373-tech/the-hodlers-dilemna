@@ -5,7 +5,7 @@ import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
 import "./broadcast.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL;
+const siteUrl = SITE_URL;
 const title = "Bingo Pump — On-Chain Bingo";
 const description =
   "Live Solana bingo powered by creator fees. Every 1M tokens prints a card; every full house pays in SOL.";
