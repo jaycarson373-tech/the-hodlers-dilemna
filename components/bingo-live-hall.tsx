@@ -1,6 +1,5 @@
 "use client";
 
-import { useWalletConnection } from "@solana/react-hooks";
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useBingoFeed } from "@/components/use-bingo-feed";
 import { usePublicLeaderboard } from "@/components/use-public-leaderboard";
@@ -98,12 +97,14 @@ function CardFace({
   serverNumbers,
   calledNumbers = [],
   compact = false,
+  latestNumber,
 }: {
   wallet: string;
   cardIndex: number;
   serverNumbers?: number[];
   calledNumbers?: number[];
   compact?: boolean;
+  latestNumber?: number;
 }) {
   const fallbackNumbers = useMemo(() => cardNumbers(wallet, cardIndex), [cardIndex, wallet]);
   const numbers = serverNumbers?.map((number) => number === 0 ? "★" : number) ?? fallbackNumbers;
@@ -116,7 +117,11 @@ function CardFace({
       <div className="live-card-numbers">
         {numbers.map((number, index) => (
           <span
-            className={number === "★" ? "is-free" : called.has(Number(number)) ? "is-called" : ""}
+            className={[
+              number === "★" ? "is-free" : "",
+              called.has(Number(number)) ? "is-called" : "",
+              latestNumber === Number(number) ? "is-latest" : "",
+            ].filter(Boolean).join(" ")}
             key={`${number}-${index}`}
           >
             {number}
@@ -135,8 +140,6 @@ export function BingoLiveHall({
   launchState: "prelaunch" | "live";
   variant?: HallVariant;
 }) {
-  const { wallet } = useWalletConnection();
-  const connectedWallet = wallet?.account.address.toString();
   const { entries } = usePublicLeaderboard(120);
   const { events } = useBingoFeed(18);
   const [status, setStatus] = useState<ProtocolStatus | null>(null);
@@ -239,7 +242,7 @@ export function BingoLiveHall({
   const matchingWallets = normalizedQuery
     ? wallets.filter((entry) => entry.wallet.toLowerCase().includes(normalizedQuery))
     : wallets;
-  const effectiveSelectedWallet = selectedWallet || connectedWallet || "";
+  const effectiveSelectedWallet = selectedWallet || "";
   const selected = wallets.find((entry) => entry.wallet === effectiveSelectedWallet)
     ?? matchingWallets[0]
     ?? null;
@@ -260,6 +263,7 @@ export function BingoLiveHall({
     .filter((ball, index, list) => list.findIndex((item) => item.letter === ball.letter && item.number === ball.number) === index)
     .slice(0, 12);
   const currentBall = calledBalls.at(-1) ?? null;
+  const currentBallKey = currentBall ? `${currentBall.letter}-${currentBall.number}` : "waiting";
   const latestSettled = history.find((entry) => entry.status === "settled" || entry.status === "rolled_over");
   const winnerWallet = round?.winnerWallet ?? latestSettled?.winnerWallet ?? null;
   const roundLive = Boolean(status?.roundActive && remaining > 0);
@@ -299,8 +303,9 @@ export function BingoLiveHall({
       <div className="live-hall-stage">
         <article className="live-caller">
           <div className="live-call-bubble">
-            <span>{currentBall ? "Latest call" : roundLive ? "The cage is spinning…" : "Waiting for the caller…"}</span>
-            <strong>{currentBall ? `${currentBall.letter}-${currentBall.number}` : "EYES DOWN"}</strong>
+            <span>{currentBall ? "ALON CALLS" : roundLive ? "NEXT BALL" : "CALLER STANDBY"}</span>
+            <strong>{currentBall ? `${currentBall.letter}-${currentBall.number}` : roundLive ? "SPINNING" : "EYES DOWN"}</strong>
+            <em>{currentBall ? "Check your card." : "The next number is coming."}</em>
           </div>
           <div className={`live-caller-avatar ${roundLive ? "is-live" : ""}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -314,17 +319,24 @@ export function BingoLiveHall({
           <div className={`live-cage-machine ${roundLive ? "is-spinning" : ""}`}>
             <i /><i /><i /><i /><i /><i />
           </div>
-          <div className={`live-ball-chute ${currentBall ? "has-ball" : ""}`} aria-hidden="true">
+          <div className={`live-ball-chute ${currentBall ? "has-ball" : ""}`} aria-hidden="true" key={`chute-${currentBallKey}`}>
             <span>{currentBall ? `${currentBall.letter}-${currentBall.number}` : ""}</span>
           </div>
-          <div className={`live-current-ball ${currentBall ? "has-ball" : ""}`}>
+          <div className={`live-current-ball ${currentBall ? "has-ball" : ""}`} aria-live="polite" key={`ball-${currentBallKey}`}>
             <span>{currentBall?.letter ?? "•"}</span>
             <strong>{currentBall?.number ?? "—"}</strong>
           </div>
           <p>CALLED THIS GAME</p>
           <div className="live-called-numbers">
             {calledBalls.length
-              ? calledBalls.map((ball) => <span key={`${ball.letter}-${ball.number}`}>{ball.letter}{ball.number}</span>)
+              ? calledBalls.map((ball) => (
+                  <span
+                    className={ball.number === currentBall?.number ? "is-current" : ""}
+                    key={`${ball.letter}-${ball.number}`}
+                  >
+                    {ball.letter}-{ball.number}
+                  </span>
+                ))
               : <small>Real calls appear here.</small>}
           </div>
         </article>
@@ -352,6 +364,7 @@ export function BingoLiveHall({
                 cardIndex={selectedCard}
                 serverNumbers={serverCards[selected.wallet]?.[selectedCard] ?? selected.firstCard}
                 calledNumbers={round?.calledNumbers}
+                latestNumber={currentBall?.number}
               />
               {selected.tickets > 1 ? (
                 <div className="spectate-card-tabs" aria-label="Select wallet card">
@@ -397,6 +410,7 @@ export function BingoLiveHall({
                   cardIndex={0}
                   serverNumbers={entry.firstCard}
                   calledNumbers={round?.calledNumbers}
+                  latestNumber={currentBall?.number}
                 />
                 <span>{shortWallet(entry.wallet)}</span>
                 <strong>{entry.tickets} CARD{entry.tickets === 1 ? "" : "S"}</strong>
