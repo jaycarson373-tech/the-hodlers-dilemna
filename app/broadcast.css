@@ -1421,6 +1421,73 @@ body {
   transform: rotate(66deg) scaleX(.42);
 }
 
+.live-cage-axle {
+  position: absolute;
+  z-index: 5;
+  inset: 50% auto auto 50%;
+  width: 48px;
+  height: 48px;
+  border: 6px solid #dfffee;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #68f0a7, #17965d);
+  box-shadow: 0 5px 0 #041f16, inset 0 0 0 3px rgba(4,31,22,.16);
+  transform: translate(-50%, -50%);
+}
+
+.live-cage-crank {
+  position: absolute;
+  z-index: 1;
+  left: calc(100% + 4px);
+  top: 50%;
+  width: 76px;
+  height: 18px;
+  border: 5px solid var(--bingo-green);
+  border-left: 0;
+  border-radius: 0 999px 999px 0;
+  background: #dfffee;
+  box-shadow: 0 5px 0 #041f16;
+  transform: translateY(-50%);
+}
+
+.live-cage-crank::after {
+  position: absolute;
+  right: -24px;
+  top: -18px;
+  width: 31px;
+  height: 48px;
+  border: 5px solid var(--bingo-green);
+  border-radius: 999px;
+  background: linear-gradient(145deg, #75f6b1, #2dbc75);
+  box-shadow: 0 5px 0 #041f16;
+  content: "";
+}
+
+.live-cage-stand {
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: calc(100% - 8px);
+  width: 46%;
+  height: 82px;
+  border-right: 12px solid var(--bingo-green);
+  border-left: 12px solid var(--bingo-green);
+  transform: translateX(-50%) perspective(100px) rotateX(-7deg);
+}
+
+.live-cage-stand::after {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  width: 142%;
+  height: 26px;
+  border: 6px solid var(--bingo-green);
+  border-radius: 12px;
+  background: linear-gradient(#68f0a7, #29b86e);
+  box-shadow: 0 7px 0 #041f16;
+  content: "";
+  transform: translateX(-50%);
+}
+
 .live-cage-machine .live-cage-pick-path::before,
 .live-cage-machine .live-cage-pick-path::after {
   position: absolute;
@@ -1458,8 +1525,12 @@ body {
   height: clamp(14px, 1.9vw, 24px);
 }
 
-.live-cage-machine.is-spinning {
-  animation: bingoCageSpin 5.2s linear infinite;
+.live-cage-machine.is-spinning::before {
+  animation: bingoCageSpinThin 4.6s linear infinite;
+}
+
+.live-cage-machine.is-spinning::after {
+  animation: bingoCageSpinAngled 6.2s linear infinite reverse;
 }
 
 .live-cage-machine.has-picked-ball i {
@@ -1512,15 +1583,28 @@ body {
 
 .live-ball-chute {
   position: relative;
-  width: 172px;
-  height: 66px;
-  margin-top: 24px;
-  border: 4px solid rgba(85,223,149,.62);
-  border-radius: 999px;
-  background: rgba(4,31,22,.72);
+  width: 76px;
+  height: 82px;
+  margin-top: 102px;
+  border: 5px solid var(--bingo-green);
+  border-top: 0;
+  border-radius: 0 0 34px 34px;
+  background: rgba(223,255,238,.16);
   box-shadow: inset 0 0 0 2px rgba(255,255,255,.08), 0 7px 0 #041f16;
-  border-radius: 999px;
   pointer-events: none;
+}
+
+.live-ball-chute::before {
+  position: absolute;
+  left: 15px;
+  top: -31px;
+  width: 36px;
+  height: 34px;
+  border: 5px solid var(--bingo-green);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: rgba(223,255,238,.12);
+  content: "";
 }
 
 .live-ball-chute.has-ball {
@@ -1529,9 +1613,10 @@ body {
 
 .live-ball-chute span {
   position: absolute;
-  inset: 7px auto 7px 7px;
+  inset: auto 7px 7px;
   display: grid;
   width: 52px;
+  height: 52px;
   place-items: center;
   border: 5px solid var(--bingo-line);
   border-radius: 50%;
@@ -1997,6 +2082,15 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes bingoCageSpinThin {
+  to { transform: rotate(360deg) scaleX(.42); }
+}
+
+@keyframes bingoCageSpinAngled {
+  from { transform: rotate(66deg) scaleX(.42); }
+  to { transform: rotate(426deg) scaleX(.42); }
+}
+
 @keyframes bingoBallTumble {
   0%, 100% { transform: translate(-50%, -50%) translate3d(0,0,0) scale(1); }
   25% { transform: translate(-50%, -50%) translate3d(18px,-14px,0) scale(1.04); }
@@ -2195,7 +2289,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .live-caller-avatar.is-live,
-  .live-cage-machine.is-spinning {
+  .live-cage-machine.is-spinning::before,
+  .live-cage-machine.is-spinning::after {
     animation: none !important;
   }
 }
@@ -3412,6 +3507,22 @@ body {
     min-width: 52px !important;
     max-width: 74px !important;
     font-size: .48rem !important;
+  }
+}
+
+/* Keep the mobile hall above the fold; navigation never reserves an empty row. */
+@media (max-width: 720px) {
+  .broadcast-page .broadcast-nav {
+    align-items: center !important;
+    min-height: 72px !important;
+    padding: 8px 12px !important;
+  }
+
+  .broadcast-page .broadcast-nav nav {
+    width: auto !important;
+    max-width: calc(100% - 58px) !important;
+    flex: 0 1 auto !important;
+    justify-content: flex-end !important;
   }
 }
 
@@ -4700,7 +4811,21 @@ body {
     width: min(250px, 68vw);
   }
 
+  .live-cage-crank {
+    width: 52px;
+  }
+
+  .live-cage-crank::after {
+    right: -20px;
+    width: 26px;
+  }
+
+  .live-cage-stand {
+    height: 68px;
+  }
+
   .live-ball-chute {
-    width: 150px;
+    width: 76px;
+    margin-top: 88px;
   }
 }

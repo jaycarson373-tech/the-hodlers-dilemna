@@ -51,7 +51,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         <div className="show-hero-copy">
           <p>OLD SCHOOL · ON-CHAIN · ON PUMP.FUN</p>
           <h1 id="show-home-title">EYES DOWN.<br /><em>FEES UP.</em></h1>
-          <span>The classic hall game rebuilt on Solana. Hold {TICKER} to get your cards — every 1,000,000 tokens is one entry. Numbers get drawn, wallets hit bingo, and creator fees become the prize.</span>
+          <span>Solana bingo with real stakes. Every 1,000,000 {TICKER} prints one card. ALON calls the numbers live. The winning wallet takes the creator-fee prize in SOL.</span>
           <div className="show-hero-actions">
             {PUMP_FUN_URL ? (
               <a className="show-button show-button-green" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">BUY {TICKER}</a>
@@ -74,11 +74,11 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
       <section className="bingo-how-section" id="how-it-works">
         <span>HOW IT WORKS</span>
         <h2>Three steps between<br />you and the pot.</h2>
-        <p>No paper tickets, no dusty community hall. Your wallet is your book of cards — the more {TICKER} you hold, the more cards you play.</p>
+        <p>Your wallet is your book of cards. Hold more {TICKER}, enter more cards, and watch every call land live.</p>
         <div>
-          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Buy and hold {TICKER}</h3><p>Every full 1,000,000 tokens gives your wallet one card in the next game.</p></article>
-          <article><b>◉</b><small>STEP 02 — THE CALLS</small><h3>The cage spins</h3><p>Numbers are called live and matched against every eligible wallet card automatically.</p></article>
-          <article><b>♛</b><small>STEP 03 — HOUSE</small><h3>Winner takes the fees</h3><p>The winning wallet receives the funded pot in SOL. No claim button.</p></article>
+          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Your bag prints the cards</h3><p>Every complete 1,000,000-token block enters one card in the next draw.</p></article>
+          <article><b>◉</b><small>STEP 02 — EYES DOWN</small><h3>ALON calls it live</h3><p>The cage spins, numbers drop, and every eligible card marks itself in real time.</p></article>
+          <article><b>♛</b><small>STEP 03 — FULL HOUSE</small><h3>Bingo pays in SOL</h3><p>The winning wallet receives the funded prize automatically. No claim screen.</p></article>
         </div>
       </section>
 
@@ -98,9 +98,9 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
           </div>
           <div className="bingo-copy-block">
             <h3>Simple maths, no small print.</h3>
-            <p>One entry per 1,000,000 {TICKER}. At the start of each game, your wallet balance prints your cards.</p>
-            <p>More tokens means more cards. More cards means more chances when the caller starts pulling numbers.</p>
-            <blockquote>No staking. No ticket claim. If you hold, you&apos;re in the hall.</blockquote>
+            <p>At the game snapshot, every complete 1,000,000 {TICKER} prints one live card, capped at 50 cards per eligible wallet.</p>
+            <p>More cards mean more ways to hit a full house when ALON starts calling.</p>
+            <blockquote>No staking. No manual entry. Hold the tokens and your cards take their seats.</blockquote>
           </div>
         </div>
       </section>
@@ -108,12 +108,12 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
       <section className="bingo-pot-section" id="the-pot">
         <span>THE POT</span>
         <h2>Creator fees in.<br />One winner out.</h2>
-        <p>Every funded game puts real creator fees on the live board. The winning wallet is paid directly in SOL.</p>
+        <p>Creator fees fund every draw. When a card hits, the protocol settles the prize directly to its wallet in SOL.</p>
         <div>
-          <article><strong>80%</strong><b>MAIN DRAW</b><p>Funds the live game prize.</p></article>
-          <article><strong>20%</strong><b>JACKPOT</b><p>Builds the bonus winner reserve.</p></article>
-          <article><strong>1M</strong><b>TOKENS PER CARD</b><p>More balance, more entries.</p></article>
-          <article><strong>1</strong><b>WINNER</b><p>The settled result is paid in SOL.</p></article>
+          <article><strong>80%</strong><b>MAIN DRAW</b><p>Goes into the live winner prize.</p></article>
+          <article><strong>20%</strong><b>JACKPOT</b><p>Builds the one-in-25 bonus reserve.</p></article>
+          <article><strong>1M</strong><b>TOKENS PER CARD</b><p>One more block. One more card.</p></article>
+          <article><strong>1</strong><b>WINNER</b><p>One full house. One automatic SOL payout.</p></article>
         </div>
       </section>
 
@@ -125,7 +125,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         <RoundHistoryBoard />
       </section>
 
-      <section className="show-final-call"><p>THE NEXT GAME IS FILLING.</p><h2>GOT YOUR<br />CARD?</h2><Link className="show-button show-button-green" href="/play">ENTER THE LIVE HALL</Link></section>
+      <section className="show-final-call"><p>THE CAGE NEVER STAYS QUIET.</p><h2>WILL YOUR<br />CARD HIT?</h2><Link className="show-button show-button-green" href="/play">WATCH THE NEXT DRAW</Link></section>
       <div className="bingo-brand-banner">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bingo-banner.jpg" alt="Bingo.fun" width="1600" height="532" loading="lazy" />
