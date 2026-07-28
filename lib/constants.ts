@@ -1,5 +1,5 @@
 export const TICKER = "$BINGO";
-export const CA = "68LxPxtNPPJx42bJkPMtxJ3Dbw8NFUwrNEP5zcc1pump";
+export const CA = "";
 export const SITE_URL = "https://www.bingopump.fun";
 export const PUMP_FUN_URL = CA ? `https://pump.fun/coin/${CA}` : "";
 export const DEXSCREENER_URL = CA ? `https://dexscreener.com/solana/${CA}` : "";

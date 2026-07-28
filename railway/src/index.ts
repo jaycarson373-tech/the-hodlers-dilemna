@@ -2133,6 +2133,7 @@ app.get("/api/chat", async (_req, res, next) => {
       .from("feed_events")
       .select("id,title,detail,occurred_at")
       .eq("event_type", "CHAT_MESSAGE")
+      .neq("title", "Launch QA")
       .order("occurred_at", { ascending: false })
       .limit(40);
     if (error && isMissingSchemaObject(error)) return res.json([]);
