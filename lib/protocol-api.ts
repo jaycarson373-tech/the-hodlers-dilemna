@@ -40,6 +40,7 @@ export type ProtocolStatus = {
   currentRound?: string;
   availablePoolLamports?: string;
   roundLengthSeconds?: string;
+  intermissionSeconds?: number;
   decisionWindowSeconds?: string;
   cooperationThresholdBps?: number;
   boxAllocationBps?: number;

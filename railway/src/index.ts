@@ -63,6 +63,7 @@ const envSchema = z.object({
   AIRDROP_WALLET_ADDRESS: z.string().optional(),
   FEE_COLLECTION_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),
   ROUND_LENGTH_SECONDS: z.coerce.number().int().positive().default(900),
+  BINGO_INTERMISSION_SECONDS: z.coerce.number().int().min(0).max(3_600).default(60),
   BINGO_CALLS_PER_GAME: z.coerce.number().int().min(4).max(75).default(60),
   BINGO_JACKPOT_ODDS: z.coerce.number().int().min(1).max(10_000).default(25),
   DECISION_WINDOW_SECONDS: z.coerce.number().int().positive().default(900),
@@ -215,6 +216,7 @@ type BingoConfig = {
   main_pool_lamports: number | string;
   jackpot_pool_lamports: number | string;
   game_length_seconds: number;
+  intermission_seconds: number;
   calls_per_game: number;
   jackpot_odds: number;
   next_game_at: string | null;
@@ -921,7 +923,7 @@ async function syncHolder(wallet: PublicKey) {
   };
 }
 
-async function ensureBingoConfig() {
+async function ensureBingoConfig(): Promise<BingoConfig> {
   const db = requireDb();
   if (!tokenMint) throw new Error("TOKEN_MINT is not configured.");
   const { data, error } = await db
@@ -935,43 +937,66 @@ async function ensureBingoConfig() {
     token_mint: tokenMint.toBase58(),
     cluster: clusterName,
     game_length_seconds: env.ROUND_LENGTH_SECONDS,
+    intermission_seconds: env.BINGO_INTERMISSION_SECONDS,
     calls_per_game: env.BINGO_CALLS_PER_GAME,
     jackpot_odds: env.BINGO_JACKPOT_ODDS,
   };
   if (!data) {
-    const { data: created, error: createError } = await db
+    const createPayload = {
+      id: true,
+      ...desired,
+      current_game: "0",
+      main_pool_lamports: "0",
+      jackpot_pool_lamports: "0",
+      next_game_at: addSeconds(new Date(), env.BINGO_INTERMISSION_SECONDS),
+      game_active: false,
+      paused: false,
+    };
+    let { data: created, error: createError } = await db
       .from("bingo_config")
-      .insert({
-        id: true,
-        ...desired,
-        current_game: "0",
-        main_pool_lamports: "0",
-        jackpot_pool_lamports: "0",
-        next_game_at: nowIso(),
-        game_active: false,
-        paused: false,
-      })
+      .insert(createPayload)
       .select("*")
       .single<BingoConfig>();
+    if (createError && isMissingSchemaObject(createError)) {
+      const { intermission_seconds: _intermission, ...legacyPayload } = createPayload;
+      ({ data: created, error: createError } = await db
+        .from("bingo_config")
+        .insert(legacyPayload)
+        .select("*")
+        .single<BingoConfig>());
+    }
     if (createError) throw createError;
-    return created;
+    if (!created) throw new Error("Bingo configuration could not be created.");
+    return { ...created, intermission_seconds: created.intermission_seconds ?? env.BINGO_INTERMISSION_SECONDS };
   }
 
   const needsUpdate = data.token_mint !== desired.token_mint
     || data.cluster !== desired.cluster
     || Number(data.game_length_seconds) !== desired.game_length_seconds
+    || Number(data.intermission_seconds) !== desired.intermission_seconds
     || Number(data.calls_per_game) !== desired.calls_per_game
     || Number(data.jackpot_odds) !== desired.jackpot_odds
     || !data.next_game_at;
-  if (!needsUpdate) return data;
-  const { data: updated, error: updateError } = await db
+  if (!needsUpdate) return { ...data, intermission_seconds: data.intermission_seconds ?? env.BINGO_INTERMISSION_SECONDS };
+  const updatePayload = { ...desired, next_game_at: data.next_game_at ?? nowIso(), updated_at: nowIso() };
+  let { data: updated, error: updateError } = await db
     .from("bingo_config")
-    .update({ ...desired, next_game_at: data.next_game_at ?? nowIso(), updated_at: nowIso() })
+    .update(updatePayload)
     .eq("id", true)
     .select("*")
     .single<BingoConfig>();
+  if (updateError && isMissingSchemaObject(updateError)) {
+    const { intermission_seconds: _intermission, ...legacyPayload } = updatePayload;
+    ({ data: updated, error: updateError } = await db
+      .from("bingo_config")
+      .update(legacyPayload)
+      .eq("id", true)
+      .select("*")
+      .single<BingoConfig>());
+  }
   if (updateError) throw updateError;
-  return updated;
+  if (!updated) throw new Error("Bingo configuration could not be updated.");
+  return { ...updated, intermission_seconds: updated.intermission_seconds ?? env.BINGO_INTERMISSION_SECONDS };
 }
 
 async function fetchCurrentBingoGame(config: BingoConfig) {
@@ -1263,6 +1288,14 @@ async function settleBingoGame(
   });
   if (finalizeError) throw finalizeError;
   if (!finalized) return;
+  const { error: intermissionError } = await db
+    .from("bingo_config")
+    .update({
+      next_game_at: addSeconds(new Date(), env.BINGO_INTERMISSION_SECONDS),
+      updated_at: nowIso(),
+    })
+    .eq("id", true);
+  if (intermissionError) throw intermissionError;
 
   if (winner) {
     await db.from("protocol_events").insert({
@@ -1778,6 +1811,7 @@ const readinessResponse = async () => {
     jackpotWallet: jackpotWalletAddress?.toBase58() ?? null,
     feeCollectionIntervalMs: env.FEE_COLLECTION_INTERVAL_MS,
     gameLengthSeconds: env.ROUND_LENGTH_SECONDS,
+    intermissionSeconds: env.BINGO_INTERMISSION_SECONDS,
     tokensPerCard: env.MIN_HOLDING_TOKENS,
     callsPerGame: env.BINGO_CALLS_PER_GAME,
     jackpotOdds: env.BINGO_JACKPOT_ODDS,
@@ -1849,6 +1883,7 @@ app.get("/api/status", async (_req, res, next) => {
       availablePoolLamports: trackedMainPool.toString(),
       jackpotPoolLamports: trackedJackpotPool.toString(),
       roundLengthSeconds: String(config.game_length_seconds),
+      intermissionSeconds: config.intermission_seconds,
       callsPerGame: config.calls_per_game,
       jackpotOdds: config.jackpot_odds,
       minHoldingTokens: env.MIN_HOLDING_TOKENS,

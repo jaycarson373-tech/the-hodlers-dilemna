@@ -1,6 +1,34 @@
 -- On-Chain Bingo launch reset.
--- Run this AFTER supabase/schema.sql to clear game data without changing schema.
--- The Railway worker recreates bingo_config from its TOKEN_MINT and timing env.
+-- Run once immediately before launch. This adds the one-minute game lobby,
+-- clears test data, and lets Railway recreate config from its launch env.
+
+alter table public.bingo_config
+  add column if not exists intermission_seconds integer not null default 60;
+
+alter table public.bingo_config
+  drop constraint if exists bingo_config_intermission_seconds_check;
+
+alter table public.bingo_config
+  add constraint bingo_config_intermission_seconds_check
+  check (intermission_seconds between 0 and 3600);
+
+create or replace function public.schedule_bingo_intermission()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if old.game_active and not new.game_active then
+    new.next_game_at := now() + make_interval(secs => greatest(new.intermission_seconds, 0));
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists schedule_bingo_intermission on public.bingo_config;
+create trigger schedule_bingo_intermission
+before update on public.bingo_config
+for each row execute function public.schedule_bingo_intermission();
 
 truncate table
   public.bingo_payouts,
