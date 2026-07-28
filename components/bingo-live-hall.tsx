@@ -238,7 +238,7 @@ export function BingoLiveHall({
   const refreshChat = useCallback(async () => {
     try {
       const messages = await protocolRequest<ChatMessage[]>("/api/chat");
-      setChatMessages(messages.filter((message) => message.title.trim().toLowerCase() !== "launch qa"));
+      setChatMessages(messages.filter((message) => (message.title ?? "").trim().toLowerCase() !== "launch qa"));
     } catch {
       // Chat is non-critical; keep the live hall running.
     }
