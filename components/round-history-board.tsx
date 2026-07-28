@@ -73,9 +73,9 @@ export function RoundHistoryBoard() {
   return (
     <section className="roulette-history-board" aria-labelledby="roulette-history-title">
       <header>
-        <span>PREVIOUS DRAWS / ON-CHAIN BINGO</span>
-        <h2 id="roulette-history-title">EVERY GAME GETS CALLED.</h2>
-        <p>Every settled draw leaves a receipt: calls made, card hit, wallet paid.</p>
+        <span>THE LEDGER / SETTLED DRAWS</span>
+        <h2 id="roulette-history-title">EVERY CALL LEAVES A RECEIPT.</h2>
+        <p>Numbers called. Card completed. Wallet paid. Permanently recorded.</p>
       </header>
 
       {visibleRounds.length ? (

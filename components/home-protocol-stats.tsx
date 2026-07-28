@@ -28,15 +28,15 @@ export function HomeProtocolStats() {
   return (
     <section className="home-protocol-stats" aria-label="Live protocol totals">
       <article>
-        <span>JACKPOT BALANCE</span>
+        <span>ROYAL JACKPOT</span>
         <strong>{lamportsToSol(stats.jackpotBalanceLamports)} SOL</strong>
       </article>
       <article>
-        <span>ROUNDS COMPLETED</span>
+        <span>DRAWS SETTLED</span>
         <strong>{stats.completedRounds.toLocaleString()}</strong>
       </article>
       <article>
-        <span>TOTAL PAID</span>
+        <span>SOL AWARDED</span>
         <strong>{lamportsToSol(stats.totalPaidLamports)} SOL</strong>
       </article>
     </section>

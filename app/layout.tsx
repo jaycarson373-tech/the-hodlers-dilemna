@@ -4,13 +4,14 @@ import { SolanaWalletProvider } from "@/components/solana-wallet-provider";
 import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
 import "./broadcast.css";
+import "./royal.css";
 
 const siteUrl = SITE_URL;
-const title = "Bingo Pump — On-Chain Bingo";
+const title = "Bingo Royale — The Blue Hall";
 const description =
-  "Live Solana bingo powered by creator fees. Every 1M tokens prints a card; every full house pays in SOL.";
-const brandIcon = "/bingo-logo.jpg";
-const socialImage = `${siteUrl}/og.png`;
+  "Enter the Blue Hall. Every 2,000,000 tokens deals a live card; the first full house wins the funded SOL prize.";
+const brandIcon = "/royal-bingo-mark.png";
+const socialImage = `${siteUrl}/royal-bingo-banner.png`;
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   display: "swap",
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: brandIcon, type: "image/jpeg" },
+      { url: brandIcon, type: "image/png" },
     ],
     shortcut: brandIcon,
     apple: brandIcon,
@@ -40,10 +41,10 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: siteUrl,
-    siteName: "Bingo Pump",
+    siteName: "Bingo Royale",
     title,
     description,
-    images: [{ url: socialImage, width: 1200, height: 630, alt: title }],
+    images: [{ url: socialImage, width: 2172, height: 724, alt: title }],
   },
   twitter: {
     card: "summary_large_image",

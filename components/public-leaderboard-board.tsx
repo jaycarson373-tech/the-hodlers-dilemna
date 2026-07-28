@@ -10,9 +10,9 @@ export function PublicLeaderboardBoard({ limit = 25 }: { limit?: number }) {
   return (
     <section className="broadcast-leaderboard leaderboard-page-board" id="leaderboard">
       <header>
-        <span>LIVE BINGO RANKING</span>
-        <h2>TOP CARDS.</h2>
-        <p>Wallet · live cards · SOL paid · wins · jackpot hits</p>
+        <span>THE ROYAL TABLE</span>
+        <h2>BOOKS TO BEAT.</h2>
+        <p>Wallet · active cards · SOL won · full houses · jackpot hits</p>
       </header>
       {entries.length ? (
         <div className="broadcast-table-wrap">
@@ -42,7 +42,7 @@ export function PublicLeaderboardBoard({ limit = 25 }: { limit?: number }) {
           </table>
         </div>
       ) : (
-        <p className="broadcast-no-ranking">THE FIRST WINNER TAKES THE TOP LINE.</p>
+        <p className="broadcast-no-ranking">THE FIRST CROWN CLAIMS THE TOP LINE.</p>
       )}
     </section>
   );

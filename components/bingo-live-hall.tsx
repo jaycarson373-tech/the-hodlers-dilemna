@@ -281,11 +281,11 @@ export function BingoLiveHall({
     }
   };
 
-  const tokensPerCard = Math.max(1, Number(status?.minHoldingTokens ?? 1_000_000));
+  const tokensPerCard = Math.max(1, Number(status?.minHoldingTokens ?? 2_000_000));
   const cardCap = status?.tokenSupplyRaw
     ? cardCountFromRawBalance(
         (BigInt(status.tokenSupplyRaw) / 20n).toString(),
-        status.minHoldingTokens ?? "1000000",
+        status.minHoldingTokens ?? "2000000",
         status.tokenDecimals ?? 6,
         Number.MAX_SAFE_INTEGER,
       )
@@ -310,7 +310,7 @@ export function BingoLiveHall({
     ? eligibleLiveEntries.map((entry, index) => {
         const balanceTickets = cardCountFromRawBalance(
           entry.snapshotBalance,
-          status?.minHoldingTokens ?? "1000000",
+          status?.minHoldingTokens ?? "2000000",
           status?.tokenDecimals ?? 6,
           cardCap,
         );

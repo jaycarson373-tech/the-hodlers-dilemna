@@ -2,13 +2,13 @@
 
 On-Chain Bingo (`$BINGO`) is a Solana bingo game where wallets become live cards.
 
-Every 1,000,000 tokens becomes one ticket on the board.
+Every 2,000,000 tokens becomes one card in the live hall.
 
 ## Game economy
 
 - Fast rounds run every 15 minutes by default.
 - Eligible wallets hold the configured minimum amount of `$BINGO`.
-- Every full 1,000,000 tokens becomes one live ticket.
+- Every full 2,000,000 tokens becomes one live card.
 - Creator fees split 80% to the main bingo pool and 20% to the jackpot pool.
 - The board draws a winning wallet card from eligible tickets.
 - Jackpot rounds can trigger a second bonus reveal after the normal winner.
@@ -67,7 +67,7 @@ BINGO_CALLS_PER_GAME=20
 BINGO_JACKPOT_ODDS=25
 MAIN_ALLOCATION_BPS=8000
 JACKPOT_ALLOCATION_BPS=2000
-MIN_HOLDING_TOKENS=1000000
+MIN_HOLDING_TOKENS=2000000
 ```
 
 `SWEEP_ENABLED` and `PAYOUT_ENABLED` both default to `false`. Every sweep and payout is audited before broadcast, and every transfer has a persistent idempotency key.
