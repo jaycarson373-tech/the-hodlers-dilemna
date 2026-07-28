@@ -75,7 +75,10 @@ const envSchema = z.object({
   AIRDROP_ALLOCATION_BPS: z.coerce.number().int().min(0).max(9_999).default(0),
   SWEEP_ENABLED: z.string().optional().transform((value) => value === "true").default(false),
   PAYOUT_ENABLED: z.string().optional().transform((value) => value === "true").default(false),
-  MIN_HOLDING_TOKENS: z.string().regex(/^\d+(\.\d+)?$/).default("2000000"),
+  MIN_HOLDING_TOKENS: z.string()
+    .regex(/^\d+(\.\d+)?$/)
+    .default("2000000")
+    .transform(() => "2000000"),
   TOKEN_MINT: z.string().optional(),
   INITIAL_ADMIN: z.string().optional(),
 });
