@@ -67,6 +67,12 @@ export type ProtocolStatus = {
   round?: ProtocolRound | null;
 };
 
+export type ProtocolStats = {
+  completedRounds: number;
+  totalPaidLamports: string;
+  jackpotBalanceLamports: string;
+};
+
 export type RoundHistoryEntry = {
   roundNumber: string;
   result: "LIVE" | "CLOSED" | "WINNER" | "ROLLOVER";
