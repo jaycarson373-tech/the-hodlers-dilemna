@@ -77,16 +77,17 @@ const hashSeed = (value: string) => {
 };
 
 const cageBalls = (() => {
-  const rowCounts = [11, 10, 9, 8, 7, 5];
+  const rowCounts = [11, 10, 10, 8, 7, 4];
   let number = 1;
 
   return rowCounts.flatMap((count, row) => (
     Array.from({ length: count }, (_, column) => {
       const seed = hashSeed(`cage-ball:${number}`);
-      const jitterX = ((seed >>> 6) % 7) / 10 - 0.3;
-      const jitterY = ((seed >>> 12) % 5) / 10 - 0.2;
-      const x = 50 + (column - (count - 1) / 2) * 6.8 + (row % 2 ? 1.7 : 0) + jitterX;
-      const y = 82 - row * 8.15 + jitterY;
+      const jitterX = ((seed >>> 5) % 31) / 10 - 1.5;
+      const jitterY = ((seed >>> 12) % 27) / 10 - 1.3;
+      const rowSlope = (column - (count - 1) / 2) * ((((seed >>> 19) % 5) - 2) / 18);
+      const x = 50 + (column - (count - 1) / 2) * 6.85 + (row % 2 ? 2.2 : -.8) + jitterX;
+      const y = 84 - row * 7.75 + jitterY + rowSlope;
       const ball = { number, seed, x, y, row };
       number += 1;
       return ball;
@@ -433,18 +434,50 @@ export function BingoLiveHall({
             <div className="live-cage-drum" aria-hidden="true">
             {cageBalls.map((ball) => {
               const { number, seed, x, y, row } = ball;
+              const launchX = -76 + ((seed >>> 2) % 153);
+              const launchY = -48 - ((seed >>> 9) % 72);
+              const apexX = -88 + ((seed >>> 15) % 177);
+              const apexY = -76 - ((seed >>> 22) % 78);
+              const crossX = -68 + ((seed >>> 7) % 137);
+              const crossY = -32 - ((seed >>> 17) % 66);
+              const impactX = -28 + ((seed >>> 4) % 57);
+              const reboundX = -22 + ((seed >>> 13) % 45);
+              const reboundY = -12 - ((seed >>> 24) % 25);
+              const spin = 540 + ((seed >>> 11) % 721);
               return (
                 <i
                   key={number}
+                  data-motion={seed % 4}
                   style={{
                     "--ball-index": number,
                     "--ball-x": `${x}%`,
                     "--ball-y": `${y}%`,
-                    "--ball-hop-x": `${-34 + ((seed >>> 14) % 68)}px`,
-                    "--ball-hop-y": `${-62 - ((seed >>> 20) % 70)}px`,
-                    "--ball-return-x": `${28 - ((seed >>> 5) % 56)}px`,
-                    "--ball-mid-y": `${-28 - ((seed >>> 11) % 42)}px`,
-                    "--ball-delay": `${-((seed >>> 18) % 17) / 5}s`,
+                    "--ball-launch-x": `${launchX}px`,
+                    "--ball-launch-y": `${launchY}px`,
+                    "--ball-launch-opposite-x": `${Math.round(launchX * -.78)}px`,
+                    "--ball-launch-short-y": `${Math.round(launchY * .72)}px`,
+                    "--ball-apex-x": `${apexX}px`,
+                    "--ball-apex-y": `${apexY}px`,
+                    "--ball-apex-opposite-x": `${Math.round(apexX * -.72)}px`,
+                    "--ball-cross-x": `${crossX}px`,
+                    "--ball-cross-y": `${crossY}px`,
+                    "--ball-impact-x": `${impactX}px`,
+                    "--ball-rebound-x": `${reboundX}px`,
+                    "--ball-rebound-y": `${reboundY}px`,
+                    "--ball-rebound-opposite-x": `${Math.round(reboundX * -.65)}px`,
+                    "--ball-rebound-short-y": `${Math.round(reboundY * .62)}px`,
+                    "--ball-spin-a": `${Math.round(spin * .24)}deg`,
+                    "--ball-spin-b": `${Math.round(spin * .5)}deg`,
+                    "--ball-spin-c": `${Math.round(spin * .78)}deg`,
+                    "--ball-spin-d": `${Math.round(spin * .9)}deg`,
+                    "--ball-spin-e": `${Math.round(spin * .96)}deg`,
+                    "--ball-spin-a-reverse": `${Math.round(spin * -.24)}deg`,
+                    "--ball-spin-b-reverse": `${Math.round(spin * -.5)}deg`,
+                    "--ball-spin-c-reverse": `${Math.round(spin * -.78)}deg`,
+                    "--ball-spin-d-reverse": `${Math.round(spin * -.9)}deg`,
+                    "--ball-spin-e-reverse": `${Math.round(spin * -.96)}deg`,
+                    "--ball-duration": `${.82 + ((seed >>> 18) % 89) / 100}s`,
+                    "--ball-delay": `${-((seed >>> 10) % 241) / 100}s`,
                     "--ball-layer": row + 2,
                   } as CSSProperties}
                 >

@@ -3093,7 +3093,7 @@ body {
   overflow: hidden;
   position: absolute !important;
   top: var(--ball-y) !important;
-  transform: translate(-50%, -50%) !important;
+  transform: translate(-50%, -50%);
   width: 20px !important;
   z-index: var(--ball-layer) !important;
 }
@@ -6421,18 +6421,37 @@ body {
 }
 
 .broadcast-page .live-cage-machine.is-spinning .live-cage-drum {
-  animation: bingoLiveDrumRoll 1.35s ease-in-out infinite !important;
+  animation: bingoLiveDrumRoll 1.7s ease-in-out infinite !important;
   will-change: transform;
 }
 
 .broadcast-page .live-cage-machine.is-spinning .live-cage-drum i {
-  animation: bingoLiveBallTumble 1.08s cubic-bezier(.38, .03, .5, .98) infinite !important;
+  animation-duration: var(--ball-duration) !important;
   animation-delay: var(--ball-delay) !important;
-  will-change: transform;
+  animation-iteration-count: infinite !important;
+  animation-timing-function: linear !important;
+  transform-origin: 50% 50%;
+  will-change: transform, filter;
+}
+
+.broadcast-page .live-cage-machine.is-spinning .live-cage-drum i[data-motion="0"] {
+  animation-name: bingoLiveBallTumbleA !important;
+}
+
+.broadcast-page .live-cage-machine.is-spinning .live-cage-drum i[data-motion="1"] {
+  animation-name: bingoLiveBallTumbleB !important;
+}
+
+.broadcast-page .live-cage-machine.is-spinning .live-cage-drum i[data-motion="2"] {
+  animation-name: bingoLiveBallTumbleC !important;
+}
+
+.broadcast-page .live-cage-machine.is-spinning .live-cage-drum i[data-motion="3"] {
+  animation-name: bingoLiveBallTumbleD !important;
 }
 
 .broadcast-page .live-cage-machine.is-spinning .live-cage-crank::after {
-  animation: bingoLiveCrank 1.08s ease-in-out infinite;
+  animation: bingoLiveCrank .92s ease-in-out infinite;
   transform-origin: 50% 50%;
 }
 
@@ -6441,28 +6460,113 @@ body {
 }
 
 @keyframes bingoLiveDrumRoll {
-  0%, 100% { transform: rotate(-1.25deg) translateY(0); }
-  50% { transform: rotate(1.25deg) translateY(-2px); }
+  0%, 100% { transform: rotate(-1.6deg) translateY(0); }
+  31% { transform: rotate(.7deg) translateY(-1px); }
+  68% { transform: rotate(1.8deg) translateY(-2px); }
 }
 
-@keyframes bingoLiveBallTumble {
+@keyframes bingoLiveBallTumbleA {
   0%, 100% {
-    transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(1.03, .92);
+    animation-timing-function: cubic-bezier(.2, .72, .3, 1);
+    filter: brightness(.96);
+    transform: translate3d(-50%, -50%, 0) translate(0, 2px) rotate(0deg) scale(1.04, .9);
   }
-  12% {
-    transform: translate(-50%, -50%) translate(0, -8px) rotate(32deg) scale(.98, 1.03);
+  13% {
+    animation-timing-function: cubic-bezier(.16, .72, .22, 1);
+    filter: brightness(1.08);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-launch-x), var(--ball-launch-y)) rotate(var(--ball-spin-a)) scale(.98, 1.03);
+  }
+  34% {
+    animation-timing-function: cubic-bezier(.42, 0, .88, .42);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-apex-x), var(--ball-apex-y)) rotate(var(--ball-spin-b)) scale(1);
+  }
+  68% {
+    animation-timing-function: cubic-bezier(.2, .72, .3, 1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-impact-x), 5px) rotate(var(--ball-spin-c)) scale(1.08, .84);
+  }
+  80% {
+    animation-timing-function: cubic-bezier(.42, 0, .88, .42);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-rebound-x), var(--ball-rebound-y)) rotate(var(--ball-spin-d)) scale(.97, 1.02);
+  }
+}
+
+@keyframes bingoLiveBallTumbleB {
+  0%, 100% {
+    animation-timing-function: cubic-bezier(.14, .68, .24, 1);
+    transform: translate3d(-50%, -50%, 0) translate(0, 1px) rotate(0deg) scale(1.03, .92);
+  }
+  18% {
+    animation-timing-function: cubic-bezier(.16, .7, .2, 1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-cross-x), var(--ball-cross-y)) rotate(var(--ball-spin-a-reverse)) scale(.98, 1.02);
+  }
+  41% {
+    animation-timing-function: cubic-bezier(.45, 0, .88, .42);
+    filter: brightness(1.1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-apex-x), var(--ball-apex-y)) rotate(var(--ball-spin-b-reverse)) scale(1);
+  }
+  72% {
+    animation-timing-function: cubic-bezier(.2, .76, .28, 1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-impact-x), 7px) rotate(var(--ball-spin-c-reverse)) scale(1.09, .83);
+  }
+  84% {
+    animation-timing-function: cubic-bezier(.45, 0, .88, .42);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-rebound-x), var(--ball-rebound-y)) rotate(var(--ball-spin-d-reverse)) scale(.98, 1.02);
+  }
+}
+
+@keyframes bingoLiveBallTumbleC {
+  0%, 100% {
+    animation-timing-function: cubic-bezier(.18, .74, .24, 1);
+    transform: translate3d(-50%, -50%, 0) translate(0, 2px) rotate(0deg) scale(1.05, .89);
+  }
+  11% {
+    animation-timing-function: cubic-bezier(.16, .74, .22, 1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-rebound-x), var(--ball-rebound-y)) rotate(var(--ball-spin-a)) scale(.97, 1.03);
+  }
+  29% {
+    animation-timing-function: cubic-bezier(.4, 0, .86, .4);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-launch-x), var(--ball-launch-y)) rotate(var(--ball-spin-b)) scale(1);
+  }
+  57% {
+    animation-timing-function: cubic-bezier(.18, .7, .3, 1);
+    filter: brightness(1.08);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-cross-x), var(--ball-cross-y)) rotate(var(--ball-spin-c)) scale(1);
+  }
+  78% {
+    animation-timing-function: cubic-bezier(.22, .72, .32, 1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-impact-x), 6px) rotate(var(--ball-spin-d)) scale(1.08, .84);
+  }
+  88% {
+    animation-timing-function: cubic-bezier(.44, 0, .88, .42);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-rebound-opposite-x), var(--ball-rebound-short-y)) rotate(var(--ball-spin-e)) scale(.98, 1.01);
+  }
+}
+
+@keyframes bingoLiveBallTumbleD {
+  0%, 100% {
+    animation-timing-function: cubic-bezier(.18, .72, .28, 1);
+    transform: translate3d(-50%, -50%, 0) translate(0, 2px) rotate(0deg) scale(1.04, .9);
+  }
+  16% {
+    animation-timing-function: cubic-bezier(.16, .72, .2, 1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-launch-opposite-x), var(--ball-launch-short-y)) rotate(var(--ball-spin-a-reverse)) scale(.98, 1.03);
   }
   38% {
-    transform: translate(-50%, -50%) translate(var(--ball-hop-x), var(--ball-hop-y)) rotate(148deg) scale(1);
+    animation-timing-function: cubic-bezier(.42, 0, .86, .4);
+    filter: brightness(1.1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-apex-opposite-x), var(--ball-apex-y)) rotate(var(--ball-spin-b-reverse)) scale(1);
   }
-  62% {
-    transform: translate(-50%, -50%) translate(var(--ball-return-x), var(--ball-mid-y)) rotate(252deg) scale(1);
+  64% {
+    animation-timing-function: cubic-bezier(.2, .72, .3, 1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-cross-x), var(--ball-cross-y)) rotate(var(--ball-spin-c-reverse)) scale(1);
   }
-  86% {
-    transform: translate(-50%, -50%) translate(0, -3px) rotate(338deg) scale(.98, 1.02);
+  82% {
+    animation-timing-function: cubic-bezier(.18, .76, .28, 1);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-impact-x), 7px) rotate(var(--ball-spin-d-reverse)) scale(1.1, .82);
   }
-  94% {
-    transform: translate(-50%, -50%) translate(0, 2px) rotate(354deg) scale(1.04, .88);
+  91% {
+    animation-timing-function: cubic-bezier(.44, 0, .88, .42);
+    transform: translate3d(-50%, -50%, 0) translate(var(--ball-rebound-x), var(--ball-rebound-short-y)) rotate(var(--ball-spin-e-reverse)) scale(.98, 1.02);
   }
 }
 
