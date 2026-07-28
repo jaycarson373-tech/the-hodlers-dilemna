@@ -6538,18 +6538,24 @@ body {
 }
 
 .show-home .show-nav .launch-ca {
-  min-width: 112px !important;
-  max-width: 132px !important;
-  padding-inline: 12px !important;
+  width: 108px !important;
+  min-width: 108px !important;
+  max-width: 108px !important;
+  padding-inline: 8px !important;
+  overflow: hidden !important;
+  font-size: .6rem !important;
+  letter-spacing: .045em !important;
 }
 
 .show-home .show-nav .show-nav-buy {
   width: auto !important;
-  min-width: 164px !important;
-  padding: 0 18px !important;
+  min-width: 174px !important;
+  padding: 0 16px !important;
+  font-size: .66rem !important;
+  letter-spacing: .075em !important;
 }
 
-@media (max-width: 1120px) {
+@media (max-width: 1480px) {
   .show-home .show-nav nav > a:not(.launch-x):not(.show-nav-buy) {
     display: none !important;
   }
