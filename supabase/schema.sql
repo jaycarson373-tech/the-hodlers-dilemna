@@ -634,6 +634,7 @@ create table if not exists public.bingo_config (
   main_pool_lamports bigint not null default 0,
   jackpot_pool_lamports bigint not null default 0,
   game_length_seconds integer not null default 900,
+  intermission_seconds integer not null default 60,
   calls_per_game integer not null default 12,
   jackpot_odds integer not null default 25,
   next_game_at timestamptz,
@@ -641,6 +642,34 @@ create table if not exists public.bingo_config (
   paused boolean not null default false,
   updated_at timestamptz not null default now()
 );
+
+alter table public.bingo_config
+  add column if not exists intermission_seconds integer not null default 60;
+
+alter table public.bingo_config
+  drop constraint if exists bingo_config_intermission_seconds_check;
+
+alter table public.bingo_config
+  add constraint bingo_config_intermission_seconds_check
+  check (intermission_seconds between 0 and 3600);
+
+create or replace function public.schedule_bingo_intermission()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if old.game_active and not new.game_active then
+    new.next_game_at := now() + make_interval(secs => greatest(new.intermission_seconds, 0));
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists schedule_bingo_intermission on public.bingo_config;
+create trigger schedule_bingo_intermission
+before update on public.bingo_config
+for each row execute function public.schedule_bingo_intermission();
 
 create table if not exists public.bingo_games (
   game_number bigint primary key,
@@ -908,7 +937,7 @@ begin
       jackpot_pool_lamports = jackpot_pool_lamports
         + case when p_jackpot_triggered then 0 else game.jackpot_pot_lamports end,
       game_active = false,
-      next_game_at = now(),
+      next_game_at = now() + make_interval(secs => greatest(intermission_seconds, 0)),
       updated_at = now()
   where id = true;
 

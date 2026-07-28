@@ -53,8 +53,11 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
           <a href="#choice">Entries</a>
           <Link href="/play">Play Live</Link>
           <a href="#leaderboard">Winners</a>
-          <LaunchNavLinks forceCaSoon />
-          {PUMP_FUN_URL ? <a className="show-nav-buy" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">Buy {TICKER}</a> : null}
+          <LaunchNavLinks />
+          <Link className="show-nav-buy show-live-cta" href="/play">
+            <i aria-hidden="true" />
+            <span>LIVE · ENTER BINGO</span>
+          </Link>
         </nav>
       </header>
 
@@ -77,7 +80,10 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
             </div>
           </form>
           <div className="show-hero-actions">
-            <Link className="show-button show-button-green show-enter-bingo" href="/play">ENTER BINGO</Link>
+            <Link className="show-button show-button-green show-enter-bingo show-live-cta" href="/play">
+              <i aria-hidden="true" />
+              <span>LIVE · ENTER BINGO</span>
+            </Link>
             {PUMP_FUN_URL ? (
               <a className="show-button show-button-green" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">BUY {TICKER}</a>
             ) : (
@@ -92,7 +98,10 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
       </section>
 
       <div className="show-ticker" aria-hidden="true">
-        <div>1M TOKENS = 1 TICKET ★ CREATOR FEES FUND THE DRAW ★ 80% MAIN BOARD ★ 20% JACKPOT ★ EVERY ROUND REVEALS A CARD ★</div>
+        <div>
+          1,000,000 {TICKER} = 1 CARD ★ 80% WINNER POT ★ 20% JACKPOT ★ 1-IN-25 JACKPOT ROLL ★ WINNER TAKES THE FEES ★
+          1,000,000 {TICKER} = 1 CARD ★ 80% WINNER POT ★ 20% JACKPOT ★ 1-IN-25 JACKPOT ROLL ★ WINNER TAKES THE FEES ★
+        </div>
       </div>
 
       <section className="bingo-how-section" id="how-it-works">

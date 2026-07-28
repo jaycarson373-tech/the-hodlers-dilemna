@@ -345,6 +345,9 @@ export function BingoLiveHall({
   const remaining = round?.closesAt
     ? Math.max(0, Math.floor((new Date(round.closesAt).getTime() - now) / 1_000))
     : 0;
+  const lobbyRemaining = !status?.roundActive && status?.nextRoundAt
+    ? Math.max(0, Math.ceil((new Date(status.nextRoundAt).getTime() - now) / 1_000))
+    : 0;
   const pot = round?.potLamports ?? status?.availablePoolLamports ?? status?.boxWalletBalanceLamports;
   const allCalledBalls = (round?.calledNumbers?.length
     ? round.calledNumbers.map((number) => ({
@@ -393,7 +396,10 @@ export function BingoLiveHall({
 
       <div className="live-hall-stats" aria-label="Live bingo status">
         <div><span>GAME</span><strong>{gameLabel}</strong></div>
-        <div><span>TIME</span><strong>{roundLive ? remaining > 0 ? formatClock(remaining) : "LIVE" : "NEXT DRAW"}</strong></div>
+        <div>
+          <span>{roundLive ? "TIME" : "NEXT DRAW"}</span>
+          <strong>{roundLive ? remaining > 0 ? formatClock(remaining) : "LIVE" : lobbyRemaining > 0 ? formatClock(lobbyRemaining) : "LOCKING IN"}</strong>
+        </div>
         <div><span>LIVE POT</span><strong>{pot && Number(pot) > 0 ? `${lamportsToSol(pot)} SOL` : "POT BUILDING"}</strong></div>
         <div><span>WALLETS</span><strong>{wallets.length ? wallets.length.toLocaleString() : "—"}</strong></div>
         <div><span>CARDS</span><strong>{totalCards ? totalCards.toLocaleString() : "—"}</strong></div>
@@ -467,7 +473,7 @@ export function BingoLiveHall({
               : <small>The first call lands when the draw opens.</small>}
           </div>
           <div className="live-hall-actions">
-            <strong>{roundLive ? `NEXT CALL · ${remaining > 0 ? formatClock(remaining) : "LIVE"}` : "EYES DOWN"}</strong>
+            <strong>{roundLive ? `DRAW CLOSES · ${remaining > 0 ? formatClock(remaining) : "LIVE"}` : lobbyRemaining > 0 ? `NEXT DRAW · ${formatClock(lobbyRemaining)}` : "EYES DOWN"}</strong>
             <span>{roundLive ? "SPIN · LIVE" : "CAGE READY"}</span>
             <a href="#wallet-board">FULL BOARD</a>
           </div>
