@@ -1933,6 +1933,42 @@ app.get("/api/status", async (_req, res, next) => {
   } catch (error) { next(error); }
 });
 
+app.get("/api/bingo/stats", async (_req, res, next) => {
+  try {
+    const db = requireDb();
+    const config = await ensureBingoConfig();
+    const game = await fetchCurrentBingoGame(config);
+    const activeJackpot = game && ["open", "drawing"].includes(game.status)
+      ? bigintValue(game.jackpot_pot_lamports)
+      : 0n;
+    let completedRounds = 0;
+    let totalPaidLamports = 0n;
+    const batchSize = 1_000;
+
+    for (let offset = 0; ; offset += batchSize) {
+      const { data, error } = await db
+        .from("bingo_games")
+        .select("payout_lamports,jackpot_payout_lamports")
+        .not("settled_at", "is", null)
+        .order("game_number", { ascending: true })
+        .range(offset, offset + batchSize - 1);
+      if (error) throw error;
+      const rows = data ?? [];
+      completedRounds += rows.length;
+      for (const row of rows) {
+        totalPaidLamports += bigintValue(row.payout_lamports) + bigintValue(row.jackpot_payout_lamports);
+      }
+      if (rows.length < batchSize) break;
+    }
+
+    res.json({
+      completedRounds,
+      totalPaidLamports: totalPaidLamports.toString(),
+      jackpotBalanceLamports: (bigintValue(config.jackpot_pool_lamports) + activeJackpot).toString(),
+    });
+  } catch (error) { next(error); }
+});
+
 app.get("/api/leaderboard", async (_req, res, next) => {
   try {
     if (!supabase) return res.json([]);

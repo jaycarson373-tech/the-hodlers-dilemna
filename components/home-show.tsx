@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
+import { HomeProtocolStats } from "@/components/home-protocol-stats";
 import { LaunchFooterLinks, LaunchNavLinks } from "@/components/launch-links";
 import { PublicLeaderboardBoard } from "@/components/public-leaderboard-board";
 import { RoundHistoryBoard } from "@/components/round-history-board";
@@ -103,6 +104,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
           1,000,000 {TICKER} = 1 CARD ★ 80% WINNER POT ★ 20% JACKPOT ★ 1-IN-25 JACKPOT ROLL ★ WINNER TAKES THE FEES ★
         </div>
       </div>
+      <HomeProtocolStats />
 
       <section className="bingo-how-section" id="how-it-works">
         <span>HOW IT WORKS</span>
