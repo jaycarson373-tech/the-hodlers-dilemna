@@ -198,6 +198,7 @@ export function BingoLiveHall({
   const [chatName, setChatName] = useState("");
   const [chatDraft, setChatDraft] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const [chatStatus, setChatStatus] = useState<"idle" | "sent" | "error">("idle");
 
   const refresh = useCallback(async () => {
     if (launchState !== "live") return;
@@ -253,20 +254,27 @@ export function BingoLiveHall({
 
   const submitChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const name = chatName.trim();
+    const name = chatName.trim() || "Player";
     const message = chatDraft.trim();
-    if (!name || !message || chatBusy) return;
+    if (!message || chatBusy) return;
     setChatBusy(true);
+    setChatStatus("idle");
     try {
-      await protocolRequest<{ ok: true; message: ChatMessage }>("/api/chat", {
+      const response = await protocolRequest<{ ok: true; message: ChatMessage }>("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name, message }),
       });
+      setChatMessages((current) => (
+        current.some((item) => item.id === response.message.id)
+          ? current
+          : [...current, response.message].slice(-40)
+      ));
       setChatDraft("");
-      await refreshChat();
+      setChatStatus("sent");
+      window.setTimeout(() => setChatStatus("idle"), 1800);
     } catch {
-      // Preserve the draft so it can be retried.
+      setChatStatus("error");
     } finally {
       setChatBusy(false);
     }
@@ -614,9 +622,21 @@ export function BingoLiveHall({
             )) : <p><b>ALON</b><span>The hall is open. Eyes down for the first call.</span></p>}
           </div>
           <form onSubmit={submitChat}>
-            <input value={chatName} onChange={(event) => setChatName(event.target.value)} maxLength={24} placeholder="Name" aria-label="Chat name" />
-            <textarea value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} maxLength={160} placeholder="Say something in the hall" aria-label="Chat message" />
-            <button disabled={chatBusy || !chatName.trim() || !chatDraft.trim()} type="submit">{chatBusy ? "SENDING…" : "SEND"}</button>
+            <input value={chatName} onChange={(event) => setChatName(event.target.value)} maxLength={24} placeholder="Name (optional)" aria-label="Chat name" />
+            <textarea
+              value={chatDraft}
+              onChange={(event) => {
+                setChatDraft(event.target.value);
+                if (chatStatus !== "idle") setChatStatus("idle");
+              }}
+              maxLength={160}
+              placeholder="Say something in the hall"
+              aria-label="Chat message"
+            />
+            <button disabled={chatBusy || !chatDraft.trim()} type="submit">
+              {chatBusy ? "SENDING…" : chatStatus === "sent" ? "SENT ✓" : chatStatus === "error" ? "TRY AGAIN" : "SEND"}
+            </button>
+            {chatStatus === "error" ? <p className="broadcast-chat-error" role="alert">Message did not send. Try again.</p> : null}
           </form>
         </aside>
       ) : null}
