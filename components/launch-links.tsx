@@ -10,9 +10,11 @@ export function LaunchNavLinks({ forceCaSoon = false }: { forceCaSoon?: boolean 
   return (
     <>
       {xUrl ? <a className="launch-x" href={xUrl} target="_blank" rel="noreferrer">X</a> : null}
-      <span className="launch-ca" title={showCa ? CA : "Contract address coming soon"}>
-        {showCa ? `CA: ${CA.slice(0, 5)}...${CA.slice(-4)}` : "CA: SOON"}
-      </span>
+      {showCa ? (
+        <span className="launch-ca" title={CA}>
+          {`CA: ${CA.slice(0, 5)}...${CA.slice(-4)}`}
+        </span>
+      ) : null}
     </>
   );
 }

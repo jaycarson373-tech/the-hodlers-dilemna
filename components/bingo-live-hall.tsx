@@ -237,7 +237,8 @@ export function BingoLiveHall({
 
   const refreshChat = useCallback(async () => {
     try {
-      setChatMessages(await protocolRequest<ChatMessage[]>("/api/chat"));
+      const messages = await protocolRequest<ChatMessage[]>("/api/chat");
+      setChatMessages(messages.filter((message) => message.title.trim().toLowerCase() !== "launch qa"));
     } catch {
       // Chat is non-critical; keep the live hall running.
     }
@@ -580,18 +581,19 @@ export function BingoLiveHall({
         <div><span>STATUS</span><strong>{roundLive ? "DRAWING LIVE" : launchState === "prelaunch" ? "HALL OPENS AT LAUNCH" : "ENTRIES LOCKING"}</strong></div>
       </div>
 
-      <button
-        className="live-hall-ca"
-        type="button"
-        onClick={async () => {
-          if (!CA) return;
-          await navigator.clipboard.writeText(CA);
-          setCaCopied(true);
-          window.setTimeout(() => setCaCopied(false), 1600);
-        }}
-      >
-        {CA ? caCopied ? "CA COPIED" : `CA · ${shortWallet(CA)}` : "CA · SOON"}
-      </button>
+      {CA ? (
+        <button
+          className="live-hall-ca"
+          type="button"
+          onClick={async () => {
+            await navigator.clipboard.writeText(CA);
+            setCaCopied(true);
+            window.setTimeout(() => setCaCopied(false), 1600);
+          }}
+        >
+          {caCopied ? "CA COPIED" : `CA · ${shortWallet(CA)}`}
+        </button>
+      ) : null}
       <div className="hall-corner-controls">
         <button className="live-rules-button" type="button" onClick={() => setRulesOpen((open) => !open)} aria-label="How Bingo works">?</button>
         <button className="broadcast-chat-button" type="button" onClick={() => setChatOpen((open) => !open)}>CHAT</button>
@@ -600,7 +602,8 @@ export function BingoLiveHall({
         <aside className="live-rules-popover" aria-label="How Bingo works">
           <header><span>HOW THE HALL WORKS</span><button type="button" onClick={() => setRulesOpen(false)} aria-label="Close rules">×</button></header>
           <ol>
-            <li><b>HOLD.</b><span>Every complete {tokensPerCard.toLocaleString()} tokens prints one card.</span></li>
+            <li><b>HOLD.</b><span>Every complete {tokensPerCard.toLocaleString()} tokens prints one card at the opening snapshot.</span></li>
+            <li><b>SELLING.</b><span>Sell before entries lock and you receive fewer cards. After the snapshot, active cards stay in that draw and your new balance applies next game.</span></li>
             <li><b>EYES DOWN.</b><span>ALON calls verifiable numbers and every card marks itself.</span></li>
             <li><b>FULL HOUSE.</b><span>The first complete card wins the funded SOL prize.</span></li>
             <li><b>PAID.</b><span>The protocol settles directly to the winning wallet.</span></li>

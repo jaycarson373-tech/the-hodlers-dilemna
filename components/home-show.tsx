@@ -87,9 +87,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
             </Link>
             {PUMP_FUN_URL ? (
               <a className="show-button show-button-green" href={PUMP_FUN_URL} target="_blank" rel="noreferrer">BUY {TICKER}</a>
-            ) : (
-              <span className="show-button show-button-green is-disabled">CA SOON</span>
-            )}
+            ) : null}
             <a className="show-button show-button-red" href="#how-it-works">HOW IT WORKS</a>
           </div>
         </div>
@@ -111,7 +109,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
         <h2>Three steps between<br />you and the pot.</h2>
         <p>Your wallet is your book of cards. Hold more {TICKER}, enter more cards, and watch every call land live.</p>
         <div>
-          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Your bag prints the cards</h3><p>Every complete 1,000,000-token block enters one card in the next draw.</p></article>
+          <article><b>▣</b><small>STEP 01 — HOLD</small><h3>Your bag prints the cards</h3><p>Every complete 1,000,000-token block enters one card. Entries lock from the opening snapshot.</p></article>
           <article><b>◉</b><small>STEP 02 — EYES DOWN</small><h3>ALON calls it live</h3><p>The cage spins, numbers drop, and every eligible card marks itself in real time.</p></article>
           <article><b>♛</b><small>STEP 03 — FULL HOUSE</small><h3>Bingo pays in SOL</h3><p>The winning wallet receives the funded prize automatically. No claim screen.</p></article>
         </div>
@@ -135,7 +133,7 @@ export function HomeShow({ launchState }: { launchState: "prelaunch" | "live" })
             <h3>Simple maths, no small print.</h3>
             <p>At the game snapshot, every complete 1,000,000 {TICKER} prints one live card, capped at 50 cards per eligible wallet.</p>
             <p>More cards mean more ways to hit a full house when ALON starts calling.</p>
-            <blockquote>No staking. No manual entry. Hold the tokens and your cards take their seats.</blockquote>
+            <blockquote>Sell before entries lock and you receive fewer—or no—cards. Once the snapshot locks, your active cards stay in that draw; the new balance applies to the next game.</blockquote>
           </div>
         </div>
       </section>
